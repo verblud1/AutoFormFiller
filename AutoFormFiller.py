@@ -5,24 +5,138 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.core.os_manager import ChromeType
+import platform
+import os
+import sys
 from datetime import datetime, date
 import time
 
 class AutoFormFiller:
     def __init__(self):
-        # Автоматическая установка и настройка ChromeDriver
-        service = webdriver.chrome.service.Service(ChromeDriverManager().install())
-        self.driver = webdriver.Chrome(service=service)
-        self.wait = WebDriverWait(self.driver, 10)
+        self.driver = None
+        self.wait = None
         self.templates = self._setup_templates()
+        self._setup_driver()
         
+    def _detect_os(self):
+        """Определение операционной системы"""
+        system = platform.system().lower()
+        if system == "windows":
+            return "windows"
+        elif system == "linux":
+            # Проверка для RED OS (основана на RHEL)
+            if os.path.exists("/etc/redos-release"):
+                return "redos"
+            return "linux"
+        else:
+            return "unknown"
+    
+    def _detect_browsers(self):
+        """Определение доступных браузеров в системе"""
+        browsers = []
+        current_os = self._detect_os()
+        
+        if current_os == "windows":
+            import winreg
+            # Проверка Chrome
+            try:
+                with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe') as key:
+                    chrome_path = winreg.QueryValue(key, None)
+                    if os.path.exists(chrome_path):
+                        browsers.append(('chrome', 'Google Chrome', ChromeType.GOOGLE))
+            except: pass
+            
+            # Проверка Yandex
+            try:
+                with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\browser.exe') as key:
+                    yandex_path = winreg.QueryValue(key, None)
+                    if os.path.exists(yandex_path):
+                        browsers.append(('yandex', 'Yandex Browser', ChromeType.YANDEX))
+            except: pass
+            
+        elif current_os in ["linux", "redos"]:
+            # Проверка Chromium в Linux/RED OS
+            chromium_paths = [
+                '/usr/bin/chromium-browser',
+                '/usr/bin/chromium',
+                '/snap/bin/chromium'
+            ]
+            for path in chromium_paths:
+                if os.path.exists(path):
+                    browsers.append(('chromium', 'Chromium', ChromeType.CHROMIUM))
+                    break
+        
+        return browsers
+    
+    def _setup_driver(self):
+        """Настройка драйвера с автоматическим определением браузера"""
+        print("Определение доступных браузеров...")
+        browsers = self._detect_browsers()
+        
+        if not browsers:
+            print("❌ Не найдены поддерживаемые браузеры (Chrome, Yandex, Chromium)")
+            sys.exit(1)
+        
+        print("Найдены браузеры:")
+        for i, (browser_id, browser_name, chrome_type) in enumerate(browsers):
+            print(f"  {i+1}. {browser_name}")
+        
+        # Автовыбор первого найденного браузера
+        selected_browser = browsers[0]
+        print(f"🚀 Используется браузер: {selected_browser[1]}")
+        
+        try:
+            # Автоматическая установка и настройка драйвера
+            driver_path = ChromeDriverManager(chrome_type=selected_browser[2]).install()
+            service = webdriver.chrome.service.Service(driver_path)
+            
+            # Настройки для разных ОС
+            options = webdriver.ChromeOptions()
+            
+            if self._detect_os() in ["linux", "redos"]:
+                options.add_argument('--no-sandbox')
+                options.add_argument('--disable-dev-shm-usage')
+                options.add_argument('--remote-debugging-port=9222')
+            
+            # Общие настройки
+            options.add_argument('--disable-blink-features=AutomationControlled')
+            options.add_experimental_option("excludeSwitches", ["enable-automation"])
+            options.add_experimental_option('useAutomationExtension', False)
+            
+            self.driver = webdriver.Chrome(service=service, options=options)
+            self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            
+            self.wait = WebDriverWait(self.driver, 15)
+            print(f"✅ Драйвер для {selected_browser[1]} успешно настроен")
+            
+        except Exception as e:
+            print(f"❌ Ошибка настройки драйвера: {e}")
+            # Попытка использовать следующий браузер
+            if len(browsers) > 1:
+                print("Попытка использовать следующий браузер...")
+                selected_browser = browsers[1]
+                try:
+                    driver_path = ChromeDriverManager(chrome_type=selected_browser[2]).install()
+                    service = webdriver.chrome.service.Service(driver_path)
+                    self.driver = webdriver.Chrome(service=service)
+                    self.wait = WebDriverWait(self.driver, 15)
+                    print(f"✅ Драйвер для {selected_browser[1]} успешно настроен")
+                except Exception as e2:
+                    print(f"❌ Критическая ошибка: {e2}")
+                    sys.exit(1)
+            else:
+                sys.exit(1)
+    
+
     def _setup_templates(self):
         """Настройка шаблонов текста"""
         return {
             'living': "Санитарные условия удовлетворительные, для детей имеется отдельное спальное место, место для занятий и отдыха. Продукты питания в достаточном количестве.",
             'category_family': "полная, многодетная"
         }
-    
+
+
     # ===== NEW METHODS FOR USER INPUT =====
     
     def get_children_education(self, children):
@@ -538,6 +652,19 @@ class AutoFormFiller:
 
 # Запуск программы
 if __name__ == "__main__":
-    print("Загрузка автоматизатора...")
-    filler = AutoFormFiller()
-    filler.run_automation()
+    print("=" * 60)
+    print("Автоматизатор форм - Загрузка...")
+    print(f"ОС: {platform.system()} {platform.release()}")
+    print("=" * 60)
+    
+    try:
+        filler = AutoFormFiller()
+        filler.run_automation()
+    except KeyboardInterrupt:
+        print("\n⏹️ Программа остановлена пользователем")
+    except Exception as e:
+        print(f"\n❌ Критическая ошибка: {e}")
+        print("Попробуйте переустановить драйверы: запустите install.bat заново")
+    finally:
+        if 'filler' in locals() and filler.driver:
+            filler.driver.quit()
