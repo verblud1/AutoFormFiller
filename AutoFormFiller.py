@@ -4,12 +4,15 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.keys import Keys 
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
+from webdriver_manager.chrome import ChromeDriverManager
 from datetime import datetime, date
 import time
 
 class AutoFormFiller:
     def __init__(self):
-        self.driver = webdriver.Chrome()
+        # Автоматическая установка и настройка ChromeDriver
+        service = webdriver.chrome.service.Service(ChromeDriverManager().install())
+        self.driver = webdriver.Chrome(service=service)
         self.wait = WebDriverWait(self.driver, 10)
         self.templates = self._setup_templates()
         
@@ -535,5 +538,6 @@ class AutoFormFiller:
 
 # Запуск программы
 if __name__ == "__main__":
+    print("Загрузка автоматизатора...")
     filler = AutoFormFiller()
     filler.run_automation()
