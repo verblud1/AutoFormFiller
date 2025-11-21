@@ -109,6 +109,35 @@ class AutoFormFiller:
                 print("Убедитесь, что открыта страница конкретного человека (матери/отца семейства)")
                 print("где отображается номер телефона и адрес")
 
+    def _initialize_connection(self):
+        """Инициализация подключения к базе данных с обработкой ошибок"""
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                print(f"🔗 Попытка подключения к базе данных ({attempt + 1}/{max_attempts})...")
+                self.driver.get("http://localhost:8080/aspnetkp/Common/FindInfo.aspx")
+                print("✅ Подключение успешно!")
+                return True
+                
+            except Exception as e:
+                if "ERR_CONNECTION_REFUSED" in str(e):
+                    print("❌ Не удалось подключиться к базе данных")
+                    print("🔌 Убедитесь, что база данных запущена и доступна по адресу http://localhost:8080")
+                    
+                    if attempt < max_attempts - 1:
+                        input("🔄 Запустите базу данных и нажмите Enter для повторной попытки...")
+                        # Перезапускаем драйвер для следующей попытки
+                        if self.driver:
+                            self.driver.quit()
+                        self._setup_driver()
+                    else:
+                        print("❌ Не удалось подключиться после нескольких попыток")
+                        return False
+                else:
+                    print(f"❌ Неизвестная ошибка: {e}")
+                    return False
+        return False
+
     # ===== УПРОЩЕННЫЕ МЕТОДЫ ВВОДА =====
     
     def get_family_info(self):
@@ -202,14 +231,20 @@ class AutoFormFiller:
         return adpi_data
     
     def _input_housing_info(self):
-        """Ввод информации о жилье"""
+        """Ввод информации о жилье с возможностью пропуска собственника"""
         print("\n🏠 ИНФОРМАЦИЯ О ЖИЛЬЕ")
         rooms = self._get_required_input("Количество комнат: ")
         square = self._get_required_input("Площадь (кв.м.): ")
         amenities = "со всеми удобствами" if self._get_yes_no_input("Со всеми удобствами? (д/н): ") == 'д' else "с частичными удобствами"
-        owner = self._get_required_input("Собственник: ")
         
-        return f"{rooms} комнат, {square} кв.м., {amenities}, в собственности у {owner}"
+        # Собственник - теперь необязательное поле
+        print("Собственник (Enter - пропустить):")
+        owner = input("> ").strip()
+        
+        if owner:
+            return f"{rooms} комнат, {square} кв.м., {amenities}, в собственности у {owner}"
+        else:
+            return f"{rooms} комнат, {square} кв.м., {amenities}"
 
     def _verify_and_edit_address(self, extracted_address):
         """Проверка и редактирование адреса"""
@@ -390,8 +425,12 @@ class AutoFormFiller:
     def run_automation(self):
         """Основной цикл автоматизации"""
         try:
-            # Переходим на начальную страницу и логинимся
-            self.driver.get("http://localhost:8080/aspnetkp/Common/FindInfo.aspx")
+            # Инициализация подключения к базе данных
+            if not self._initialize_connection():
+                print("❌ Не удалось подключиться к базе данных. Программа завершена.")
+                return
+            
+            # Логин в систему
             self._login()
             
             while True:
@@ -451,10 +490,6 @@ class AutoFormFiller:
         """Заполнение формы"""
         print("📝 Заполнение формы...")
         time.sleep(2)
-        # Чекбоксы
-        self._click_checkboxes(adpi_data['has_adpi'])
-        self._click_element(By.ID, "ctl00_cph_ctrlDopFields_AJSpr1_PopupDiv_ctl06_AJOk")
-        time.sleep(3)
         
         # Основные поля
         self._fill_textarea("ctl00$cph$tbAddInfo", add_info_text, resize=True)
@@ -464,7 +499,10 @@ class AutoFormFiller:
         # АДПИ
         self._fill_adpi_fields(adpi_data)
         
-        
+        # Чекбоксы
+        self._click_checkboxes(adpi_data['has_adpi'])
+        self._click_element(By.ID, "ctl00_cph_ctrlDopFields_AJSpr1_PopupDiv_ctl06_AJOk")
+        time.sleep(3)
         
         # Остальные поля
         fields = {
