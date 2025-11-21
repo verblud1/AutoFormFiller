@@ -95,6 +95,6 @@ echo Установка завершена успешно!
 echo ========================================
 echo Для запуска выполните:
 echo   venv\Scripts\activate
-echo   python auto_form_filler.py
+echo   python AutoFormFiller.py
 echo.
 pause
