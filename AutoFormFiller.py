@@ -11,6 +11,7 @@ import os
 import sys
 from datetime import datetime, date
 import time
+import re
 
 class AutoFormFiller:
     def __init__(self):
@@ -19,7 +20,7 @@ class AutoFormFiller:
         self._setup_driver()
         
     def _setup_driver(self):
-        """Настройка драйвера с автоопределением браузера"""
+        """Настройка драйвера с автоопределением браузера и полноэкранным режимом"""
         print("🔍 Определение браузера...")
         browser = self._detect_browser()
         
@@ -39,10 +40,13 @@ class AutoFormFiller:
                 options.add_argument('--disable-dev-shm-usage')
             
             options.add_argument('--disable-blink-features=AutomationControlled')
+            options.add_argument('--start-maximized')
             self.driver = webdriver.Chrome(service=service, options=options)
             self.wait = WebDriverWait(self.driver, 15)
             
-            print(f"✅ Драйвер настроен")
+            self.driver.maximize_window()
+            
+            print(f"✅ Драйвер настроен (полноэкранный режим)")
             
         except Exception as e:
             print(f"❌ Ошибка: {e}")
@@ -72,6 +76,35 @@ class AutoFormFiller:
                     return {'name': 'Chromium', 'type': ChromeType.CHROMIUM}
         
         return None
+
+    def _check_additional_info_empty(self):
+        """Проверка, что поле дополнительной информации пустое"""
+        try:
+            # Переходим на вкладку доп. информации
+            self._click_element(By.ID, "ctl00_cph_rptAllTabs_ctl10_tdTabL")
+            time.sleep(2)
+            
+            # Проверяем текст в поле
+            info_text = self._get_element_text("ctl00_cph_lblAddInfo2", "").strip()
+            
+            if info_text == "Информация отсутствует" or not info_text:
+                return True
+            else:
+                print(f"❌ Найдены существующие данные: {info_text}")
+                return False
+                
+        except Exception as e:
+            print(f"⚠️ Ошибка проверки поля: {e}")
+            return True
+
+    def _warn_existing_data(self):
+        """Предупреждение о существующих данных и запрос подтверждения"""
+        print("\n" + "!"*60)
+        print("⚠️  ВНИМАНИЕ: В разделе 'Дополнительная информация' уже есть данные!")
+        print("Все предыдущие данные будут УДАЛЕНЫ и заменены новыми.")
+        print("!"*60)
+        
+        return self._get_yes_no_input("Продолжить автоматизацию? (д/н): ")
 
     def _check_correct_page(self):
         """Проверка что мы на правильной странице по наличию поля телефона"""
@@ -126,7 +159,6 @@ class AutoFormFiller:
                     
                     if attempt < max_attempts - 1:
                         input("🔄 Запустите базу данных и нажмите Enter для повторной попытки...")
-                        # Перезапускаем драйвер для следующей попытки
                         if self.driver:
                             self.driver.quit()
                         self._setup_driver()
@@ -138,7 +170,7 @@ class AutoFormFiller:
                     return False
         return False
 
-    # ===== УПРОЩЕННЫЕ МЕТОДЫ ВВОДА =====
+    # ===== УЛУЧШЕННЫЕ МЕТОДЫ ВВОДА С ПРОВЕРКАМИ =====
     
     def get_family_info(self):
         """Получение всей информации о семье"""
@@ -147,6 +179,7 @@ class AutoFormFiller:
         print("="*50)
         
         family_data = self._input_family_members()
+        family_data['work_places'] = self._input_work_places(family_data)
         family_data['children'] = self._input_children_education(family_data['children'])
         family_data['incomes'] = self._input_income_info(family_data)
         family_data['adpi'] = self._input_adpi_info()
@@ -167,6 +200,10 @@ class AutoFormFiller:
             
             parts = line.split()
             if len(parts) >= 4:
+                if not self._validate_date(parts[3]):
+                    print(f"❌ Неверный формат даты: {parts[3]}. Используйте ДД.ММ.ГГГГ")
+                    continue
+                    
                 people.append({
                     'fio': f"{parts[0]} {parts[1]} {parts[2]}",
                     'birth_date': parts[3],
@@ -179,6 +216,23 @@ class AutoFormFiller:
         
         return self._categorize_family_members(people)
     
+    def _input_work_places(self, family_data):
+        """Ввод информации о местах работы родителей"""
+        print("\n💼 МЕСТА РАБОТЫ РОДИТЕЛЕЙ")
+        work_places = {}
+        
+        if family_data.get('mother'):
+            mother_work = input(f"Место работы матери ({family_data['mother']['fio']}): ").strip()
+            if mother_work:
+                work_places['mother'] = mother_work
+        
+        if family_data.get('father'):
+            father_work = input(f"Место работы отца ({family_data['father']['fio']}): ").strip()
+            if father_work:
+                work_places['father'] = father_work
+        
+        return work_places
+    
     def _input_children_education(self, children):
         """Ввод информации об образовании детей"""
         print("\n🎓 Место учебы детей (Enter - пропустить):")
@@ -187,7 +241,7 @@ class AutoFormFiller:
         return children
     
     def _input_income_info(self, family_data):
-        """Ввод информации о доходах с возможностью пропуска"""
+        """Ввод информации о доходах с проверкой чисел"""
         print("\n💰 ДОХОДЫ СЕМЬИ")
         print("Введите сумму или Enter для пропуска:")
         
@@ -203,48 +257,95 @@ class AutoFormFiller:
         ]
         
         for key, label in income_types:
-            # Пропускаем зарплату отца, если его нет
             if key == 'father_salary' and not family_data.get('father'):
                 continue
                 
-            value = input(f"  {label}: ").strip()
-            if value:
-                incomes[key] = value
+            while True:
+                value = input(f"  {label}: ").strip()
+                if not value:
+                    break
+                if self._validate_number(value):
+                    incomes[key] = value
+                    break
+                else:
+                    print("❌ Введите число (например: 15000 или 15000.50)")
         
         return incomes
     
     def _input_adpi_info(self):
-        """Ввод информации об АДПИ"""
+        """Ввод информации об АДПИ с улучшенной проверкой дат"""
         print("\n📟 ИНФОРМАЦИЯ ОБ АДПИ")
         has_adpi = self._get_yes_no_input("АДПИ установлен? (д/н): ")
         
         adpi_data = {'has_adpi': has_adpi}
         if has_adpi == 'д':
-            install_date = input("Дата установки (ДД.ММ.ГГГГ или Enter): ").strip()
-            if install_date and self._validate_date(install_date):
-                adpi_data['install_date'] = install_date
+            while True:
+                install_date = input("Дата установки АДПИ (ДД.ММ.ГГГГ или Enter для пропуска): ").strip()
+                if not install_date:
+                    break
+                if self._validate_date(install_date):
+                    adpi_data['install_date'] = install_date
+                    break
+                else:
+                    print("❌ Неверный формат даты. Используйте ДД.ММ.ГГГГ")
             
-            check_date = input("Дата проверки (ДД.ММ.ГГГГ или Enter): ").strip()
-            if check_date and self._validate_date(check_date):
-                adpi_data['check_date'] = check_date
+            while True:
+                check_date = input("Дата последней проверки АДПИ (ДД.ММ.ГГГГ или Enter для пропуска): ").strip()
+                if not check_date:
+                    break
+                if self._validate_date(check_date):
+                    adpi_data['check_date'] = check_date
+                    break
+                else:
+                    print("❌ Неверный формат даты. Используйте ДД.ММ.ГГГГ")
         
         return adpi_data
     
     def _input_housing_info(self):
-        """Ввод информации о жилье с возможностью пропуска собственника"""
+        """Ввод информации о жилье с проверкой чисел и уточнением о собственности"""
         print("\n🏠 ИНФОРМАЦИЯ О ЖИЛЬЕ")
-        rooms = self._get_required_input("Количество комнат: ")
-        square = self._get_required_input("Площадь (кв.м.): ")
-        amenities = "со всеми удобствами" if self._get_yes_no_input("Со всеми удобствами? (д/н): ") == 'д' else "с частичными удобствами"
         
-        # Собственник - теперь необязательное поле
-        print("Собственник (Enter - пропустить):")
+        while True:
+            rooms = input("Количество комнат: ").strip()
+            if rooms and self._validate_positive_number(rooms):
+                break
+            print("❌ Введите положительное число (например: 2, 3, 4)")
+        
+        while True:
+            square = input("Площадь (кв.м.): ").strip()
+            if square and self._validate_positive_number(square):
+                break
+            print("❌ Введите положительное число (например: 45.5, 60, 75.3)")
+        
+        amenities = self._get_amenities_input()
+        
+        print("\n🏠 В СОБСТВЕННОСТИ У:")
+        print("(Можно указать: ФИО собственника, 'долевая собственность', 'приобретено на маткапитал', 'муниципальная' и т.д.)")
+        print("Enter - пропустить")
         owner = input("> ").strip()
         
         if owner:
             return f"{rooms} комнат, {square} кв.м., {amenities}, в собственности у {owner}"
         else:
             return f"{rooms} комнат, {square} кв.м., {amenities}"
+    
+    def _get_amenities_input(self):
+        """Выбор варианта удобств с тремя опциями"""
+        print("\n🏠 УДОБСТВА В ЖИЛЬЕ:")
+        print("д - со всеми удобствами")
+        print("н - без удобств") 
+        print("ч - с частичными удобствами")
+        
+        while True:
+            choice = input("Выберите вариант (д/н/ч): ").strip().lower()
+            if choice == 'д':
+                return "со всеми удобствами"
+            elif choice == 'н':
+                return "без удобств"
+            elif choice == 'ч':
+                return "с частичными удобствами"
+            else:
+                print("❌ Введите 'д', 'н' или 'ч'")
 
     def _verify_and_edit_address(self, extracted_address):
         """Проверка и редактирование адреса"""
@@ -264,21 +365,26 @@ class AutoFormFiller:
             print("👁️  ПРОСМОТР ВСЕХ ДАННЫХ")
             print("="*60)
             
-            add_info_text, category, housing_info, adpi_data, incomes = data
+            add_info_text, category, housing_info, adpi_data, incomes, work_places = data
             
-            # Выводим все данные
             print("📋 ИНФОРМАЦИЯ О СЕМЬЕ:")
             print(add_info_text)
             
             print(f"\n🏷️  КАТЕГОРИЯ СЕМЬИ: {category}")
-            
             print(f"\n🏠 ИНФОРМАЦИЯ О ЖИЛЬЕ: {housing_info}")
-            
             print(f"\n📟 АДПИ: {'Установлен' if adpi_data['has_adpi'] == 'д' else 'Не установлен'}")
+            
             if adpi_data.get('install_date'):
                 print(f"   Дата установки: {adpi_data['install_date']}")
             if adpi_data.get('check_date'):
                 print(f"   Дата проверки: {adpi_data['check_date']}")
+            
+            if work_places:
+                print(f"\n💼 МЕСТА РАБОТЫ:")
+                if work_places.get('mother'):
+                    print(f"   Мать: {work_places['mother']}")
+                if work_places.get('father'):
+                    print(f"   Отец: {work_places['father']}")
             
             if incomes:
                 print(f"\n💰 ДОХОДЫ:")
@@ -301,6 +407,7 @@ class AutoFormFiller:
             print("3 - Изменить информацию о жилье")
             print("4 - Изменить информацию об АДПИ")
             print("5 - Изменить информацию о доходах")
+            print("6 - Изменить информацию о местах работы")
             print("0 - Отменить и выйти")
             
             choice = input("\nВаш выбор: ").strip()
@@ -309,13 +416,13 @@ class AutoFormFiller:
                 return data
             elif choice == '2':
                 new_family_data = self.get_family_info()
-                data = (new_family_data[0], new_family_data[1], housing_info, adpi_data, incomes)
+                data = (new_family_data[0], new_family_data[1], housing_info, adpi_data, incomes, work_places)
             elif choice == '3':
                 housing_info = self._input_housing_info()
-                data = (add_info_text, category, housing_info, adpi_data, incomes)
+                data = (add_info_text, category, housing_info, adpi_data, incomes, work_places)
             elif choice == '4':
                 adpi_data = self._input_adpi_info()
-                data = (add_info_text, category, housing_info, adpi_data, incomes)
+                data = (add_info_text, category, housing_info, adpi_data, incomes, work_places)
             elif choice == '5':
                 family_data = self._get_default_family_data()
                 if 'mother' in add_info_text:
@@ -323,30 +430,40 @@ class AutoFormFiller:
                 if 'Отец:' in add_info_text:
                     family_data['father'] = {'fio': 'Отец'}
                 incomes = self._input_income_info(family_data)
-                data = (add_info_text, category, housing_info, adpi_data, incomes)
+                data = (add_info_text, category, housing_info, adpi_data, incomes, work_places)
+            elif choice == '6':
+                family_data = self._get_default_family_data()
+                if 'mother' in add_info_text:
+                    family_data['mother'] = {'fio': 'Мать'}
+                if 'Отец:' in add_info_text:
+                    family_data['father'] = {'fio': 'Отец'}
+                work_places = self._input_work_places(family_data)
+                data = (add_info_text, category, housing_info, adpi_data, incomes, work_places)
             elif choice == '0':
                 return None
             else:
                 print("❌ Неверный выбор")
 
     def _format_family_data(self, data):
-        """Форматирование всех данных в финальный текст"""
+        """Форматирование всех данных в финальный текст с учетом мест работы"""
         lines = []
         
-        # Родители
-        mother_line = f"Мать: {data['mother']['fio']} {data['mother']['birth_date']}" if data.get('mother') else "Мать:"
-        lines.extend([mother_line, "Работает: "])
+        if data.get('mother'):
+            mother_work = data['work_places'].get('mother', '')
+            mother_line = f"Мать: {data['mother']['fio']} {data['mother']['birth_date']}"
+            lines.extend([mother_line, f"Работает: {mother_work}"])
+        else:
+            lines.extend(["Мать: ", "Работает: "])
         
         if data.get('father'):
-            lines.extend([f"Отец: {data['father']['fio']} {data['father']['birth_date']}", "Работает: "])
+            father_work = data['work_places'].get('father', '')
+            lines.extend([f"Отец: {data['father']['fio']} {data['father']['birth_date']}", f"Работает: {father_work}"])
         
-        # Дети
         lines.append("Дети:")
         for child in data['children']:
             edu = f" - {child['education']}" if child.get('education') else ""
             lines.append(f"    {child['fio']} {child['birth_date']}{edu}")
         
-        # Доходы (только указанные)
         if data['incomes']:
             lines.append("Доход:")
             income_labels = {
@@ -362,12 +479,11 @@ class AutoFormFiller:
             for key, value in data['incomes'].items():
                 lines.append(f"{income_labels[key]} - {value}")
         
-        # Категория семьи
         category = "полная, многодетная" if data.get('father') else "неполная, многодетная"
         
-        return "\n".join(lines), category, data['housing'], data['adpi'], data['incomes']
+        return "\n".join(lines), category, data['housing'], data['adpi'], data['incomes'], data['work_places']
 
-    # ===== УПРОЩЕННЫЕ ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ =====
+    # ===== УЛУЧШЕННЫЕ ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ С ПРОВЕРКАМИ =====
     
     def _categorize_family_members(self, people):
         """Разделение на родителей и детей"""
@@ -382,7 +498,6 @@ class AutoFormFiller:
             except ValueError:
                 children.append(person)
         
-        # Простое определение родителей (первый взрослый - мать, второй - отец)
         mother = parents[0] if parents else None
         father = parents[1] if len(parents) > 1 else None
         
@@ -394,8 +509,25 @@ class AutoFormFiller:
             'mother': None, 
             'father': None, 
             'children': [],
-            'incomes': {}
+            'incomes': {},
+            'work_places': {}
         }
+    
+    def _validate_number(self, value):
+        """Проверка что значение является числом (целым или дробным)"""
+        try:
+            float(value)
+            return True
+        except ValueError:
+            return False
+    
+    def _validate_positive_number(self, value):
+        """Проверка что значение является положительным числом"""
+        try:
+            num = float(value)
+            return num > 0
+        except ValueError:
+            return False
     
     def _get_required_input(self, prompt):
         """Получение обязательного ввода"""
@@ -417,8 +549,129 @@ class AutoFormFiller:
             datetime.strptime(date_string, '%d.%m.%Y')
             return True
         except ValueError:
-            print("❌ Неверный формат даты")
             return False
+
+    # ===== МЕТОДЫ ДЛЯ СОХРАНЕНИЯ И СКРИНШОТОВ =====
+    
+    def _final_verification(self):
+        """Финальная проверка перед сохранением"""
+        print("\n" + "="*60)
+        print("👁️  ФИНАЛЬНАЯ ПРОВЕРКА")
+        print("="*60)
+        print("Проверьте все введенные данные непосредственно на странице.")
+        print("Если нужно что-то исправить - сделайте это сейчас вручную.")
+        print("="*60)
+        input("Когда все проверено и исправлено, нажмите Enter для сохранения...")
+        return True
+    
+    def _save_and_exit(self):
+        """Сохранение данных и выход с ожиданием завершения"""
+        print("💾 Сохраняем данные...")
+        
+        # Нажимаем кнопку сохранения
+        success = self._click_element_with_retry(By.ID, "ctl00_cph_lbtnExitSave")
+        
+        if success:
+            print("⏳ Ожидаем завершения сохранения...")
+            time.sleep(5)  # Ждем завершения операции
+            
+            # Проверяем, что сохранение прошло успешно
+            try:
+                # Ждем исчезновения элементов загрузки или появления подтверждения
+                self.wait.until(EC.invisibility_of_element_located((By.ID, "ctl00_cph_lbtnExitSave")))
+                print("✅ Данные успешно сохранены!")
+                return True
+            except Exception as e:
+                print(f"⚠️ Сохранение завершено с предупреждением: {e}")
+                return True
+        else:
+            print("❌ Не удалось сохранить данные")
+            return False
+    
+    def _take_screenshot(self, family_data):
+        """Создание скриншота страницы"""
+        try:
+            # Получаем ФИО для имени файла
+            file_name = self._get_screenshot_filename(family_data)
+            if not file_name:
+                print("❌ Не удалось определить ФИО для скриншота")
+                return False
+            
+            # Получаем путь к папке screenshots
+            screenshots_dir = self._get_screenshots_directory()
+            if not screenshots_dir:
+                return False
+            
+            # Создаем полный путь к файлу
+            file_path = os.path.join(screenshots_dir, f"{file_name}.png")
+            
+            # Делаем скриншот только области страницы (без браузерных элементов)
+            self.driver.save_screenshot(file_path)
+            print(f"📸 Скриншот сохранен: {file_path}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Ошибка создания скриншота: {e}")
+            return False
+    
+    def _get_screenshot_filename(self, family_data):
+        """Получение имени файла для скриншота на основе ФИО"""
+        add_info_text, _, _, _, _, _ = family_data
+        
+        # Извлекаем ФИО матери из текста
+        lines = add_info_text.split('\n')
+        for line in lines:
+            if line.startswith('Мать: '):
+                # Извлекаем ФИО (убираем "Мать: " и дату рождения)
+                mother_info = line[6:]  # Убираем "Мать: "
+                # Убираем дату рождения (последние 10 символов - ДД.ММ.ГГГГ)
+                if len(mother_info) > 10:
+                    mother_name = mother_info[:-10].strip()
+                    # Заменяем пробелы и специальные символы
+                    safe_name = re.sub(r'[\\/*?:"<>|]', '_', mother_name)
+                    return safe_name if safe_name else "неизвестно"
+        
+        # Если матери нет, ищем отца
+        for line in lines:
+            if line.startswith('Отец: '):
+                father_info = line[6:]
+                if len(father_info) > 10:
+                    father_name = father_info[:-10].strip()
+                    safe_name = re.sub(r'[\\/*?:"<>|]', '_', father_name)
+                    return safe_name if safe_name else "неизвестно"
+        
+        return "неизвестно"
+    
+    def _get_screenshots_directory(self):
+        """Получение пути к папке для скриншотов"""
+        try:
+            # Определяем путь к рабочему столу в зависимости от ОС
+            if platform.system() == "Windows":
+                desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+            else:  # Linux/RED OS
+                desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+                # Если папки Desktop нет, используем домашнюю директорию
+                if not os.path.exists(desktop):
+                    desktop = os.path.expanduser("~")
+            
+            screenshots_dir = os.path.join(desktop, "database_screens")
+            
+            # Проверяем существование папки
+            if not os.path.exists(screenshots_dir):
+                print(f"❌ Папка для скриншотов не найдена: {screenshots_dir}")
+                print("Пожалуйста, создайте папку 'database_screens' на рабочем столе")
+                input("После создания папки нажмите Enter...")
+                
+                # Проверяем еще раз
+                if not os.path.exists(screenshots_dir):
+                    print("❌ Папка все еще не создана. Скриншот не будет сохранен.")
+                    return None
+            
+            return screenshots_dir
+            
+        except Exception as e:
+            print(f"❌ Ошибка определения пути: {e}")
+            return None
 
     # ===== ОСНОВНОЙ ЦИКЛ =====
     
@@ -432,6 +685,12 @@ class AutoFormFiller:
             
             # Логин в систему
             self._login()
+            
+            # Проверяем, нет ли уже данных в доп. информации
+            if not self._check_additional_info_empty():
+                if self._warn_existing_data() != 'д':
+                    print("❌ Автоматизация отменена пользователем")
+                    return
             
             while True:
                 # Получение всех данных от пользователя
@@ -454,11 +713,20 @@ class AutoFormFiller:
                 address = self._verify_and_edit_address(address)
                 
                 # Заполнение формы
-                add_info_text, category, housing_info, adpi_data, incomes = confirmed_data
+                add_info_text, category, housing_info, adpi_data, incomes, work_places = confirmed_data
                 self._fill_form(phone, address, housing_info, add_info_text, category, adpi_data)
                 
-                print("\n✅ Автоматизация завершена!")
-                if not self._ask_repeat(): break
+                # Финальная проверка и сохранение
+                if self._final_verification():
+                    if self._save_and_exit():
+                        # Создаем скриншот
+                        self._take_screenshot(confirmed_data)
+                        print("\n✅ Автоматизация завершена успешно!")
+                    else:
+                        print("\n⚠️ Автоматизация завершена с ошибками")
+                
+                if not self._ask_repeat(): 
+                    break
                     
         except Exception as e:
             print(f"❌ Ошибка: {e}")
@@ -490,7 +758,12 @@ class AutoFormFiller:
         """Заполнение формы"""
         print("📝 Заполнение формы...")
         time.sleep(2)
-        
+
+        # Чекбоксы с повторными попытками
+        self._click_checkboxes_with_retry(adpi_data['has_adpi'])
+        self._click_element_with_retry(By.ID, "ctl00_cph_ctrlDopFields_AJSpr1_PopupDiv_ctl06_AJOk")
+        time.sleep(3)
+
         # Основные поля
         self._fill_textarea("ctl00$cph$tbAddInfo", add_info_text, resize=True)
         if phone:
@@ -498,11 +771,6 @@ class AutoFormFiller:
         
         # АДПИ
         self._fill_adpi_fields(adpi_data)
-        
-        # Чекбоксы
-        self._click_checkboxes(adpi_data['has_adpi'])
-        self._click_element(By.ID, "ctl00_cph_ctrlDopFields_AJSpr1_PopupDiv_ctl06_AJOk")
-        time.sleep(3)
         
         # Остальные поля
         fields = {
@@ -518,7 +786,7 @@ class AutoFormFiller:
     def _fill_adpi_fields(self, adpi_data):
         """Заполнение полей АДПИ"""
         if adpi_data['has_adpi'] == 'д':
-            self._click_element(By.ID, "ctl00_cph_ctrlDopFields_gv_ctl03_rbl_0")
+            self._click_element_with_retry(By.ID, "ctl00_cph_ctrlDopFields_gv_ctl03_rbl_0")
             time.sleep(1)
             
             if adpi_data.get('install_date'):
@@ -528,10 +796,10 @@ class AutoFormFiller:
             if adpi_data.get('check_date'):
                 self._fill_date_field("igtxtctl00_cph_ctrlDopFields_gv_ctl07_wdte", adpi_data['check_date'])
         else:
-            self._click_element(By.ID, "ctl00_cph_ctrlDopFields_gv_ctl03_rbl_1")
+            self._click_element_with_retry(By.ID, "ctl00_cph_ctrlDopFields_gv_ctl03_rbl_1")
 
-    def _click_checkboxes(self, has_adpi):
-        """Отметка чекбоксов с учетом АДПИ"""
+    def _click_checkboxes_with_retry(self, has_adpi):
+        """Отметка чекбоксов с повторными попытками при ошибках"""
         print("✅ Отмечаем чекбоксы...")
         
         target_ids = [8, 12, 13, 14, 17, 18]
@@ -539,26 +807,47 @@ class AutoFormFiller:
             target_ids.extend([15, 16])
         
         for checkbox_id in target_ids:
-            self._click_checkbox(checkbox_id)
+            success = self._click_checkbox_with_retry(checkbox_id)
+            if not success:
+                print(f"⚠️ Не удалось отметить чекбокс {checkbox_id} после нескольких попыток")
 
-    def _click_checkbox(self, checkbox_id):
-        """Клик по чекбоксу"""
-        try:
-            checkbox = self.wait.until(
-                EC.element_to_be_clickable((By.ID, f"ctl00_cph_ctrlDopFields_AJSpr1_PopupDiv_divContent_AJ_{checkbox_id}"))
-            )
-            
-            self.driver.execute_script("arguments[0].scrollIntoView();", checkbox)
-            
-            if not checkbox.is_selected():
-                checkbox.click()
-            
-            self.wait.until(EC.staleness_of(checkbox))
-            return True
-            
-        except Exception as e:
-            print(f"⚠️ Ошибка чекбокса {checkbox_id}: {e}")
-            return False
+    def _click_checkbox_with_retry(self, checkbox_id, max_attempts=3):
+        """Клик по чекбоксу с повторными попытками"""
+        for attempt in range(max_attempts):
+            try:
+                checkbox = self.wait.until(
+                    EC.element_to_be_clickable((By.ID, f"ctl00_cph_ctrlDopFields_AJSpr1_PopupDiv_divContent_AJ_{checkbox_id}"))
+                )
+                
+                self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", checkbox)
+                
+                if not checkbox.is_selected():
+                    checkbox.click()
+                    print(f"✓ Чекбокс {checkbox_id} отмечен (попытка {attempt + 1})")
+                
+                self.wait.until(EC.staleness_of(checkbox))
+                return True
+                
+            except Exception as e:
+                print(f"⚠️ Ошибка чекбокса {checkbox_id} (попытка {attempt + 1}): {e}")
+                if attempt < max_attempts - 1:
+                    time.sleep(2)
+                    
+        return False
+
+    def _click_element_with_retry(self, by, selector, max_attempts=3):
+        """Клик по элементу с повторными попытками"""
+        for attempt in range(max_attempts):
+            try:
+                element = self.wait.until(EC.element_to_be_clickable((by, selector)))
+                element.click()
+                print(f"✓ Элемент {selector} кликнут (попытка {attempt + 1})")
+                return True
+            except Exception as e:
+                print(f"⚠️ Ошибка клика {selector} (попытка {attempt + 1}): {e}")
+                if attempt < max_attempts - 1:
+                    time.sleep(2)
+        return False
 
     # ===== БАЗОВЫЕ МЕТОДЫ Selenium =====
     
@@ -587,7 +876,6 @@ class AutoFormFiller:
             field.send_keys(Keys.CONTROL + "a")
             field.send_keys(Keys.DELETE)
             
-            # Ввод даты посимвольно с паузами
             actions = ActionChains(self.driver)
             for char in date_text:
                 actions.send_keys(char)
