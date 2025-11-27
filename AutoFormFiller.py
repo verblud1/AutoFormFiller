@@ -1,3 +1,7 @@
+# ускорить работу 
+# сделать возможность сохранения в json вместо базы данных и одновременного заполнения за один раз после запуска подстановки из  json
+# сделать автопечать на принтер
+
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
