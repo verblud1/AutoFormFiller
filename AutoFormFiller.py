@@ -1,6 +1,19 @@
 # ускорить работу 
 # сделать возможность сохранения в json вместо базы данных и одновременного заполнения за один раз после запуска подстановки из  json
 # сделать автопечать на принтер
+# убрать в опред случаях в собственности у
+# адпи в последнюю очередь
+# ожидание сохранения должно быть не более 2 сек
+# сделать массовое сохранение
+# сделать автоизвлечение даты адпи по ФИО из двух столбцов напротив фио и подтверждение
+# сделать автоизвлечение данных о составе семьи по ФИО и подтверждение
+# ускорение заполнения чекбоксов
+# ускорение заполнения  данных одновременное
+# возрасть родителей более 20+ лет
+# проверка на правильность нацденных родителей(если правильно, то продолжаем, если нет, меняем)
+# неккоректно добавляется отец
+# баг если не заполнить адпи
+# кв м расчет за счет комнат
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -80,6 +93,96 @@ class AutoFormFiller:
                     return {'name': 'Chromium', 'type': ChromeType.CHROMIUM}
         
         return None
+
+    def _bulk_click_checkboxes(self, checkbox_ids):
+        """Массовое нажатие чекбоксов через JavaScript"""
+        script = """
+        var ids = arguments[0];
+        for (var i = 0; i < ids.length; i++) {
+            var checkbox = document.getElementById('ctl00_cph_ctrlDopFields_AJSpr1_PopupDiv_divContent_AJ_' + ids[i]);
+            if (checkbox && !checkbox.checked) {
+                checkbox.click();
+            }
+        }
+        return ids.length;
+        """
+        
+        try:
+            clicked = self.driver.execute_script(script, checkbox_ids)
+            print(f"✅ Отмечено {clicked} чекбоксов")
+            return True
+        except Exception as e:
+            print(f"⚠️ Ошибка массового отметки: {e}")
+            return False
+
+    def _bulk_fill_fields(self, field_data):
+        """Массовое заполнение полей через JavaScript"""
+        script = """
+        var fields = arguments[0];
+        var results = [];
+        
+        for (var i = 0; i < fields.length; i++) {
+            var fieldInfo = fields[i];
+            var element;
+            
+            if (fieldInfo.by === 'name') {
+                element = document.querySelector('[name="' + fieldInfo.selector + '"]');
+            } else if (fieldInfo.by === 'id') {
+                element = document.getElementById(fieldInfo.selector);
+            }
+            
+            if (element) {
+                try {
+                    var oldValue = element.value;
+                    element.value = fieldInfo.value;
+                    
+                    // Триггерим события
+                    var events = ['change', 'input', 'blur'];
+                    for (var j = 0; j < events.length; j++) {
+                        element.dispatchEvent(new Event(events[j], { bubbles: true }));
+                    }
+                    
+                    results.push({
+                        selector: fieldInfo.selector,
+                        success: true,
+                        oldValue: oldValue,
+                        newValue: fieldInfo.value
+                    });
+                    
+                } catch (e) {
+                    results.push({
+                        selector: fieldInfo.selector,
+                        success: false,
+                        error: e.toString()
+                    });
+                }
+            } else {
+                results.push({
+                    selector: fieldInfo.selector,
+                    success: false,
+                    error: 'Element not found'
+                });
+            }
+        }
+        return results;
+        """
+        
+        try:
+            results = self.driver.execute_script(script, field_data)
+            
+            success_count = 0
+            for result in results:
+                if result['success']:
+                    success_count += 1
+                else:
+                    print(f"⚠️ Не удалось заполнить {result['selector']}: {result['error']}")
+            
+            print(f"✅ Заполнено {success_count}/{len(field_data)} полей")
+            return success_count == len(field_data)
+            
+        except Exception as e:
+            print(f"❌ Ошибка массового заполнения: {e}")
+            return False
 
     def _check_additional_info_empty(self):
         """Проверка, что поле дополнительной информации пустое"""
@@ -186,8 +289,8 @@ class AutoFormFiller:
         family_data['work_places'] = self._input_work_places(family_data)
         family_data['children'] = self._input_children_education(family_data['children'])
         family_data['incomes'] = self._input_income_info(family_data)
-        family_data['adpi'] = self._input_adpi_info()
         family_data['housing'] = self._input_housing_info()
+        family_data['adpi'] = self._input_adpi_info()  # АДПИ перенесен после жилья
         
         return self._format_family_data(family_data)
     
@@ -577,7 +680,7 @@ class AutoFormFiller:
         
         if success:
             print("⏳ Ожидаем завершения сохранения...")
-            time.sleep(5)  # Ждем завершения операции
+            time.sleep(2)  # Уменьшено до 2 секунд
             
             # Проверяем, что сохранение прошло успешно
             try:
@@ -759,48 +862,56 @@ class AutoFormFiller:
         return phone, address
     
     def _fill_form(self, phone, address, housing_info, add_info_text, category, adpi_data):
-        """Заполнение формы"""
+        """Заполнение формы с массовым вводом полей"""
         print("📝 Заполнение формы...")
         time.sleep(2)
 
-        # Чекбоксы с повторными попытками
-        self._click_checkboxes_with_retry(adpi_data['has_adpi'])
+        # 1. Сначала отмечаем все чекбоксы одновременно
+        checkbox_ids = [8, 12, 13, 14, 17, 18]
+        if adpi_data['has_adpi'] == 'д':
+            checkbox_ids.extend([15, 16])
+        
+        self._bulk_click_checkboxes(checkbox_ids)
         self._click_element_with_retry(By.ID, "ctl00_cph_ctrlDopFields_AJSpr1_PopupDiv_ctl06_AJOk")
-        time.sleep(3)
+        time.sleep(2)
 
-        # Основные поля
+        # 2. Заполняем текстовую область отдельно (она требует resize)
         self._fill_textarea("ctl00$cph$tbAddInfo", add_info_text, resize=True)
-        if phone:
-            self._fill_field(By.NAME, "ctl00$cph$ctrlDopFields$gv$ctl02$tb", phone)
         
-        # АДПИ
-        self._fill_adpi_fields(adpi_data)
+        # 3. Массовое заполнение всех остальных полей (кроме дат АДПИ)
+        field_data = [
+            {'by': 'name', 'selector': 'ctl00$cph$ctrlDopFields$gv$ctl02$tb', 'value': phone or ''},
+            {'by': 'name', 'selector': 'ctl00$cph$ctrlDopFields$gv$ctl04$tb', 'value': category},
+            {'by': 'name', 'selector': 'ctl00$cph$ctrlDopFields$gv$ctl05$tb', 'value': address},
+            {'by': 'name', 'selector': 'ctl00$cph$ctrlDopFields$gv$ctl08$tb', 'value': housing_info},
+            {'by': 'name', 'selector': 'ctl00$cph$ctrlDopFields$gv$ctl09$tb', 
+             'value': "Санитарные условия удовлетворительные, для детей имеется отдельное спальное место, место для занятий и отдыха. Продукты питания в достаточном количестве."}
+        ]
         
-        # Остальные поля
-        fields = {
-            "ctl00$cph$ctrlDopFields$gv$ctl04$tb": category,
-            "ctl00$cph$ctrlDopFields$gv$ctl05$tb": address,
-            "ctl00$cph$ctrlDopFields$gv$ctl08$tb": housing_info,
-            "ctl00$cph$ctrlDopFields$gv$ctl09$tb": "Санитарные условия удовлетворительные, для детей имеется отдельное спальное место, место для занятий и отдыха. Продукты питания в достаточном количестве."
-        }
+        self._bulk_fill_fields(field_data)
         
-        for field, text in fields.items():
-            self._fill_field(By.NAME, field, text)
+        # 4. Заполняем АДПИ: сначала радио-кнопку, потом даты
+        self._fill_adpi_radio_button(adpi_data)
+        
+        # 5. Заполняем даты АДПИ (если нужно)
+        if adpi_data['has_adpi'] == 'д':
+            self._fill_adpi_dates(adpi_data)
     
-    def _fill_adpi_fields(self, adpi_data):
-        """Заполнение полей АДПИ"""
+    def _fill_adpi_radio_button(self, adpi_data):
+        """Заполнение радио-кнопки АДПИ"""
         if adpi_data['has_adpi'] == 'д':
             self._click_element_with_retry(By.ID, "ctl00_cph_ctrlDopFields_gv_ctl03_rbl_0")
-            time.sleep(1)
-            
-            if adpi_data.get('install_date'):
-                self._fill_date_field("igtxtctl00_cph_ctrlDopFields_gv_ctl06_wdte", adpi_data['install_date'])
-                time.sleep(1)
-            
-            if adpi_data.get('check_date'):
-                self._fill_date_field("igtxtctl00_cph_ctrlDopFields_gv_ctl07_wdte", adpi_data['check_date'])
         else:
             self._click_element_with_retry(By.ID, "ctl00_cph_ctrlDopFields_gv_ctl03_rbl_1")
+    
+    def _fill_adpi_dates(self, adpi_data):
+        """Заполнение дат АДПИ"""
+        if adpi_data.get('install_date'):
+            self._fill_date_field("igtxtctl00_cph_ctrlDopFields_gv_ctl06_wdte", adpi_data['install_date'])
+            time.sleep(1)
+        
+        if adpi_data.get('check_date'):
+            self._fill_date_field("igtxtctl00_cph_ctrlDopFields_gv_ctl07_wdte", adpi_data['check_date'])
 
     def _click_checkboxes_with_retry(self, has_adpi):
         """Отметка чекбоксов с повторными попытками при ошибках"""
