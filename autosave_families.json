@@ -1,0 +1,90 @@
+[
+  {
+    "mother_fio": "Константинова Ольга Михайловна",
+    "mother_birth": "29.10.1990",
+    "mother_work": "ИП Миллионова",
+    "mother_disability_care": false,
+    "father_fio": "Константинов Роман Николаевич",
+    "father_birth": "23.05.1988",
+    "father_work": "ЧОП Держава",
+    "children": [
+      {
+        "fio": "Зорин Даниил Романович",
+        "birth": "03.07.2018",
+        "education": "СОШ 6"
+      },
+      {
+        "fio": "Зорин Богдан Романович",
+        "birth": "06.02.2020",
+        "education": "Детсад 30"
+      },
+      {
+        "fio": "Константинов Матвей Романович",
+        "birth": "13.11.2023",
+        "education": "Детсад 30"
+      },
+      {
+        "fio": "Зорин Кирилл Романович",
+        "birth": "18.05.2007",
+        "education": "ВВК"
+      },
+      {
+        "fio": "Константинов Александр Романович",
+        "birth": "18.06.2025",
+        "education": "домашний"
+      }
+    ],
+    "phone_number": "79190645177",
+    "address": "г. Вышний Волочек, ул. Ржевский Тракт,д.60",
+    "rooms": "3",
+    "square": "68",
+    "amenities": "со всеми удобствами",
+    "ownership": "мужу",
+    "adpi": "нет",
+    "unified_benefit": "68000",
+    "mother_salary": "10000",
+    "father_salary": "38000",
+    "large_family_benefit": "2700",
+    "unified_children_count": "4",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Корунова Екатерина Валерьевна",
+    "mother_birth": "01.04.1992",
+    "mother_work": "не работает",
+    "mother_disability_care": false,
+    "father_fio": "Корунов Максим Борисович",
+    "father_birth": "05.04.1989",
+    "father_work": "ИП Корунов",
+    "children": [
+      {
+        "fio": "Корунов Игорь Максимович",
+        "birth": "01.03.2015",
+        "education": "СОШ 19"
+      },
+      {
+        "fio": "Корунов Илья Максимович",
+        "birth": "25.03.2020",
+        "education": "Детсад 20"
+      },
+      {
+        "fio": "Корунов Кирилл Максимович",
+        "birth": "07.12.2022",
+        "education": "домашний"
+      }
+    ],
+    "phone_number": "79201964405",
+    "address": "г. Вышний Волочёк, ул. Полевая, д. 27",
+    "rooms": "2",
+    "square": "53",
+    "amenities": "со всеми удобствами",
+    "ownership": "мужу",
+    "adpi": "да",
+    "install_date": "13.01.2024",
+    "check_date": "13.01.2024",
+    "unified_benefit": "34000",
+    "father_salary": "20000",
+    "unified_children_count": "2",
+    "unified_percentage": "100%"
+  }
+]
