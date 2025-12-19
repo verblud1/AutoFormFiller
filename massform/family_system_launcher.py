@@ -44,6 +44,11 @@ class FamilySystemLauncher:
             "family_system_launcher.py"  # Этот файл
         ]
         
+        # В метод __init__ добавьте:
+        self.github_token = None
+        self.github_token_file = os.path.join(self.system_dir, ".github_token") if hasattr(self, 'system_dir') else None
+        self.load_github_token()
+
         # Проверяем установку
         self.is_installed = os.path.exists(self.system_dir)
         
@@ -212,6 +217,18 @@ class FamilySystemLauncher:
         )
         self.btn_install.pack(side="left", padx=5)
         
+          # В методе setup_ui() добавьте кнопку (после других кнопок):
+        self.btn_github = ctk.CTkButton(
+            buttons_frame,
+            text="🔄 ОБНОВИТЬ ЧЕРЕЗ GITHUB",
+            command=self.update_from_github,
+            height=50,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color="#6f42c1",
+            hover_color="#5a32a3"
+        )
+        self.btn_github.pack(fill="x", pady=10)
+    
         self.btn_update = ctk.CTkButton(
             manage_frame,
             text="🔄 ОБНОВИТЬ",
@@ -625,6 +642,248 @@ StartupNotify=true
             self.log_message(f"❌ Ошибка запуска: {str(e)}")
             messagebox.showerror("Ошибка", f"Не удалось запустить Массовый обработчик:\n{str(e)}")
     
+      
+
+    
+
+    # Добавьте эти методы в класс:
+    def load_github_token(self):
+        """Загружает токен GitHub из локального файла"""
+        if self.github_token_file and os.path.exists(self.github_token_file):
+            try:
+                with open(self.github_token_file, 'r', encoding='utf-8') as f:
+                    self.github_token = f.read().strip()
+                    if self.github_token:
+                        self.log_message("🔑 GitHub токен загружен из локального хранилища")
+            except:
+                self.github_token = None
+
+    def save_github_token(self, token):
+        """Сохраняет токен GitHub в локальный файл"""
+        if not self.github_token_file:
+            return False
+        try:
+            with open(self.github_token_file, 'w', encoding='utf-8') as f:
+                f.write(token.strip())
+            os.chmod(self.github_token_file, 0o600)  # Только для владельца
+            self.github_token = token.strip()
+            self.log_message("✅ GitHub токен сохранен локально")
+            return True
+        except Exception as e:
+            self.log_message(f"❌ Ошибка сохранения токена: {e}")
+            return False
+
+    def ask_github_token(self):
+        """Запрашивает токен GitHub у пользователя"""
+        dialog = ctk.CTkInputDialog(
+            text="Введите GitHub Personal Access Token (необязательно):\n\n"
+                "Без токена: 60 запросов в час\n"
+                "С токеном: 5000 запросов в час\n\n"
+                "Как получить токен:\n"
+                "1. GitHub → Settings → Developer settings\n"
+                "2. Personal access tokens → Tokens (classic)\n"
+                "3. Выберите scopes: repo (все)\n\n"
+                "Оставьте поле пустым для работы без токена:",
+            title="GitHub Token"
+        )
+        token = dialog.get_input()
+        
+        if token and token.strip():
+            if self.save_github_token(token):
+                return True
+        elif token == "":  # Пользователь явно нажал OK без токена
+            self.save_github_token("")  # Сохраняем пустой токен
+            return True
+        
+        return False
+
+    def update_from_github(self):
+        """Обновляет файлы системы из GitHub репозитория"""
+        try:
+            if not self.is_installed:
+                messagebox.showerror("Ошибка", "Сначала установите систему!")
+                return
+            
+            # Запрашиваем токен при первом обновлении
+            if self.github_token is None:
+                if not self.ask_github_token():
+                    self.log_message("⚠️ Обновление отменено пользователем")
+                    return
+            
+            self.log_message("🔄 Проверяю обновления на GitHub...")
+            
+            # Запускаем обновление в отдельном потоке
+            threading.Thread(target=self._github_update_thread, daemon=True).start()
+            
+        except Exception as e:
+            self.log_message(f"❌ Ошибка запуска обновления: {str(e)}")
+
+    def _github_update_thread(self):
+        """Поток для обновления из GitHub"""
+        try:
+            import requests
+            import hashlib
+            
+            repo_owner = "verblud1"
+            repo_name = "AutoFormFiller"
+            branch = "main"
+            
+            self.log_message(f"📡 Подключаюсь к репозиторию: {repo_owner}/{repo_name}")
+            
+            # Создаем сессию с токеном если есть
+            session = requests.Session()
+            if self.github_token:
+                session.headers.update({"Authorization": f"token {self.github_token}"})
+            
+            # Получаем информацию о репозитории
+            repo_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents"
+            
+            # Список файлов для обновления (исключая конфиги)
+            files_to_update = [
+                "json_family_creator.py",
+                "massform.py",
+                "database_client.sh",
+                "family_system_launcher.py"
+            ]
+            
+            updated_files = 0
+            skipped_files = 0
+            error_files = 0
+            
+            for filename in files_to_update:
+                try:
+                    # Получаем информацию о файле с GitHub
+                    file_url = f"{repo_url}/{filename}?ref={branch}"
+                    response = session.get(file_url, timeout=10)
+                    
+                    if response.status_code == 403 and "rate limit" in response.text.lower():
+                        self.log_message("⚠️ Достигнут лимит запросов GitHub. Попробуйте позже или используйте токен.")
+                        break
+                    
+                    if response.status_code != 200:
+                        self.log_message(f"⚠️ Файл {filename} не найден на GitHub")
+                        continue
+                    
+                    file_info = response.json()
+                    content_encoded = file_info.get("content", "")
+                    sha_github = file_info.get("sha", "")
+                    
+                    # Декодируем контент (base64)
+                    import base64
+                    content = base64.b64decode(content_encoded).decode('utf-8')
+                    
+                    # Путь к локальному файлу
+                    local_path = os.path.join(self.system_dir, filename)
+                    
+                    # Проверяем, существует ли локальный файл
+                    if os.path.exists(local_path):
+                        # Читаем локальный файл и вычисляем хэш
+                        with open(local_path, 'r', encoding='utf-8') as f:
+                            local_content = f.read()
+                        
+                        # Сравниваем хэши
+                        local_hash = hashlib.sha1(local_content.encode()).hexdigest()
+                        
+                        if local_hash == sha_github:
+                            self.log_message(f"✓ {filename} уже актуален")
+                            skipped_files += 1
+                            continue
+                    
+                    # Создаем резервную копию если файл существует
+                    if os.path.exists(local_path):
+                        backup_path = local_path + ".backup"
+                        shutil.copy2(local_path, backup_path)
+                    
+                    # Сохраняем новый файл
+                    with open(local_path, 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    
+                    # Делаем исполняемым если нужно
+                    if filename.endswith(".sh"):
+                        os.chmod(local_path, 0o755)
+                    
+                    self.log_message(f"✅ Обновлен: {filename}")
+                    updated_files += 1
+                    
+                    # Небольшая задержка между запросами
+                    import time
+                    time.sleep(0.5)
+                    
+                except Exception as e:
+                    self.log_message(f"❌ Ошибка обновления {filename}: {str(e)}")
+                    error_files += 1
+            
+            # Обновляем README если есть
+            self.update_readme_from_github(session, repo_url, branch)
+            
+            # Итоговый отчет
+            if updated_files > 0:
+                self.log_message(f"\n✨ Обновление завершено!")
+                self.log_message(f"📊 Обновлено файлов: {updated_files}")
+                self.log_message(f"📊 Пропущено (актуальны): {skipped_files}")
+                if error_files > 0:
+                    self.log_message(f"⚠️ С ошибками: {error_files}")
+                
+                # Предлагаем перезапустить лаунчер
+                self.app.after(100, lambda: self.show_restart_prompt())
+            else:
+                self.log_message("ℹ️ Все файлы уже актуальны. Обновлений не требуется.")
+                
+        except Exception as e:
+            self.log_message(f"❌ Ошибка обновления: {str(e)}")
+
+    def update_readme_from_github(self, session, repo_url, branch):
+        """Обновляет README файл если есть изменения"""
+        try:
+            readme_files = ["README.md", "README.txt", "readme.md"]
+            
+            for readme_file in readme_files:
+                file_url = f"{repo_url}/{readme_file}?ref={branch}"
+                response = session.get(file_url, timeout=5)
+                
+                if response.status_code == 200:
+                    file_info = response.json()
+                    content_encoded = file_info.get("content", "")
+                    
+                    import base64
+                    content = base64.b64decode(content_encoded).decode('utf-8')
+                    
+                    local_path = os.path.join(self.system_dir, "README_GITHUB.txt")
+                    with open(local_path, 'w', encoding='utf-8') as f:
+                        f.write(f"# ОБНОВЛЕНИЕ ИЗ GITHUB\n\n")
+                        f.write(f"Дата: {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}\n")
+                        f.write(f"Репо: https://github.com/verblud1/AutoFormFiller\n\n")
+                        f.write(content)
+                    
+                    self.log_message(f"📄 Обновлен файл README_GITHUB.txt")
+                    break
+                    
+        except:
+            pass  # Игнорируем ошибки с README
+
+    def show_restart_prompt(self):
+        """Показывает предложение перезапустить лаунчер"""
+        response = messagebox.askyesno(
+            "Обновление завершено",
+            f"Файлы успешно обновлены из GitHub!\n\n"
+            f"Для применения изменений требуется перезапуск лаунчера.\n\n"
+            f"Перезапустить сейчас?"
+        )
+        
+        if response:
+            # Перезапускаем лаунчер
+            python = sys.executable
+            script = os.path.join(self.system_dir, "family_system_launcher.py")
+            
+            # Запускаем новый процесс
+            if platform.system() == "Windows":
+                subprocess.Popen([python, script])
+            else:
+                subprocess.Popen(["python3", script])
+            
+            # Закрываем текущий
+            self.app.quit()
+
     def launch_database(self):
         """Запускает клиент базы данных"""
         try:
