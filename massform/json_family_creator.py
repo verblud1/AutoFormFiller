@@ -20,6 +20,9 @@ from openpyxl import load_workbook
 import numpy as np
 from dateutil import parser
 import traceback
+import subprocess
+import threading
+import platform
 
 class EnhancedJSONFamilyCreatorGUI:
     def __init__(self):
@@ -788,7 +791,7 @@ class EnhancedJSONFamilyCreatorGUI:
         father = None
         children = []
         
-        # Ищем мать (женский пол по отчеству)
+        # Основное лицо - всегда родитель
         main_person = register_data['main_person']
         
         # Проверка года рождения только для родителей
@@ -817,34 +820,50 @@ class EnhancedJSONFamilyCreatorGUI:
             except:
                 pass
         
+        # Определяем пол основного лица по отчеству
         if main_person['patronymic'].endswith(('на', 'вна', 'ична')):
             mother = main_person
         elif main_person['patronymic'].endswith(('ич', 'вич', 'ыч')):
             father = main_person
+        else:
+            # Если отчество неопределенное, предполагаем мать по умолчанию
+            mother = main_person
         
         # Анализируем членов семьи
         for member in register_data['family_members']:
             # Определяем пол по отчеству
             if member['patronymic'].endswith(('на', 'вна', 'ична')):
-                # Если это взрослая женщина и мать еще не определена
+                # Женский пол
                 if not mother and self.is_adult(member['birth_date']):
                     mother = member
-                elif not self.is_adult(member['birth_date']):
+                elif self.is_child(member['birth_date']):
+                    children.append(member)
+                elif mother and father and self.is_adult(member['birth_date']):
+                    # Если уже есть оба родителя, то это ребенок
                     children.append(member)
             elif member['patronymic'].endswith(('ич', 'вич', 'ыч')):
-                # Если это взрослый мужчина и отец еще не определен
+                # Мужской пол
                 if not father and self.is_adult(member['birth_date']):
                     father = member
-                elif not self.is_adult(member['birth_date']):
+                elif self.is_child(member['birth_date']):
+                    children.append(member)
+                elif mother and father and self.is_adult(member['birth_date']):
+                    # Если уже есть оба родителя, то это ребенок
                     children.append(member)
             else:
-                # Если отчество неопределенное, считаем ребенком если не взрослый
-                if not self.is_adult(member['birth_date']):
+                # Если отчество неопределенное
+                if self.is_child(member['birth_date']):
                     children.append(member)
+                elif not mother and not member['patronymic']:
+                    # Без отчества и без матери - предполагаем мать
+                    mother = member
         
-        # Если мать не определена, берем основное лицо
-        if not mother and main_person['patronymic'].endswith(('на', 'вна', 'ична')):
-            mother = main_person
+        # Если основное лицо было определено как мать, но у нас уже есть мать из членов семьи,
+        # то основное лицо становится отцом (если мужского пола)
+        if main_person == mother and mother in register_data['family_members']:
+            if main_person['patronymic'].endswith(('ич', 'вич', 'ыч')):
+                father = main_person
+                mother = None
         
         # Заполняем форму
         self.clear_form()
@@ -922,7 +941,25 @@ class EnhancedJSONFamilyCreatorGUI:
             today = datetime.now()
             age = today.year - dt.year - ((today.month, today.day) < (dt.month, dt.day))
             
-            return age >= 18
+            # Для родителя возраст должен быть от 16 до 65 лет
+            return 16 <= age <= 65
+        except:
+            return False
+    
+    def is_child(self, birth_date):
+        """Проверка, является ли человек ребенком"""
+        try:
+            if not birth_date:
+                return False
+            
+            # Парсим дату рождения
+            dt = datetime.strptime(birth_date, '%d.%m.%Y')
+            # Считаем возраст
+            today = datetime.now()
+            age = today.year - dt.year - ((today.month, today.day) < (dt.month, dt.day))
+            
+            # Ребенок - младше 25 лет (учитывая студентов)
+            return age < 25
         except:
             return False
     
@@ -1504,10 +1541,36 @@ class EnhancedJSONFamilyCreatorGUI:
         ctk.CTkButton(calculate_button_frame, text="🧮 Рассчитать пособие", 
                      command=self.calculate_unified_benefit, width=150).pack(side="left", padx=5)
         
-        # Пособие по многодетности
-        self.income_fields['large_family_benefit'] = self.create_income_field(
-            income_scrollframe, "Пособие по многодетности (руб.):", "large_family_benefit"
-        )
+        # Пособие по многодетности с чекбоксами
+        large_family_frame = ctk.CTkFrame(income_scrollframe)
+        large_family_frame.pack(fill="x", padx=5, pady=5)
+        
+        ctk.CTkLabel(large_family_frame, text="Пособие по многодетности (руб.):").pack(anchor="w", padx=5)
+        
+        # Фрейм для чекбоксов
+        large_family_checkboxes_frame = ctk.CTkFrame(large_family_frame, fg_color="transparent")
+        large_family_checkboxes_frame.pack(fill="x", padx=5, pady=2)
+        
+        # Чекбоксы для пособия по многодетности
+        self.large_family_benefit_var = ctk.StringVar(value="")
+        large_family_options = ["1900", "2700", "3500"]
+        
+        for option in large_family_options:
+            ctk.CTkRadioButton(large_family_checkboxes_frame, text=option, 
+                              variable=self.large_family_benefit_var, value=option,
+                              command=self.on_large_family_benefit_change).pack(side="left", padx=10)
+        
+        # Поле для ввода (на случай другого значения)
+        large_family_entry_frame = ctk.CTkFrame(large_family_frame, fg_color="transparent")
+        large_family_entry_frame.pack(fill="x", padx=5, pady=2)
+        
+        self.large_family_benefit_entry = ctk.CTkEntry(large_family_entry_frame, 
+                                                      placeholder_text="Или введите другую сумму")
+        self.large_family_benefit_entry.pack(side="left", fill="x", expand=True, padx=5)
+        
+        # Кнопка нуля
+        ctk.CTkButton(large_family_entry_frame, text="0", width=40,
+                     command=lambda: self.clear_large_family_benefit()).pack(side="left", padx=5)
         
         # Пенсия по потере кормильца
         self.income_fields['survivor_pension'] = self.create_income_field(
@@ -1550,6 +1613,18 @@ class EnhancedJSONFamilyCreatorGUI:
         
         ctk.CTkButton(clear_frame, text="🧹 Очистить все доходы", 
                      command=self.clear_all_incomes, fg_color="orange").pack()
+    
+    def on_large_family_benefit_change(self):
+        """Обработчик изменения чекбокса пособия по многодетности"""
+        selected_value = self.large_family_benefit_var.get()
+        if selected_value:
+            self.large_family_benefit_entry.delete(0, 'end')
+            self.large_family_benefit_entry.insert(0, selected_value)
+    
+    def clear_large_family_benefit(self):
+        """Очистка пособия по многодетности"""
+        self.large_family_benefit_var.set("")
+        self.large_family_benefit_entry.delete(0, 'end')
         
     def calculate_unified_benefit(self):
         """Автоподсчет единого пособия"""
@@ -1620,6 +1695,8 @@ class EnhancedJSONFamilyCreatorGUI:
             self.unified_benefit_entry.delete(0, 'end')
             self.unified_children_count.delete(0, 'end')
             self.unified_percentage_var.set("100%")
+            self.large_family_benefit_var.set("")
+            self.large_family_benefit_entry.delete(0, 'end')
             self.other_incomes_text.delete("1.0", "end")
                 
     def setup_adpi_tab(self):
@@ -1702,38 +1779,47 @@ class EnhancedJSONFamilyCreatorGUI:
         row1_frame.pack(fill="x", pady=5)
         
         ctk.CTkButton(row1_frame, text="📄 Просмотр текущей семьи", 
-                     command=self.preview_current_family, width=200).pack(side="left", padx=5)
+                    command=self.preview_current_family, width=200).pack(side="left", padx=5)
         ctk.CTkButton(row1_frame, text="➕ Добавить семью в список", 
-                     command=self.add_to_families_list, width=200).pack(side="left", padx=5)
+                    command=self.add_to_families_list, width=200).pack(side="left", padx=5)
         ctk.CTkButton(row1_frame, text="📋 Просмотр всего списка", 
-                     command=self.preview_all_families, width=200).pack(side="left", padx=5)
+                    command=self.preview_all_families, width=200).pack(side="left", padx=5)
         
         # Второй ряд кнопок
         row2_frame = ctk.CTkFrame(buttons_frame, fg_color="transparent")
         row2_frame.pack(fill="x", pady=5)
         
         ctk.CTkButton(row2_frame, text="💾 Сохранить в JSON", 
-                     command=self.save_to_json, width=200, fg_color="green").pack(side="left", padx=5)
+                    command=self.save_to_json, width=200, fg_color="green").pack(side="left", padx=5)
         ctk.CTkButton(row2_frame, text="📂 Загрузить JSON", 
-                     command=self.load_json, width=200).pack(side="left", padx=5)
+                    command=self.load_json, width=200).pack(side="left", padx=5)
         ctk.CTkButton(row2_frame, text="🔄 Загрузить семью из списка", 
-                     command=self.load_family_from_list, width=200).pack(side="left", padx=5)
+                    command=self.load_family_from_list, width=200).pack(side="left", padx=5)
         
         # Третий ряд кнопок
         row3_frame = ctk.CTkFrame(buttons_frame, fg_color="transparent")
         row3_frame.pack(fill="x", pady=5)
         
         ctk.CTkButton(row3_frame, text="🧹 Очистить форму", 
-                     command=self.clear_form, width=200, fg_color="orange").pack(side="left", padx=5)
+                    command=self.clear_form, width=200, fg_color="orange").pack(side="left", padx=5)
         ctk.CTkButton(row3_frame, text="🗑️ Удалить семью из списка", 
-                     command=self.delete_family_from_list, width=200, fg_color="red").pack(side="left", padx=5)
+                    command=self.delete_family_from_list, width=200, fg_color="red").pack(side="left", padx=5)
         
         # Четвертый ряд кнопок
         row4_frame = ctk.CTkFrame(buttons_frame, fg_color="transparent")
         row4_frame.pack(fill="x", pady=5)
         
         ctk.CTkButton(row4_frame, text="🗑️ Очистить список семей", 
-                     command=self.clear_families_list, width=200, fg_color="darkred").pack(side="left", padx=5)
+                    command=self.clear_families_list, width=200, fg_color="darkred").pack(side="left", padx=5)
+        
+        # Пятый ряд - НОВАЯ КНОПКА ДЛЯ БАЗЫ ДАННЫХ
+        row5_frame = ctk.CTkFrame(buttons_frame, fg_color="transparent")
+        row5_frame.pack(fill="x", pady=10)
+        
+        # Кнопка запуска базы данных и массового обработчика
+        ctk.CTkButton(row5_frame, text="🚀 Старт базы данных", 
+                    command=self.start_database_system, width=200, 
+                    fg_color="purple", hover_color="#6a0dad").pack(side="left", padx=5)
         
         # Информация о списке семей
         info_frame = ctk.CTkFrame(main_frame)
@@ -1742,6 +1828,80 @@ class EnhancedJSONFamilyCreatorGUI:
         self.families_info = ctk.CTkLabel(info_frame, text="Список семей пуст")
         self.families_info.pack()
     
+    def start_database_system(self):
+        """Запуск базы данных и массового обработчика"""
+        try:
+            import subprocess
+            import threading
+            import platform
+            
+            # Сохраняем данные перед запуском
+            if self.families:
+                self.autosave_families()
+            
+            # Определяем ОС
+            current_os = platform.system()
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            
+            def run_database():
+                """Запуск клиента базы данных"""
+                try:
+                    if current_os == "Linux" or current_os == "RedOS":
+                        # Для Linux/RedOS
+                        db_script = os.path.join(script_dir, "database_client.sh")
+                        if os.path.exists(db_script):
+                            # Делаем скрипт исполняемым
+                            os.chmod(db_script, 0o755)
+                            subprocess.Popen(["bash", db_script])
+                        else:
+                            messagebox.showerror("Ошибка", f"Файл database_client.sh не найден в {script_dir}")
+                    elif current_os == "Windows":
+                        # Для Windows
+                        db_script = os.path.join(script_dir, "database_client.bat")
+                        if os.path.exists(db_script):
+                            subprocess.Popen([db_script], shell=True)
+                        else:
+                            messagebox.showerror("Ошибка", f"Файл database_client.bat не найден в {script_dir}")
+                    else:
+                        messagebox.showwarning("Предупреждение", 
+                                            f"Операционная система {current_os} не поддерживается")
+                except Exception as e:
+                    messagebox.showerror("Ошибка", f"Не удалось запустить базу данных: {str(e)}")
+            
+            def run_mass_processor():
+                """Запуск массового обработчика"""
+                try:
+                    mass_processor_script = os.path.join(script_dir, "massform.py")
+                    if os.path.exists(mass_processor_script):
+                        if current_os == "Windows":
+                            subprocess.Popen([sys.executable, mass_processor_script])
+                        else:
+                            subprocess.Popen(["python3", mass_processor_script])
+                    else:
+                        messagebox.showerror("Ошибка", f"Файл massform.py не найден в {script_dir}")
+                except Exception as e:
+                    messagebox.showerror("Ошибка", f"Не удалось запустить массовый обработчик: {str(e)}")
+            
+            # Запускаем базу данных в отдельном потоке
+            db_thread = threading.Thread(target=run_database, daemon=True)
+            db_thread.start()
+            
+            # Даем время на запуск базы данных
+            self.log_message("⏳ Запускаю базу данных...")
+            time.sleep(3)
+            
+            # Запускаем массовый обработчик
+            self.log_message("🚀 Запускаю массовый обработчик...")
+            run_mass_processor()
+            
+            messagebox.showinfo("Успех", 
+                            "✅ База данных запущена\n"
+                            "📦 Массовый обработчик запущен\n\n"
+                            "Теперь вы можете работать с базой данных.")
+            
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Не удалось запустить систему: {str(e)}")
+        
     def validate_date(self, date_string):
         """Проверка корректности даты"""
         try:
@@ -1889,6 +2049,12 @@ class EnhancedJSONFamilyCreatorGUI:
         if unified_benefit and not self.validate_number(unified_benefit):
             errors.append("Единое пособие должно быть числом")
         
+        # Проверка пособия по многодетности
+        large_family_benefit = self.large_family_benefit_entry.get().strip()
+        large_family_benefit = self.clean_numeric_field(large_family_benefit)
+        if large_family_benefit and not self.validate_number(large_family_benefit):
+            errors.append("Пособие по многодетности должно быть числом")
+        
         # Проверка телефона
         phone = self.phone_entry.get().strip()
         phone = self.clean_phone(phone)
@@ -1973,6 +2139,11 @@ class EnhancedJSONFamilyCreatorGUI:
         unified_benefit = self.clean_numeric_field(self.unified_benefit_entry.get().strip())
         if unified_benefit:
             incomes['unified_benefit'] = unified_benefit
+        
+        # Пособие по многодетности (через чекбоксы)
+        large_family_benefit = self.clean_numeric_field(self.large_family_benefit_entry.get().strip())
+        if large_family_benefit:
+            incomes['large_family_benefit'] = large_family_benefit
         
         # Остальные доходы
         for key, entry in self.income_fields.items():
@@ -2435,7 +2606,7 @@ class EnhancedJSONFamilyCreatorGUI:
             'mother_salary': self.income_fields.get('mother_salary'),
             'father_salary': self.income_fields.get('father_salary'),
             'unified_benefit': self.unified_benefit_entry,  # Отдельное поле
-            'large_family_benefit': self.income_fields.get('large_family_benefit'),
+            'large_family_benefit': self.large_family_benefit_entry,  # Новое поле с чекбоксами
             'survivor_pension': self.income_fields.get('survivor_pension'),
             'alimony': self.income_fields.get('alimony'),
             'disability_pension': self.income_fields.get('disability_pension'),
@@ -2448,6 +2619,12 @@ class EnhancedJSONFamilyCreatorGUI:
                 value = self.clean_numeric_field(str(family_data[key]))
                 field.delete(0, 'end')
                 field.insert(0, value)
+                
+                # Для пособия по многодетности устанавливаем чекбокс
+                if key == 'large_family_benefit':
+                    benefit_value = str(family_data[key])
+                    if benefit_value in ["1900", "2700", "3500"]:
+                        self.large_family_benefit_var.set(benefit_value)
         
         # Параметры расчета единого пособия
         if 'unified_children_count' in family_data:
@@ -2515,10 +2692,22 @@ class EnhancedJSONFamilyCreatorGUI:
             messagebox.showinfo("Успех", "Список семей очищен")
     
     def log_message(self, message):
-        """Логирование сообщений"""
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        print(f"[{timestamp}] {message}")
-    
+        """Логирование сообщений в предпросмотр"""
+        try:
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            log_text = f"[{timestamp}] {message}\n"
+            
+            # Прокручиваем до конца
+            self.preview_text.config(state="normal")
+            self.preview_text.insert("end", log_text)
+            self.preview_text.see("end")
+            self.preview_text.config(state="disabled")
+            
+            # Также выводим в консоль
+            print(log_text)
+        except:
+            pass
+        
     def run(self):
         """Запуск приложения"""
         self.app.mainloop()

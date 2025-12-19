@@ -1,8 +1,8 @@
 {
-  "last_json_path": "/home/comp_step/Desktop/AutoFormFiller/massform/families_template.json",
-  "screenshot_dir": "/home/comp_step/Desktop/database_screens",
-  "pause": "3",
+  "pause": "2",
   "screenshot": true,
-  "stop_on_error": false,
-  "start_index": "1"
+  "stop_on_error": true,
+  "screenshot_dir": "/home/comp_step/Desktop/database_screens",
+  "start_index": "1",
+  "last_json_path": "/home/comp_step/Desktop/AutoFormFiller/autosave_families.json"
 }
