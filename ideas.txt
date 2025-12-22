@@ -1,76 +1,318 @@
+MassFamilyProcessorGUI:
+1)критическая ошибка: дата установки адпи иногда не устанавливается(чекбокс не ставится). сделать проверку,если чекбокс уже установлен, не пытаться другим способом его поставить. 
+2)не должно писатся "Работает:" родителям, если место работы пустая строка или "нет" 
+3)other_incomes из json не отображаются в непосредственно в заполнении massform и не считаются с общим доходом. также не учитываются и не пишутся в доход пенсия ребенка - инвалида, пенсия по уходу за ребенком - инвалидом
+4)нужно ускорить переходы в massform. убрать жесткую зависимость от задержек в скрипте. сделать динамическое обработку загрузки на странице вместо жесткой привязанности к задержки в скрипте. 
+5) если мы при обработке в поле дополнительная информация до постановки чекбоксов (это поле котороое мы расширяем то есть ctl00_cph_pnlAddInfo2), мы видим уже вписанный текст, спрашиваем юзера "кажется, человек уже внесен в базу данных. продолжить?". если да, то продолжаем, программма также по плану нажимает на кнопку ctl00_cph_lbtnEditAddInfo, переходит туда . ищем в <div>
+	<table class="tbl-list" cellspacing="0" cellpadding="5" rules="all" border="0" id="ctl00_cph_ctrlDopFields_gv" style="border-width:0px;width:100%;border-collapse:collapse;">
+		<tbody><tr>
+			<th class="NoWrap" scope="col"><a href="javascript:__doPostBack('ctl00$cph$ctrlDopFields$gv','Sort$dates')">Дата с</a><font style="FONT-STYLE: normal; FONT-SIZE: Large">↓</font></th><th class="NoWrap" scope="col"><a href="javascript:__doPostBack('ctl00$cph$ctrlDopFields$gv','Sort$title')">Вид</a></th><th class="NoWrap" scope="col"><a href="javascript:__doPostBack('ctl00$cph$ctrlDopFields$gv','Sort$fillbyverbal')"></a></th><th class="NoWrap" scope="col"><a href="javascript:__doPostBack('ctl00$cph$ctrlDopFields$gv','Sort$value')">Сведения</a></th><th class="NoWrap" scope="col">
+                    <a id="ctl00_cph_ctrlDopFields_gv_ctl01_lbtnDelete" title="Удалить все" href="javascript:WebForm_DoPostBackWithOptions(new WebForm_PostBackOptions(&quot;ctl00$cph$ctrlDopFields$gv$ctl01$lbtnDelete&quot;, &quot;&quot;, true, &quot;&quot;, &quot;&quot;, false, true))"><img src="../Images/delete.gif"></a>
+                </th>
+		</tr><tr class="nrml">
+			<td class="t_center" style="width:1%;">
+                    
+                    <input type="hidden" name="ctl00$cph$ctrlDopFields$gv$ctl02$wdteDates" id="ctl00_cph_ctrlDopFields_gv_ctl02_wdteDates" value="06.11.2025"><input type="hidden" name="ctl00_cph_ctrlDopFields_gv_ctl02_wdteDates_p" id="ctl00_cph_ctrlDopFields_gv_ctl02_wdteDates_p" value="2025-11-6-0-0-0-0"><input type="text" style="width:100px;font-family:Verdana;font-size:Small;ime-mode:disabled;" class="Calendar" value="06.11.2025" title="Дата с" id="igtxtctl00_cph_ctrlDopFields_gv_ctl02_wdteDates" editid="ctl00_cph_ctrlDopFields_gv_ctl02_wdteDates">
+                </td><td class="t_left" style="width:35%;">
+                    <span id="ctl00_cph_ctrlDopFields_gv_ctl02_lbName" title="Тип: Строковый">Номер телефона</span>
+                </td><td class="t_left NoWrap f_small t_comment" style="width:1%;">
+                    <span class="f_small t_comment" title="заполнено со слов"><input id="ctl00_cph_ctrlDopFields_gv_ctl02_chbFillByVerbal" type="checkbox" name="ctl00$cph$ctrlDopFields$gv$ctl02$chbFillByVerbal"><label for="ctl00_cph_ctrlDopFields_gv_ctl02_chbFillByVerbal">со слов</label></span>
+                </td><td class="t_left" style="width:53%;">
+                    
+                    
+                    <textarea name="ctl00$cph$ctrlDopFields$gv$ctl02$tb" rows="3" cols="20" id="ctl00_cph_ctrlDopFields_gv_ctl02_tb" ondrop="return false" onclick="return length_check(500, 'ctl00_cph_ctrlDopFields_gv_ctl02_tb', 'ctl00_cph_ctrlDopFields_gv_ctl02_lbMaxCount', false);" onkeyup="return length_check(500, 'ctl00_cph_ctrlDopFields_gv_ctl02_tb', 'ctl00_cph_ctrlDopFields_gv_ctl02_lbMaxCount', false);" style="width:100%;">89108377143</textarea>
+                    
+                    
+                    
+                    
+                    
+                    
+                    <div class="t_right">
+                        <span id="ctl00_cph_ctrlDopFields_gv_ctl02_lbMaxCount" style="color:Gray;font-size:8pt;"></span>
+                    </div>
+                </td><td class="t_center" style="width:1%;">
+                    <a id="ctl00_cph_ctrlDopFields_gv_ctl02_lbtnDelete" title="Удалить" href="javascript:WebForm_DoPostBackWithOptions(new WebForm_PostBackOptions(&quot;ctl00$cph$ctrlDopFields$gv$ctl02$lbtnDelete&quot;, &quot;&quot;, true, &quot;&quot;, &quot;&quot;, false, true))"><img src="../Images/delete.gif"></a>
+                </td>
+		</tr><tr class="alt">
+			<td class="t_center" style="width:1%;">
+                    
+                    <input type="hidden" name="ctl00$cph$ctrlDopFields$gv$ctl03$wdteDates" id="ctl00_cph_ctrlDopFields_gv_ctl03_wdteDates" value="06.11.2025"><input type="hidden" name="ctl00_cph_ctrlDopFields_gv_ctl03_wdteDates_p" id="ctl00_cph_ctrlDopFields_gv_ctl03_wdteDates_p" value="2025-11-6-0-0-0-0"><input type="text" style="width:100px;font-family:Verdana;font-size:Small;ime-mode:disabled;" class="Calendar" value="06.11.2025" title="Дата с" id="igtxtctl00_cph_ctrlDopFields_gv_ctl03_wdteDates" editid="ctl00_cph_ctrlDopFields_gv_ctl03_wdteDates">
+                </td><td class="t_left" style="width:35%;">
+                    <span id="ctl00_cph_ctrlDopFields_gv_ctl03_lbName" title="Тип: Строковый">Категория семьи</span>
+                </td><td class="t_left NoWrap f_small t_comment" style="width:1%;">
+                    <span class="f_small t_comment" title="заполнено со слов"><input id="ctl00_cph_ctrlDopFields_gv_ctl03_chbFillByVerbal" type="checkbox" name="ctl00$cph$ctrlDopFields$gv$ctl03$chbFillByVerbal"><label for="ctl00_cph_ctrlDopFields_gv_ctl03_chbFillByVerbal">со слов</label></span>
+                </td><td class="t_left" style="width:53%;">
+                    
+                    
+                    <textarea name="ctl00$cph$ctrlDopFields$gv$ctl03$tb" rows="3" cols="20" id="ctl00_cph_ctrlDopFields_gv_ctl03_tb" ondrop="return false" onclick="return length_check(500, 'ctl00_cph_ctrlDopFields_gv_ctl03_tb', 'ctl00_cph_ctrlDopFields_gv_ctl03_lbMaxCount', false);" onkeyup="return length_check(500, 'ctl00_cph_ctrlDopFields_gv_ctl03_tb', 'ctl00_cph_ctrlDopFields_gv_ctl03_lbMaxCount', false);" style="width:100%;">полная, многодетная</textarea>
+                    
+                    
+                    
+                    
+                    
+                    
+                    <div class="t_right">
+                        <span id="ctl00_cph_ctrlDopFields_gv_ctl03_lbMaxCount" style="color:Gray;font-size:8pt;"></span>
+                    </div>
+                </td><td class="t_center" style="width:1%;">
+                    <a id="ctl00_cph_ctrlDopFields_gv_ctl03_lbtnDelete" title="Удалить" href="javascript:WebForm_DoPostBackWithOptions(new WebForm_PostBackOptions(&quot;ctl00$cph$ctrlDopFields$gv$ctl03$lbtnDelete&quot;, &quot;&quot;, true, &quot;&quot;, &quot;&quot;, false, true))"><img src="../Images/delete.gif"></a>
+                </td>
+		</tr><tr class="nrml">
+			<td class="t_center" style="width:1%;">
+                    
+                    <input type="hidden" name="ctl00$cph$ctrlDopFields$gv$ctl04$wdteDates" id="ctl00_cph_ctrlDopFields_gv_ctl04_wdteDates" value="06.11.2025"><input type="hidden" name="ctl00_cph_ctrlDopFields_gv_ctl04_wdteDates_p" id="ctl00_cph_ctrlDopFields_gv_ctl04_wdteDates_p" value="2025-11-6-0-0-0-0"><input type="text" style="width:100px;font-family:Verdana;font-size:Small;ime-mode:disabled;" class="Calendar" value="06.11.2025" title="Дата с" id="igtxtctl00_cph_ctrlDopFields_gv_ctl04_wdteDates" editid="ctl00_cph_ctrlDopFields_gv_ctl04_wdteDates">
+                </td><td class="t_left" style="width:35%;">
+                    <span id="ctl00_cph_ctrlDopFields_gv_ctl04_lbName" title="Тип: Строковый">Жилищные условия </span>
+                </td><td class="t_left NoWrap f_small t_comment" style="width:1%;">
+                    <span class="f_small t_comment" title="заполнено со слов"><input id="ctl00_cph_ctrlDopFields_gv_ctl04_chbFillByVerbal" type="checkbox" name="ctl00$cph$ctrlDopFields$gv$ctl04$chbFillByVerbal"><label for="ctl00_cph_ctrlDopFields_gv_ctl04_chbFillByVerbal">со слов</label></span>
+                </td><td class="t_left" style="width:53%;">
+                    
+                    
+                    <textarea name="ctl00$cph$ctrlDopFields$gv$ctl04$tb" rows="3" cols="20" id="ctl00_cph_ctrlDopFields_gv_ctl04_tb" ondrop="return false" onclick="return length_check(500, 'ctl00_cph_ctrlDopFields_gv_ctl04_tb', 'ctl00_cph_ctrlDopFields_gv_ctl04_lbMaxCount', false);" onkeyup="return length_check(500, 'ctl00_cph_ctrlDopFields_gv_ctl04_tb', 'ctl00_cph_ctrlDopFields_gv_ctl04_lbMaxCount', false);" style="width:100%;">Частный дом, 42 кв.м., 3 комнаты. В собственности у Устяковой Н.И.</textarea>
+                    
+                    
+                    
+                    
+                    
+                    
+                    <div class="t_right">
+                        <span id="ctl00_cph_ctrlDopFields_gv_ctl04_lbMaxCount" style="color:Gray;font-size:8pt;"></span>
+                    </div>
+                </td><td class="t_center" style="width:1%;">
+                    <a id="ctl00_cph_ctrlDopFields_gv_ctl04_lbtnDelete" title="Удалить" href="javascript:WebForm_DoPostBackWithOptions(new WebForm_PostBackOptions(&quot;ctl00$cph$ctrlDopFields$gv$ctl04$lbtnDelete&quot;, &quot;&quot;, true, &quot;&quot;, &quot;&quot;, false, true))"><img src="../Images/delete.gif"></a>
+                </td>
+		</tr><tr class="alt">
+			<td class="t_center" style="width:1%;">
+                    
+                    <input type="hidden" name="ctl00$cph$ctrlDopFields$gv$ctl05$wdteDates" id="ctl00_cph_ctrlDopFields_gv_ctl05_wdteDates" value="06.11.2025"><input type="hidden" name="ctl00_cph_ctrlDopFields_gv_ctl05_wdteDates_p" id="ctl00_cph_ctrlDopFields_gv_ctl05_wdteDates_p" value="2025-11-6-0-0-0-0"><input type="text" style="width:100px;font-family:Verdana;font-size:Small;ime-mode:disabled;" class="Calendar" value="06.11.2025" title="Дата с" id="igtxtctl00_cph_ctrlDopFields_gv_ctl05_wdteDates" editid="ctl00_cph_ctrlDopFields_gv_ctl05_wdteDates">
+                </td><td class="t_left" style="width:35%;">
+                    <span id="ctl00_cph_ctrlDopFields_gv_ctl05_lbName" title="Тип: Строковый">Фактический адрес проживания семьи</span>
+                </td><td class="t_left NoWrap f_small t_comment" style="width:1%;">
+                    <span class="f_small t_comment" title="заполнено со слов"><input id="ctl00_cph_ctrlDopFields_gv_ctl05_chbFillByVerbal" type="checkbox" name="ctl00$cph$ctrlDopFields$gv$ctl05$chbFillByVerbal"><label for="ctl00_cph_ctrlDopFields_gv_ctl05_chbFillByVerbal">со слов</label></span>
+                </td><td class="t_left" style="width:53%;">
+                    
+                    
+                    <textarea name="ctl00$cph$ctrlDopFields$gv$ctl05$tb" rows="3" cols="20" id="ctl00_cph_ctrlDopFields_gv_ctl05_tb" ondrop="return false" onclick="return length_check(500, 'ctl00_cph_ctrlDopFields_gv_ctl05_tb', 'ctl00_cph_ctrlDopFields_gv_ctl05_lbMaxCount', false);" onkeyup="return length_check(500, 'ctl00_cph_ctrlDopFields_gv_ctl05_tb', 'ctl00_cph_ctrlDopFields_gv_ctl05_lbMaxCount', false);" style="width:100%;">Тверская область, г.Вышний Волочек, кл. Муслима Магомаева, д. 14</textarea>
+                    
+                    
+                    
+                    
+                    
+                    
+                    <div class="t_right">
+                        <span id="ctl00_cph_ctrlDopFields_gv_ctl05_lbMaxCount" style="color:Gray;font-size:8pt;"></span>
+                    </div>
+                </td><td class="t_center" style="width:1%;">
+                    <a id="ctl00_cph_ctrlDopFields_gv_ctl05_lbtnDelete" title="Удалить" href="javascript:WebForm_DoPostBackWithOptions(new WebForm_PostBackOptions(&quot;ctl00$cph$ctrlDopFields$gv$ctl05$lbtnDelete&quot;, &quot;&quot;, true, &quot;&quot;, &quot;&quot;, false, true))"><img src="../Images/delete.gif"></a>
+                </td>
+		</tr><tr class="nrml">
+			<td class="t_center" style="width:1%;">
+                    
+                    <input type="hidden" name="ctl00$cph$ctrlDopFields$gv$ctl06$wdteDates" id="ctl00_cph_ctrlDopFields_gv_ctl06_wdteDates" value="06.11.2025"><input type="hidden" name="ctl00_cph_ctrlDopFields_gv_ctl06_wdteDates_p" id="ctl00_cph_ctrlDopFields_gv_ctl06_wdteDates_p" value="2025-11-6-0-0-0-0"><input type="text" style="width:100px;font-family:Verdana;font-size:Small;ime-mode:disabled;" class="Calendar" value="06.11.2025" title="Дата с" id="igtxtctl00_cph_ctrlDopFields_gv_ctl06_wdteDates" editid="ctl00_cph_ctrlDopFields_gv_ctl06_wdteDates">
+                </td><td class="t_left" style="width:35%;">
+                    <span id="ctl00_cph_ctrlDopFields_gv_ctl06_lbName" title="Тип: Дата">Дата последней проверки АДПИ</span>
+                </td><td class="t_left NoWrap f_small t_comment" style="width:1%;">
+                    <span class="f_small t_comment" title="заполнено со слов"><input id="ctl00_cph_ctrlDopFields_gv_ctl06_chbFillByVerbal" type="checkbox" name="ctl00$cph$ctrlDopFields$gv$ctl06$chbFillByVerbal"><label for="ctl00_cph_ctrlDopFields_gv_ctl06_chbFillByVerbal">со слов</label></span>
+                </td><td class="t_left" style="width:53%;">
+                    
+                    
+                    
+                    <input type="hidden" name="ctl00$cph$ctrlDopFields$gv$ctl06$wdte" id="ctl00_cph_ctrlDopFields_gv_ctl06_wdte" value="27.11.2024"><input type="hidden" name="ctl00_cph_ctrlDopFields_gv_ctl06_wdte_p" id="ctl00_cph_ctrlDopFields_gv_ctl06_wdte_p" value="2024-11-27-0-0-0-0"><input type="text" style="width:100px;font-family:Verdana;font-size:Small;ime-mode:disabled;" class="Calendar" value="27.11.2024" id="igtxtctl00_cph_ctrlDopFields_gv_ctl06_wdte" editid="ctl00_cph_ctrlDopFields_gv_ctl06_wdte">
+                    
+                    
+                    
+                    
+                    
+                    <div class="t_right">
+                        
+                    </div>
+                </td><td class="t_center" style="width:1%;">
+                    <a id="ctl00_cph_ctrlDopFields_gv_ctl06_lbtnDelete" title="Удалить" href="javascript:WebForm_DoPostBackWithOptions(new WebForm_PostBackOptions(&quot;ctl00$cph$ctrlDopFields$gv$ctl06$lbtnDelete&quot;, &quot;&quot;, true, &quot;&quot;, &quot;&quot;, false, true))"><img src="../Images/delete.gif"></a>
+                </td>
+		</tr><tr class="alt">
+			<td class="t_center" style="width:1%;">
+                    
+                    <input type="hidden" name="ctl00$cph$ctrlDopFields$gv$ctl07$wdteDates" id="ctl00_cph_ctrlDopFields_gv_ctl07_wdteDates" value="06.11.2025"><input type="hidden" name="ctl00_cph_ctrlDopFields_gv_ctl07_wdteDates_p" id="ctl00_cph_ctrlDopFields_gv_ctl07_wdteDates_p" value="2025-11-6-0-0-0-0"><input type="text" style="width:100px;font-family:Verdana;font-size:Small;ime-mode:disabled;" class="Calendar" value="06.11.2025" title="Дата с" id="igtxtctl00_cph_ctrlDopFields_gv_ctl07_wdteDates" editid="ctl00_cph_ctrlDopFields_gv_ctl07_wdteDates">
+                </td><td class="t_left" style="width:35%;">
+                    <span id="ctl00_cph_ctrlDopFields_gv_ctl07_lbName" title="Тип: Логический (да/нет)">АДПИ</span>
+                </td><td class="t_left NoWrap f_small t_comment" style="width:1%;">
+                    <span class="f_small t_comment" title="заполнено со слов"><input id="ctl00_cph_ctrlDopFields_gv_ctl07_chbFillByVerbal" type="checkbox" name="ctl00$cph$ctrlDopFields$gv$ctl07$chbFillByVerbal"><label for="ctl00_cph_ctrlDopFields_gv_ctl07_chbFillByVerbal">со слов</label></span>
+                </td><td class="t_left" style="width:53%;">
+                    
+                    <span id="ctl00_cph_ctrlDopFields_gv_ctl07_rbl"><input id="ctl00_cph_ctrlDopFields_gv_ctl07_rbl_0" type="radio" name="ctl00$cph$ctrlDopFields$gv$ctl07$rbl" value="да" checked="checked"><label for="ctl00_cph_ctrlDopFields_gv_ctl07_rbl_0">Да</label><input id="ctl00_cph_ctrlDopFields_gv_ctl07_rbl_1" type="radio" name="ctl00$cph$ctrlDopFields$gv$ctl07$rbl" value="нет"><label for="ctl00_cph_ctrlDopFields_gv_ctl07_rbl_1">Нет</label><input id="ctl00_cph_ctrlDopFields_gv_ctl07_rbl_2" type="radio" name="ctl00$cph$ctrlDopFields$gv$ctl07$rbl" value=""><label for="ctl00_cph_ctrlDopFields_gv_ctl07_rbl_2">Нет сведений</label></span>
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    <div class="t_right">
+                        
+                    </div>
+                </td><td class="t_center" style="width:1%;">
+                    <a id="ctl00_cph_ctrlDopFields_gv_ctl07_lbtnDelete" title="Удалить" href="javascript:WebForm_DoPostBackWithOptions(new WebForm_PostBackOptions(&quot;ctl00$cph$ctrlDopFields$gv$ctl07$lbtnDelete&quot;, &quot;&quot;, true, &quot;&quot;, &quot;&quot;, false, true))"><img src="../Images/delete.gif"></a>
+                </td>
+		</tr><tr class="nrml">
+			<td class="t_center" style="width:1%;">
+                    
+                    <input type="hidden" name="ctl00$cph$ctrlDopFields$gv$ctl08$wdteDates" id="ctl00_cph_ctrlDopFields_gv_ctl08_wdteDates" value="06.11.2025"><input type="hidden" name="ctl00_cph_ctrlDopFields_gv_ctl08_wdteDates_p" id="ctl00_cph_ctrlDopFields_gv_ctl08_wdteDates_p" value="2025-11-6-0-0-0-0"><input type="text" style="width:100px;font-family:Verdana;font-size:Small;ime-mode:disabled;" class="Calendar" value="06.11.2025" title="Дата с" id="igtxtctl00_cph_ctrlDopFields_gv_ctl08_wdteDates" editid="ctl00_cph_ctrlDopFields_gv_ctl08_wdteDates">
+                </td><td class="t_left" style="width:35%;">
+                    <span id="ctl00_cph_ctrlDopFields_gv_ctl08_lbName" title="Тип: Дата">Дата установки АДПИ</span>
+                </td><td class="t_left NoWrap f_small t_comment" style="width:1%;">
+                    <span class="f_small t_comment" title="заполнено со слов"><input id="ctl00_cph_ctrlDopFields_gv_ctl08_chbFillByVerbal" type="checkbox" name="ctl00$cph$ctrlDopFields$gv$ctl08$chbFillByVerbal"><label for="ctl00_cph_ctrlDopFields_gv_ctl08_chbFillByVerbal">со слов</label></span>
+                </td><td class="t_left" style="width:53%;">
+                    
+                    
+                    
+                    <input type="hidden" name="ctl00$cph$ctrlDopFields$gv$ctl08$wdte" id="ctl00_cph_ctrlDopFields_gv_ctl08_wdte" value="27.11.2024"><input type="hidden" name="ctl00_cph_ctrlDopFields_gv_ctl08_wdte_p" id="ctl00_cph_ctrlDopFields_gv_ctl08_wdte_p" value="2024-11-27-0-0-0-0"><input type="text" style="width:100px;font-family:Verdana;font-size:Small;ime-mode:disabled;" class="Calendar" value="27.11.2024" id="igtxtctl00_cph_ctrlDopFields_gv_ctl08_wdte" editid="ctl00_cph_ctrlDopFields_gv_ctl08_wdte">
+                    
+                    
+                    
+                    
+                    
+                    <div class="t_right">
+                        
+                    </div>
+                </td><td class="t_center" style="width:1%;">
+                    <a id="ctl00_cph_ctrlDopFields_gv_ctl08_lbtnDelete" title="Удалить" href="javascript:WebForm_DoPostBackWithOptions(new WebForm_PostBackOptions(&quot;ctl00$cph$ctrlDopFields$gv$ctl08$lbtnDelete&quot;, &quot;&quot;, true, &quot;&quot;, &quot;&quot;, false, true))"><img src="../Images/delete.gif"></a>
+                </td>
+		</tr><tr class="alt">
+			<td class="t_center" style="width:1%;">
+                    
+                    <input type="hidden" name="ctl00$cph$ctrlDopFields$gv$ctl09$wdteDates" id="ctl00_cph_ctrlDopFields_gv_ctl09_wdteDates" value="06.11.2025"><input type="hidden" name="ctl00_cph_ctrlDopFields_gv_ctl09_wdteDates_p" id="ctl00_cph_ctrlDopFields_gv_ctl09_wdteDates_p" value="2025-11-6-0-0-0-0"><input type="text" style="width:100px;font-family:Verdana;font-size:Small;ime-mode:disabled;" class="Calendar" value="06.11.2025" title="Дата с" id="igtxtctl00_cph_ctrlDopFields_gv_ctl09_wdteDates" editid="ctl00_cph_ctrlDopFields_gv_ctl09_wdteDates">
+                </td><td class="t_left" style="width:35%;">
+                    <span id="ctl00_cph_ctrlDopFields_gv_ctl09_lbName" title="Тип: Строковый">Бытовые условия</span>
+                </td><td class="t_left NoWrap f_small t_comment" style="width:1%;">
+                    <span class="f_small t_comment" title="заполнено со слов"><input id="ctl00_cph_ctrlDopFields_gv_ctl09_chbFillByVerbal" type="checkbox" name="ctl00$cph$ctrlDopFields$gv$ctl09$chbFillByVerbal"><label for="ctl00_cph_ctrlDopFields_gv_ctl09_chbFillByVerbal">со слов</label></span>
+                </td><td class="t_left" style="width:53%;">
+                    
+                    
+                    <textarea name="ctl00$cph$ctrlDopFields$gv$ctl09$tb" rows="3" cols="20" id="ctl00_cph_ctrlDopFields_gv_ctl09_tb" ondrop="return false" onclick="return length_check(500, 'ctl00_cph_ctrlDopFields_gv_ctl09_tb', 'ctl00_cph_ctrlDopFields_gv_ctl09_lbMaxCount', false);" onkeyup="return length_check(500, 'ctl00_cph_ctrlDopFields_gv_ctl09_tb', 'ctl00_cph_ctrlDopFields_gv_ctl09_lbMaxCount', false);" style="width:100%;">Частный дом со всеми удобствами. Для детей имеется отдельное место для сна, отдыха и занятий. Санитарные условия удовлетворительные. Имеется вся необходимая техника и мебель.</textarea>
+                    
+                    
+                    
+                    
+                    
+                    
+                    <div class="t_right">
+                        <span id="ctl00_cph_ctrlDopFields_gv_ctl09_lbMaxCount" style="color:Gray;font-size:8pt;"></span>
+                    </div>
+                </td><td class="t_center" style="width:1%;">
+                    <a id="ctl00_cph_ctrlDopFields_gv_ctl09_lbtnDelete" title="Удалить" href="javascript:WebForm_DoPostBackWithOptions(new WebForm_PostBackOptions(&quot;ctl00$cph$ctrlDopFields$gv$ctl09$lbtnDelete&quot;, &quot;&quot;, true, &quot;&quot;, &quot;&quot;, false, true))"><img src="../Images/delete.gif"></a>
+                </td>
+		</tr>
+	</tbody></table>
+</div> кнопки <td class="t_center" style="width:1%;">
+                    <a id="ctl00_cph_ctrlDopFields_gv_ctl02_lbtnDelete" title="Удалить" href="javascript:WebForm_DoPostBackWithOptions(new WebForm_PostBackOptions(&quot;ctl00$cph$ctrlDopFields$gv$ctl02$lbtnDelete&quot;, &quot;&quot;, true, &quot;&quot;, &quot;&quot;, false, true))"><img src="../Images/delete.gif"></a>
+                </td> и нажимаем на них, очищаем поле ctl00$cph$tbAddInfo и вписываем новое. дальше мы делаем по плану - нажимаем на кнопку ctl00_cph_ctrlDopFields_lbtnAdd и выбираем чекбоксы и все остальное по плану.
+
+6)при выполнении отмечаются семьи в json успешные/неуспешные выполнения и соответсвоненно проверяются при старте скрипта
+7)мы ищем файл json "completed_families.json", если нет то создаем новый в папке с прочими конфигами. все заполненные семьи добавляются списком в этот json по очередности(то есть ФИО каждой заполненной матери автоматически записывается в данный json)
+
+EnhancedJSONFamilyCreatorGUI:
+1)единое пособие не учитывается. в json сохраняется только проценты (100% и так далее). нужно чтобы сохранялось в json посчитанное число из поля единого дохода в gui
+2)нужно добавить поля в доходы: "пенсия" отца, матери.
+3)когда юзер нажимает на кнопку с реестром / с АДПИ, юзер выбирает файл и этот файл дублируется в отдельную папку с данными адпи и реестр, откуда при следующих запусках будет автоматически браться информация. однако юзер может выбрать обновить файл в дальнейшем при необходимости.
+4) сделать обработку на ошибку когда найдено две и более одинаковых семей в реестре с одинаковыми ФИО
+5) по умолчанию в поле пособие по многодетности ставится 1900 при автоопределении и юзер если ему надо поменяет.
+6)обработка на две даты в реестре адпи(дата установки и дата последней проверки) которые могут быть(берем последнии) 28.01.2024.21.05.2025 (две даты, а мы берем  которая в большую сторону)
+7) вместо отца при автоопределении подставляются дети старше до 2010 года рождения а отец бывает вместо ребенка. обработка на ребенка что ребенок не может родиться до 2000, а родитель после 2003
+8) если чекбокс стоит "за уходом-ребёнком инвалидом" у матери(отца), то автоматически проставляться в поле доходов "за уходом ребёнком-инвалидом" ставится 10 000 и пенсия ребенка-инвалида 25 000
+9)сделать возможность удалить определенного ребенка из списка детей
+10)мы ищем файл json "completed_families.json", если нет то создаем новый в папке с прочими конфигами. все заполненные семьи добавляются списком в этот json по очередности(то есть ФИО каждой заполненной матери автоматически записывается в данный json)
+11) сделать чекбокс у матери/ отца о том ,что не работает. если чекбокс проставлен, то в доходах зп матери(отца) не отображается
+12)происходит проблема когда дата вроде 07/22/2025, то на выходе получаем вроде 07222025000000000
+
+
 
 автовход в бд
 автоустановка 
 
-по умолчанию ставиться 1900 при автоопределении
+
+убрать сохранение сохраненных семей  в completed_families в скрипте заполнения json
+
+
+убрать расчет статистики из massform и добавить в лаунчер
+
+папка для скриншотов автоматически создается в папке с FamilySеarch     
+
+
+почистить readme 
+
+почистить гитхаб от мусора всякого
+
+добавить кнопку автопечати в лаунчере
+
+упрощенный установщик 
+
+
+
+
 
 добавить в автозапуске скрипт для автопечати универсальный для виндовс и линукс
 
+отображение о запуске БД в лаунчере при нажатии на кнопку либо открытие консоли на всех ОС
 
-сделать обработку на ошибку когда найденыо две и более одиновых семей в реестре с одинаковыми ФИО
 
-обработка на две даты в адпи которые могут быть(берем последнии) 28.01.2024.21.05.2025 (в большую сторону)
 
-сделать чекбокс у матери/ отца о том ,что не работает. если чекбокс проставлен, то в доходах зп матери(отца) не отображается
-обработка на ребенка что ребенок не может родиться до 2000, а родитель после 2003
 
-сделать возможность удалить определнного ребенка из списка детей
+
+
+
+
+
 
 автовычисление площади комнат
 
-при выполнении отмечаются семьи в json успешные/неуспешные выполнения и соответсвоненно проверяются в massform и выводится
+
 в лаунчере выводится статистика:  с полными ФИО заполненных матерей, количества за все время,за неделю, за сегодня
 
-происходит проблема когда дата вроде 07/22/2025, то на выходе получаем вроде 07222025000000000
 
-если чекбокс стоит "за уходом-ребёнком инвалидом" у матери(отца), то автоматически проставляться в поле доходов "за уходом ребёнком-инвалидом" ставится 10 000 и пенсия ребенка-инвалида 25 000
 
-все заполненные семьи добавляются списком в отдельный json по очередности(то есть ФИО каждой матери автоматически записывается в json)
+
+
 
 -папка со скринами создается на раб столе
 
-вместо отца подставляются дети старше до 2010 года рождения а отец бывает вместо ребенка
-
-убрать лишние json  и создать единую папку с json
 
 
-проверка в доп инфо на уже заполненную инфу, и если инфа заполнена,то сообщаем пользователю, что все данные будут перезаписаны
+
+
 
 если нет адреса,то получаем из ао асп
 
 нужно не перезагружать страницу при новом вводе семьи а просто переходить на страницу поиска
- если галочки в форме проставлены с первого раза,то не пытаемся другим способом и продолжаем автоматизацию
+ 
  сохранять индекс внесенной семьи и отмечать ее в списке как выполненную, а потом при окончании автоматизации спросить у юзера очистить ли json
-заполнение телефона из файла  с многодетками и отмечаем строку с семьей зеленым
+
+
 ошибка что якобы пользовтель не подтвердил
-если только одна страница появилась при поиске в бд то программа переходит на нее , если больше двух то ищем самую старшую и из Вышневолоцкого района
+==если только одна страница появилась при поиске в бд то программа переходит на нее , если больше двух то ищем самую старшую и из Вышневолоцкого района
 статус семье "успешно" сразу после заполнения и сохранения семьи
-ускорение автоматизации
-убрать вопрос про адрес в massform
-убрать лишние диалоговые окна
 
 после 2-ой и далее автоматизации после перехода на страницу семьи номер перестается браться из страницы(при условии что в json phone_number отсутствует) а сразу моментом переходит на вкладку доп инфо
 нужно сделать индекс подтверждения
 номер телефона в json
 адрес подставлять из json. если в json не подставляем, подставляем из страницы.
 
-очистка json перед сохранением от ошибок ввода которые мешают (пример: Климчук\tВиталий\tАнатольевич) (либо обработка сохранения строк чтобы автоматически избавляться от подобных ошибок)
+==очистка json перед сохранением от ошибок ввода которые мешают (пример: Климчук\tВиталий\tАнатольевич) (либо обработка сохранения строк чтобы автоматически избавляться от подобных ошибок)
 
 
-проверять доп инфо на введенную инфу. если она там есть, то предупредить о очистке юзера
+
 сделать возможность при начале заполнения выбрать для заполнения только одну опредленную семью или вписать необходимые числа под которыми отображеными необходимые семьи
 нужно в json вписывать ошибка/сделано, чтобы потом отображать при каждом запуске json в программе какие семьи сделаны/не сделаны или с ошибками
 
 
 очищать поле  с семьей после заполнения 
-добавить в доходы уход за ребенком инвалидом
+==добавить в доходы уход за ребенком инвалидом
 
 сделать сохранение в отдельный json даты и кол-во заполненных семей то есть если все семьи заполнены успешно, если в json есть сегодшняя дата, прибавляем к ней заполненное кол-во семьи, если нет, то вписываем свою дату и кол-во семей
 отображать в gui кол-во заполненных семей за день и за неделю (узнаем когда у нас понедельник и пятница и ориентируемся на это)
 
-  автоматизация печати 
+==автоматизация печати 
 
-пособие по многодетности чекбоксы сделать (1900/2700/3500/нет)
+==пособие по многодетности чекбоксы сделать (1900/2700/3500/нет)
 
 
 после 2-ой семьи сразу после нажатия на карточку семьи сразу переходит на доп инфо и программа не успевает взять номер телефона, а если он не взял номер со страницы,он не может почему-то взять из json
