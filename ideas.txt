@@ -232,6 +232,7 @@ EnhancedJSONFamilyCreatorGUI:
 
 убрать сохранение сохраненных семей  в completed_families в скрипте заполнения json
 
+сделать обновление через zip архив c github releases
 
 убрать расчет статистики из massform и добавить в лаунчер
 

@@ -461,6 +461,7 @@ class EnhancedJSONFamilyCreatorGUI:
         main_frame = ctk.CTkFrame(self.auto_tab)
         main_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
+        # Блок автоопределения семьи
         auto_frame = ctk.CTkFrame(main_frame)
         auto_frame.pack(fill="x", padx=10, pady=10)
         ctk.CTkLabel(auto_frame, text="🤖 АВТООПРЕДЕЛЕНИЕ СЕМЬИ", 
@@ -472,45 +473,76 @@ class EnhancedJSONFamilyCreatorGUI:
         search_frame.pack(fill="x", padx=5, pady=5)
         ctk.CTkLabel(search_frame, text="ФИО:").pack(side="left", padx=5)
         self.search_fio_input = ctk.CTkEntry(search_frame, width=300, 
-                                           placeholder_text="Например: Демичева Анастасия Евгеньевна")
+                                        placeholder_text="Например: Демичева Анастасия Евгеньевна")
         self.search_fio_input.pack(side="left", padx=5)
         
+        # Блок загрузки реестра
         register_frame = ctk.CTkFrame(main_frame)
         register_frame.pack(fill="x", padx=10, pady=10)
         ctk.CTkLabel(register_frame, text="📋 ЗАГРУЗКА РЕЕСТРА МНОГОДЕТНЫХ", 
                     font=ctk.CTkFont(size=14, weight="bold")).pack(pady=5)
         
-        register_buttons_frame = ctk.CTkFrame(register_frame)
-        register_buttons_frame.pack(fill="x", padx=5, pady=5)
+        # Информация о последнем файле
+        if self.last_register_directory:
+            file_info_frame = ctk.CTkFrame(register_frame)
+            file_info_frame.pack(fill="x", padx=10, pady=5)
+            ctk.CTkLabel(file_info_frame, 
+                        text=f"📁 Последний реестр: {os.path.basename(self.last_register_directory)}",
+                        font=ctk.CTkFont(size=11)).pack(side="left", padx=5)
+            ctk.CTkButton(file_info_frame, text="📂 Открыть", 
+                        command=self.load_register_file, width=80, height=25).pack(side="right", padx=5)
         
-        ctk.CTkButton(register_buttons_frame, text="📋 Загрузить новый реестр (xls/xlsx)", 
-                     command=self.load_register_file, width=200).pack(side="left", padx=5)
-        ctk.CTkButton(register_buttons_frame, text="📂 Загрузить последний реестр", 
-                     command=self.load_last_register, width=200).pack(side="left", padx=5)
+        # Кнопки загрузки реестра и автоопределения
+        load_buttons_frame = ctk.CTkFrame(register_frame)
+        load_buttons_frame.pack(fill="x", padx=5, pady=5)
+        ctk.CTkButton(load_buttons_frame, text="📋 Загрузить реестр (xls/xlsx)", 
+                    command=self.load_register_file, width=200).pack(side="left", padx=5)
         
+        # ВОССТАНОВЛЕНА КНОПКА АВТООПРЕДЕЛЕНИЯ
+        ctk.CTkButton(load_buttons_frame, text="🔄 Автоопределить семью", 
+                    command=self.auto_detect_family_from_register, width=200).pack(side="left", padx=5)
+        
+        ctk.CTkButton(load_buttons_frame, text="📂 Загрузить последний реестр", 
+                    command=self.load_last_register, width=200).pack(side="left", padx=5)
+        
+        # Статус загрузки реестра
         self.register_status_label = ctk.CTkLabel(register_frame, text="Реестр не загружен")
         self.register_status_label.pack(pady=5)
         
+        # Информация о загруженном реестре
         self.register_info_text = scrolledtext.ScrolledText(register_frame, height=8, width=80)
         self.register_info_text.pack(fill="x", padx=5, pady=5)
         self.register_info_text.config(state="disabled")
         
+        # Блок загрузки АДПИ из xlsx
         adpi_frame = ctk.CTkFrame(main_frame)
         adpi_frame.pack(fill="x", padx=10, pady=10)
         ctk.CTkLabel(adpi_frame, text="📂 ЗАГРУЗКА ДАННЫХ АДПИ", 
                     font=ctk.CTkFont(size=14, weight="bold")).pack(pady=5)
         
+        # Информация о последнем файле АДПИ
+        if self.last_adpi_directory:
+            adpi_info_frame = ctk.CTkFrame(adpi_frame)
+            adpi_info_frame.pack(fill="x", padx=10, pady=5)
+            ctk.CTkLabel(adpi_info_frame, 
+                        text=f"📁 Последний АДПИ: {os.path.basename(self.last_adpi_directory)}",
+                        font=ctk.CTkFont(size=11)).pack(side="left", padx=5)
+            ctk.CTkButton(adpi_info_frame, text="📂 Открыть", 
+                        command=self.load_adpi_xlsx, width=80, height=25).pack(side="right", padx=5)
+        
+        # Кнопки загрузки АДПИ
         adpi_buttons_frame = ctk.CTkFrame(adpi_frame)
         adpi_buttons_frame.pack(fill="x", padx=5, pady=5)
-        
         ctk.CTkButton(adpi_buttons_frame, text="📂 Загрузить новый xlsx/ods с АДПИ", 
-                     command=self.load_adpi_xlsx, width=200).pack(side="left", padx=5)
+                    command=self.load_adpi_xlsx, width=200).pack(side="left", padx=5)
         ctk.CTkButton(adpi_buttons_frame, text="📂 Загрузить последний АДПИ", 
-                     command=self.load_last_adpi, width=200).pack(side="left", padx=5)
+                    command=self.load_last_adpi, width=200).pack(side="left", padx=5)
         
+        # Статус загрузки АДПИ
         self.adpi_status_label = ctk.CTkLabel(adpi_frame, text="Файл АДПИ не загружен")
         self.adpi_status_label.pack(pady=5)
         
+        # Информация о загруженных данных АДПИ
         self.adpi_info_text = scrolledtext.ScrolledText(adpi_frame, height=8, width=80)
         self.adpi_info_text.pack(fill="x", padx=5, pady=5)
         self.adpi_info_text.config(state="disabled")
@@ -655,6 +687,26 @@ class EnhancedJSONFamilyCreatorGUI:
             if not auto_load:
                 messagebox.showerror("Ошибка", f"Не удалось загрузить реестр: {str(e)}")
     
+    def load_last_register(self):
+        """Загрузка последнего файла реестра"""
+        register_files = [f for f in os.listdir(self.register_dir) if f.lower().endswith(('.xls', '.xlsx'))]
+        if register_files:
+            register_files.sort(key=lambda x: os.path.getmtime(os.path.join(self.register_dir, x)), reverse=True)
+            last_register = os.path.join(self.register_dir, register_files[0])
+            self.load_register_file(last_register, auto_load=True)
+        else:
+            messagebox.showwarning("Внимание", "Нет сохраненных файлов реестра")
+
+    def load_last_adpi(self):
+        """Загрузка последнего файла АДПИ"""
+        adpi_files = [f for f in os.listdir(self.adpi_dir) if f.lower().endswith(('.xls', '.xlsx', '.ods'))]
+        if adpi_files:
+            adpi_files.sort(key=lambda x: os.path.getmtime(os.path.join(self.adpi_dir, x)), reverse=True)
+            last_adpi = os.path.join(self.adpi_dir, adpi_files[0])
+            self.load_adpi_xlsx(last_adpi, auto_load=True)
+        else:
+            messagebox.showwarning("Внимание", "Нет сохраненных файлов АДПИ")
+
     def parse_date(self, date_string):
         """Парсинг даты из различных форматов"""
         if not date_string or pd.isna(date_string) or str(date_string).lower() in ['nan', 'nat', 'none', '']:
