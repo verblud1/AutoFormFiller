@@ -1,0 +1,8 @@
+{
+  "pause": "2",
+  "screenshot": true,
+  "stop_on_error": true,
+  "screenshot_dir": "/home/comp_step/Desktop/AutoFormFiller/massform/config/screenshots",
+  "start_index": "1",
+  "last_json_path": "/home/comp_step/Desktop/AutoFormFiller/autosave_families.json"
+}

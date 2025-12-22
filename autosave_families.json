@@ -197,46 +197,6 @@
     "unified_percentage": "50%"
   },
   {
-    "mother_fio": "Устякова Надежда Игоревна",
-    "mother_birth": "23.11.1989",
-    "mother_work": "в/ч 45118",
-    "mother_disability_care": false,
-    "father_fio": "Устяков Николай Михайлович",
-    "father_birth": "09.09.1988",
-    "father_work": "в/ч 45118",
-    "children": [
-      {
-        "fio": "Устяков Максим Николаевич",
-        "birth": "13.06.2024",
-        "education": "Детсад 24"
-      },
-      {
-        "fio": "Устяков Михаил Николаевич",
-        "birth": "09.04.2014",
-        "education": "СОШ 6"
-      },
-      {
-        "fio": "Устякова Арина Николаевна",
-        "birth": "28.11.2022",
-        "education": "Детсад 24"
-      }
-    ],
-    "phone_number": "79108377143",
-    "address": "Г.Вышний Волочек, ул.Муслима Магомаева, д.14",
-    "rooms": "3",
-    "square": "72",
-    "amenities": "со всеми удобствами",
-    "ownership": "отцу и матери",
-    "adpi": "да",
-    "install_date": "27.11.2024",
-    "check_date": "27.11.2024",
-    "unified_benefit": "51000",
-    "mother_salary": "35000",
-    "father_salary": "35000",
-    "unified_children_count": "3",
-    "unified_percentage": "100%"
-  },
-  {
     "mother_fio": "Дроздова Екатерина Александровна",
     "mother_birth": "08.04.1990",
     "mother_work": "не работает",

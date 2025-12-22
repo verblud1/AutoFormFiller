@@ -10,14 +10,12 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.action_chains import ActionChains
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.core.os_manager import ChromeType
 import platform
 import time
 import traceback
 import sys
-import calendar
 
 
 class MassFamilyProcessorGUI:
@@ -38,9 +36,12 @@ class MassFamilyProcessorGUI:
         self.driver = None
         self.manual_intervention_required = False
         
+        # Организация конфигурационных файлов в отдельную папку
+        self.setup_config_directory()
+        
         # Файлы конфигурации
-        self.config_file = "mass_processor_config.json"
-        self.stats_file = "processing_statistics.json"
+        self.config_file = os.path.join(self.config_dir, "mass_processor_config.json")
+        self.stats_file = os.path.join(self.config_dir, "processing_statistics.json")
         
         self.config = self.load_config()
         self.stats = self.load_statistics()
@@ -55,6 +56,37 @@ class MassFamilyProcessorGUI:
         
         self.setup_ui()
         self.setup_error_handling()
+        
+    def setup_config_directory(self):
+        """Создание папки для конфигурационных файлов (новое)"""
+        try:
+            # Определяем путь к директории приложения
+            app_dir = os.path.dirname(os.path.abspath(__file__))
+            self.config_dir = os.path.join(app_dir, "config")
+            
+            # Создаем папку config, если она не существует
+            if not os.path.exists(self.config_dir):
+                os.makedirs(self.config_dir)
+                print(f"✅ Создана папка конфигурации: {self.config_dir}")
+            
+            # Создаем подпапку для логов
+            self.logs_dir = os.path.join(self.config_dir, "logs")
+            if not os.path.exists(self.logs_dir):
+                os.makedirs(self.logs_dir)
+                print(f"✅ Создана папка для логов: {self.logs_dir}")
+                
+            # Создаем подпапку для скриншотов
+            self.screenshots_dir = os.path.join(self.config_dir, "screenshots")
+            if not os.path.exists(self.screenshots_dir):
+                os.makedirs(self.screenshots_dir)
+                print(f"✅ Создана папка для скриншотов: {self.screenshots_dir}")
+                
+        except Exception as e:
+            print(f"❌ Ошибка создания папки конфигурации: {e}")
+            # Если не удалось создать папку config, используем текущую директорию
+            self.config_dir = os.path.dirname(os.path.abspath(__file__))
+            self.logs_dir = self.config_dir
+            self.screenshots_dir = self.config_dir
         
     def load_statistics(self):
         """Загрузка статистики обработки"""
@@ -162,9 +194,8 @@ class MassFamilyProcessorGUI:
             self.log_message(f"📋 Подробности:\n{error_msg}")
             
             try:
-                log_dir = os.path.join(os.path.dirname(__file__), "logs")
-                os.makedirs(log_dir, exist_ok=True)
-                log_file = os.path.join(log_dir, f"crash_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+                # Сохранить лог в файл в папке logs
+                log_file = os.path.join(self.logs_dir, f"crash_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
                 with open(log_file, 'w', encoding='utf-8') as f:
                     f.write(f"Crash at {datetime.now()}\n")
                     f.write(error_msg)
@@ -202,14 +233,11 @@ class MassFamilyProcessorGUI:
     
     def get_default_config(self):
         """Возвращает конфигурацию по умолчанию"""
-        desktop = os.path.join(os.path.expanduser("~"), "Desktop")
-        screenshot_dir = os.path.join(desktop, "database_screens")
-        
         return {
             "pause": "2",
             "screenshot": True,
             "stop_on_error": True,
-            "screenshot_dir": screenshot_dir,
+            "screenshot_dir": self.screenshots_dir,  # Используем папку из конфигурации
             "start_index": "1",
             "last_json_path": ""
         }
@@ -394,8 +422,7 @@ class MassFamilyProcessorGUI:
         ctk.CTkLabel(dir_frame, text="Папка для скриншотов:").pack(anchor="w", padx=5)
         screenshot_dir_value = self.config.get("screenshot_dir", "")
         if not screenshot_dir_value:
-            desktop = os.path.join(os.path.expanduser("~"), "Desktop")
-            screenshot_dir_value = os.path.join(desktop, "database_screens")
+            screenshot_dir_value = self.screenshots_dir
         
         self.screenshot_dir = ctk.CTkEntry(dir_frame)
         self.screenshot_dir.insert(0, screenshot_dir_value)
@@ -1254,7 +1281,7 @@ class MassFamilyProcessorGUI:
             # Первичный проход
             for i in range(self.current_family_index, total):
                 if not self.is_processing:
-                    self.log_message("⏸️ Обработка приостановена пользователем")
+                    self.log_message("⏸️ Обработка приостановлена пользователем")
                     break
                     
                 family = self.families_list[i]
@@ -1503,8 +1530,7 @@ class MassFamilyProcessorGUI:
                 if self.screenshot_var.get():
                     screenshot_dir = self.screenshot_dir.get().strip()
                     if not screenshot_dir:
-                        desktop = os.path.join(os.path.expanduser("~"), "Desktop")
-                        screenshot_dir = os.path.join(desktop, "database_screens")
+                        screenshot_dir = self.screenshots_dir
                         
                     if not os.path.exists(screenshot_dir):
                         try:
@@ -1563,8 +1589,7 @@ class MassFamilyProcessorGUI:
             if self.screenshot_var.get():
                 screenshot_dir = self.screenshot_dir.get().strip()
                 if not screenshot_dir:
-                    desktop = os.path.join(os.path.expanduser("~"), "Desktop")
-                    screenshot_dir = os.path.join(desktop, "database_screens")
+                    screenshot_dir = self.screenshots_dir
                     
                 if not os.path.exists(screenshot_dir):
                     try:
@@ -2490,7 +2515,7 @@ class AutoFormFillerMass:
             
             self.log(f"📊 Найдено строк в таблице: {len(rows)}")
             
-            # Проходим по всем строкам и ищем нужные поля
+            # Проходим по всем строкям и ищем нужные поля
             for i, row in enumerate(rows, start=2):  # начинаем с 2
                 try:
                     # Формируем индекс для поиска элемента
@@ -2759,8 +2784,7 @@ class AutoFormFillerMass:
             safe_name = safe_name[:50]
             
             if not self.screenshot_dir:
-                desktop = os.path.join(os.path.expanduser("~"), "Desktop")
-                self.screenshot_dir = os.path.join(desktop, "database_screens")
+                self.screenshot_dir = self.gui.screenshots_dir
                 
             if not os.path.exists(self.screenshot_dir):
                 try:
