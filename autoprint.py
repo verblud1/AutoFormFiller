@@ -131,8 +131,22 @@ def create_printed_directory_with_date(folder_path):
     
     return printed_dir
 
+def setup_archive_directory(folder_path):
+    """Настраивает папку archive для долгосрочного хранения"""
+    archive_dir = os.path.join(folder_path, "archive")
+    
+    # Если папка archive существует
+    if os.path.exists(archive_dir):
+        print(f"Найдена папка archive: {archive_dir}")
+    else:
+        # Создаем папку archive
+        os.makedirs(archive_dir, exist_ok=True)
+        print(f"Создана папка archive: {archive_dir}")
+    
+    return archive_dir
+
 def save_to_printed_directory(pdf_file, printed_dir, page_number, side):
-    """Сохраняет копию PDF файла в папку printed"""
+    """Сохраняет копию PDF файла в папку printed с датой"""
     try:
         # Создаем имя файла с временной меткой и номером страницы
         timestamp = time.strftime("%Y%m%d_%H%M%S")
@@ -141,11 +155,63 @@ def save_to_printed_directory(pdf_file, printed_dir, page_number, side):
         
         # Копируем файл
         shutil.copy2(pdf_file, destination)
-        print(f"Сохранена копия: {destination}")
+        print(f"Сохранена копия в printed: {destination}")
         return destination
     except Exception as e:
-        print(f"Ошибка при сохранении копии: {e}")
+        print(f"Ошибка при сохранении в printed: {e}")
         return None
+
+def save_to_archive(pdf_file, archive_dir, page_number, side):
+    """Сохраняет копию PDF файла в папку archive"""
+    try:
+        # Создаем имя файла с датой и временем
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        filename = f"page_{page_number:03d}_{side}_{timestamp}.pdf"
+        destination = os.path.join(archive_dir, filename)
+        
+        # Копируем файл
+        shutil.copy2(pdf_file, destination)
+        print(f"Сохранена копия в archive: {destination}")
+        return destination
+    except Exception as e:
+        print(f"Ошибка при сохранении в archive: {e}")
+        return None
+
+def move_printed_png_to_archive(png_files, archive_dir):
+    """Перемещает напечатанные PNG файлы в подпапку archive"""
+    try:
+        # Создаем подпапку для PNG в archive
+        png_archive_dir = os.path.join(archive_dir, "printed_png")
+        os.makedirs(png_archive_dir, exist_ok=True)
+        
+        moved_count = 0
+        for png_file in png_files:
+            try:
+                # Получаем имя файла
+                filename = os.path.basename(png_file)
+                destination = os.path.join(png_archive_dir, filename)
+                
+                # Если файл уже существует, добавляем временную метку
+                if os.path.exists(destination):
+                    timestamp = time.strftime("%Y%m%d_%H%M%S")
+                    name, ext = os.path.splitext(filename)
+                    filename = f"{name}_{timestamp}{ext}"
+                    destination = os.path.join(png_archive_dir, filename)
+                
+                # Перемещаем файл
+                shutil.move(png_file, destination)
+                moved_count += 1
+                print(f"Перемещен PNG в archive: {filename}")
+                
+            except Exception as e:
+                print(f"Ошибка при перемещении {png_file}: {e}")
+        
+        print(f"Всего перемещено PNG файлов: {moved_count}")
+        return moved_count
+        
+    except Exception as e:
+        print(f"Ошибка при создании папки для PNG: {e}")
+        return 0
 
 def main():
     # Запрашиваем путь к папке с изображениями
@@ -181,6 +247,9 @@ def main():
     # Создаем папку для сохранения напечатанных файлов с текущей датой
     printed_dir = create_printed_directory_with_date(folder_path)
     
+    # Настраиваем папку archive
+    archive_dir = setup_archive_directory(folder_path)
+    
     # Настраиваем принтер
     if not setup_printer():
         print("Продолжаем без настройки принтера...")
@@ -188,6 +257,7 @@ def main():
     # Создаем временную директорию для PDF файлов
     with tempfile.TemporaryDirectory() as temp_dir:
         page_count = 0
+        printed_png_files = []  # Список напечатанных PNG файлов
         
         # Обрабатываем файлы по 4 на лист (2 на лицевой, 2 на обратной стороне)
         for i in range(0, total_files, 4):
@@ -199,6 +269,9 @@ def main():
             front_files = current_files[:2]
             back_files = current_files[2:4] if len(current_files) > 2 else []
             
+            # Добавляем файлы в список напечатанных
+            printed_png_files.extend(current_files)
+            
             # Создаем PDF для лицевой стороны
             if front_files:
                 front_pdf = create_a4_with_two_images(
@@ -206,7 +279,11 @@ def main():
                 )
                 
                 # Сохраняем копию в папку printed с датой
-                save_to_printed_directory(front_pdf, printed_dir, page_count, "front")
+                saved_printed = save_to_printed_directory(front_pdf, printed_dir, page_count, "front")
+                
+                # Сохраняем копию в папку archive
+                if saved_printed:
+                    save_to_archive(saved_printed, archive_dir, page_count, "front")
                 
                 # Печатаем лицевую сторону
                 print(f"Печатаю лицевую сторону листа {page_count}...")
@@ -235,7 +312,11 @@ def main():
                     )
                     
                     # Сохраняем копию в папку printed с датой
-                    save_to_printed_directory(back_pdf, printed_dir, page_count, "back")
+                    saved_printed = save_to_printed_directory(back_pdf, printed_dir, page_count, "back")
+                    
+                    # Сохраняем копию в папку archive
+                    if saved_printed:
+                        save_to_archive(saved_printed, archive_dir, page_count, "back")
                     
                     # Печатаем обратную сторону
                     print(f"Печатаю обратную сторону листа {page_count}...")
@@ -253,11 +334,24 @@ def main():
         
         print(f"\nГотово! Обработано {min(page_count, (total_files + 3) // 4)} листов")
         print(f"Все PDF файлы сохранены в папке: {printed_dir}")
+        print(f"Архивные копии сохранены в папке: {archive_dir}")
         
         # Создаем README файл с информацией о печати
-        create_readme_file(printed_dir, total_files, page_count)
+        create_readme_file(printed_dir, total_files, page_count, archive_dir)
+        
+        # Предлагаем переместить напечатанные PNG файлы в архив
+        if printed_png_files:
+            print(f"\nНапечатано {len(printed_png_files)} PNG файлов.")
+            if get_user_confirmation(
+                f"Переместить напечатанные PNG файлы ({len(printed_png_files)} шт.)\n"
+                "в подпапку archive/printed_png?"
+            ):
+                moved_count = move_printed_png_to_archive(printed_png_files, archive_dir)
+                print(f"Перемещено {moved_count} PNG файлов в архив")
+            else:
+                print("PNG файлы оставлены на месте")
 
-def create_readme_file(printed_dir, total_files, total_pages):
+def create_readme_file(printed_dir, total_files, total_pages, archive_dir):
     """Создает информационный файл о печати"""
     readme_path = os.path.join(printed_dir, "README.txt")
     
@@ -268,22 +362,27 @@ def create_readme_file(printed_dir, total_files, total_pages):
         
         f.write(f"Дата печати: {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}\n")
         f.write(f"Папка печати: {os.path.basename(printed_dir)}\n")
+        f.write(f"Папка архива: {os.path.basename(archive_dir)}\n")
         f.write(f"Общее количество изображений: {total_files}\n")
         f.write(f"Количество листов: {total_pages}\n")
         f.write(f"Печать выполнена: по 2 изображения на сторону A4\n")
         f.write(f"Папка с исходными изображениями: {os.path.dirname(printed_dir)}\n\n")
         
-        f.write("СОСТАВ ФАЙЛОВ:\n")
-        f.write("- front: лицевая сторона листа\n")
-        f.write("- back: обратная сторона листа\n\n")
+        f.write("СОХРАНЕННЫЕ КОПИИ:\n")
+        f.write(f"1. Папка printed: {printed_dir}\n")
+        f.write("   - Временное хранение PDF по датам\n")
+        f.write(f"2. Папка archive: {archive_dir}\n")
+        f.write("   - Долгосрочное хранение всех PDF\n")
+        f.write("   - Подпапка printed_png: исходные PNG файлы (по запросу)\n\n")
         
         f.write("ИМЕНА ФАЙЛОВ:\n")
         f.write("Формат: page_XXX_front/back_ГГГГММДД_ЧЧММСС.pdf\n")
         f.write("Пример: page_001_front_20241222_143022.pdf\n\n")
         
         f.write("ПРИМЕЧАНИЕ:\n")
-        f.write("Папка названа по дате печати. Если в один день печать выполняется\n")
-        f.write("несколько раз, все файлы сохраняются в одну и ту же папку.\n\n")
+        f.write("1. Папка printed названа по дате печати\n")
+        f.write("2. Папка archive содержит все напечатанные файлы за все время\n")
+        f.write("3. После печати можно переместить PNG файлы в archive/printed_png\n\n")
         
         f.write("=" * 60 + "\n")
         f.write("АВТОМАТИЧЕСКИ СОЗДАНО СКРИПТОМ ПЕЧАТИ\n")
