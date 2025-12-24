@@ -1,3 +1,9 @@
+#my scr
+ideas.txt
+logs/
+config/
+old/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

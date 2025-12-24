@@ -54,154 +54,9 @@ class MassFamilyProcessorGUI:
         self.daily_stat = 0
         self.weekly_stat = 0
         
-        self.completed_families_file = os.path.join(self.config_dir, "completed_families.json")
-        self.completed_families = self._load_completed_families()
-
         self.setup_ui()
         self.setup_error_handling()
-    
-    def _load_completed_families(self):
-        """Загрузка списка уже обработанных семей"""
-        try:
-            if os.path.exists(self.completed_families_file):
-                with open(self.completed_families_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            return []
-        except Exception as e:
-            self.log_message(f"⚠️ Ошибка загрузки completed_families.json: {e}")
-            return []
-    
-    def load_json(self, file_path=None):
-        """Загрузка семей из JSON файла с проверкой на уже обработанные"""
-        if not file_path:
-            file_path = filedialog.askopenfilename(
-                title="Выберите JSON файл",
-                filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
-            )
         
-        if not file_path:
-            return
-            
-        try:
-            with open(file_path, 'r', encoding='utf-8') as file:
-                data = json.load(file)
-                
-                families_loaded = 0
-                for i, family in enumerate(data, 1):
-                    try:
-                        normalized_family = self.normalize_family_data(family)
-                        
-                        # Проверяем, была ли семья уже обработана
-                        mother_fio = normalized_family.get('mother_fio', '')
-                        if mother_fio and self._is_family_completed(mother_fio):
-                            normalized_family['status'] = 'уже обработана'
-                            normalized_family['error_message'] = 'Уже обработана ранее'
-                        else:
-                            normalized_family['status'] = 'ожидает'
-                            normalized_family['error_message'] = ''
-                        
-                        self.families_list.append(normalized_family)
-                        families_loaded += 1
-                    except Exception as e:
-                        self.log_message(f"⚠️ Ошибка загрузки семьи {i}: {e}")
-                        continue
-                    
-                self.last_json_path = file_path
-                self.config["last_json_path"] = file_path
-                self.save_config()
-                
-                self.update_families_table()
-                self.update_families_info()
-                self.log_message(f"✅ Загружено {families_loaded} семей из JSON файла: {os.path.basename(file_path)}")
-                self.log_message(f"📊 Всего семей в списке: {len(self.families_list)}")
-                
-        except Exception as e:
-            self.log_message(f"❌ Ошибка загрузки JSON: {e}")
-            messagebox.showerror("Ошибка", f"Не удалось загрузить JSON: {str(e)}")
-    
-    def _is_family_completed(self, mother_fio):
-        """Проверка, была ли семья уже обработана"""
-        return any(family.get('mother_fio') == mother_fio for family in self.completed_families)
-    
-    def normalize_family_data(self, family):
-        """Нормализация данных семьи с учетом всех доходов"""
-        normalized = {}
-        
-        # Основные поля
-        normalized['mother_fio'] = str(family.get('mother_fio', '')).strip()
-        normalized['mother_birth'] = str(family.get('mother_birth', '')).strip()
-        normalized['mother_work'] = str(family.get('mother_work', '')).strip()
-        
-        # Отец
-        normalized['father_fio'] = str(family.get('father_fio', '')).strip()
-        normalized['father_birth'] = str(family.get('father_birth', '')).strip()
-        normalized['father_work'] = str(family.get('father_work', '')).strip()
-        
-        # Дети
-        children = family.get('children', [])
-        if isinstance(children, list):
-            normalized['children'] = []
-            for child in children:
-                if isinstance(child, dict):
-                    normalized_child = {
-                        'fio': str(child.get('fio', '')).strip(),
-                        'birth': str(child.get('birth', '')).strip(),
-                        'education': str(child.get('education', '')).strip()
-                    }
-                    normalized['children'].append(normalized_child)
-        else:
-            normalized['children'] = []
-        
-        # Жилье
-        normalized['rooms'] = str(family.get('rooms', '')).strip()
-        normalized['square'] = str(family.get('square', '')).strip()
-        normalized['amenities'] = str(family.get('amenities', 'со всеми удобствами')).strip()
-        normalized['ownership'] = str(family.get('ownership', '')).strip()
-        normalized['address'] = str(family.get('address', '')).strip()
-        
-        # Доходы - собираем все возможные доходы
-        normalized['incomes'] = {}
-        
-        # Основные доходы
-        income_fields = {
-            'mother_salary': 'mother_salary',
-            'father_salary': 'father_salary',
-            'unified_benefit': 'unified_benefit',
-            'large_family_benefit': 'large_family_benefit',
-            'survivor_pension': 'survivor_pension',
-            'alimony': 'alimony',
-            'disability_pension': 'disability_pension',
-            'child_disability_pension': 'child_disability_pension',
-            'care_disability_pension': 'care_disability_pension'
-        }
-        
-        for json_key, our_key in income_fields.items():
-            if json_key in family and family[json_key]:
-                try:
-                    value = str(family[json_key]).strip()
-                    if value and value != '0':
-                        normalized['incomes'][our_key] = value
-                except:
-                    pass
-        
-        # Другие доходы (other_incomes)
-        other_incomes = family.get('other_incomes', {})
-        if isinstance(other_incomes, dict):
-            for key, value in other_incomes.items():
-                if value and str(value).strip() and str(value).strip() != '0':
-                    normalized['incomes'][key] = str(value).strip()
-        
-        # АДПИ
-        normalized['adpi'] = str(family.get('adpi', 'нет')).strip().lower()
-        normalized['install_date'] = str(family.get('install_date', '')).strip()
-        normalized['check_date'] = str(family.get('check_date', '')).strip()
-        
-        # Телефон
-        phone_number = family.get('phone_number', family.get('phone', ''))
-        normalized['phone'] = str(phone_number).strip()
-        
-        return normalized
-    
     def setup_config_directory(self):
         """Создание папки для конфигурационных файлов (новое)"""
         try:
@@ -1809,19 +1664,6 @@ class MassFamilyProcessorGUI:
                 pass
 
 
-import os
-import json
-import time
-import re
-from datetime import datetime
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
-import customtkinter as ctk
-from tkinter import messagebox
-
-
 class AutoFormFillerMass:
     """Класс для массовой обработки семей с улучшенной обработкой ошибок"""
     
@@ -1833,74 +1675,72 @@ class AutoFormFillerMass:
         self.should_stop = False
         self.phone = ""
         self.address = ""
-        self.completed_families_file = os.path.join(gui_app.config_dir, "completed_families.json")
-        self.completed_families = self._load_completed_families()
         
-    def _load_completed_families(self):
-        """Загрузка списка уже обработанных семей"""
-        try:
-            if os.path.exists(self.completed_families_file):
-                with open(self.completed_families_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            return []
-        except Exception as e:
-            self.log(f"⚠️ Ошибка загрузки completed_families.json: {e}")
-            return []
-    
-    def _save_completed_family(self, mother_fio):
-        """Сохранение обработанной семьи в JSON"""
-        try:
-            if not any(family.get('mother_fio') == mother_fio for family in self.completed_families):
-                self.completed_families.append({
-                    'mother_fio': mother_fio,
-                    'processed_date': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    'status': 'success'
-                })
-                
-                with open(self.completed_families_file, 'w', encoding='utf-8') as f:
-                    json.dump(self.completed_families, f, ensure_ascii=False, indent=2)
-                    
-                self.log(f"💾 Семья добавлена в completed_families.json")
-        except Exception as e:
-            self.log(f"⚠️ Ошибка сохранения в completed_families.json: {e}")
-    
-    def _is_family_completed(self, mother_fio):
-        """Проверка, была ли семья уже обработана"""
-        return any(family.get('mother_fio') == mother_fio for family in self.completed_families)
-    
     def log(self, message):
         """Логирование в GUI"""
         self.gui.log_message(message)
+        
+    def stop_processing(self):
+        """Остановка обработки"""
+        self.should_stop = True
+        if self.driver:
+            try:
+                self.driver.quit()
+            except:
+                pass
     
+    def wait_for_manual_intervention(self, message):
+        """Ожидание ручного вмешательства пользователя"""
+        self.log(f"🛠️ {message}")
+        self.gui.manual_intervention_required = True
+        
+        # Показываем сообщение пользователю
+        messagebox.showinfo("Требуется ручное вмешательство", 
+                           f"{message}\n\n"
+                           "Пожалуйста, перейдите на нужную страницу в браузере и нажмете 'Продолжить' в программе.")
+        
+        # Ждем, пока пользователь не нажмет "Продолжить"
+        while self.gui.manual_intervention_required and not self.should_stop:
+            time.sleep(0.5)
+        
+        return not self.should_stop
+        
     def process_family(self, family_data, family_number):
-        """Обработка одной семьи с проверкой на уже обработанные"""
+        """Обработка одной семьи"""
         try:
-            mother_fio = family_data.get('mother_fio', '')
-            
-            # Проверка, была ли семья уже обработана
-            if self._is_family_completed(mother_fio):
-                self.log(f"⏭️ Семья {family_number} уже обработана ранее, пропускаем")
-                return True
-            
             # 1. Возвращаемся на страницу поиска
             self.log("🔙 Возвращаемся на страницу поиска...")
             try:
                 self.driver.get("http://localhost:8080/aspnetkp/Common/FindInfo.aspx")
-                self._wait_for_page_ready()
+                time.sleep(1)
             except Exception as e:
                 self.log(f"❌ Не удалось загрузить страницу поиска: {e}")
-                return False
+                
+                # Запрашиваем ручное вмешательство
+                if self.wait_for_manual_intervention("Не удалось загрузить страницу поиска"):
+                    self.log("▶️ Продолжаем после ручного вмешательства")
+                else:
+                    return False
             
             # 2. Поиск семьи по ФИО матери
+            mother_fio = family_data.get('mother_fio', '')
             if not mother_fio:
                 self.log("❌ Не указано ФИО матери")
                 return False
                 
             self.log(f"🔍 Поиск семьи: {mother_fio}")
             
+            # Выполняем поиск
             if not self._fast_search_mother(mother_fio):
                 self.log("❌ Не удалось найти семью")
-                return False
+                
+                # Запрашиваем ручное вмешательство
+                if self.wait_for_manual_intervention(f"Не удалось найти семью: {mother_fio}"):
+                    self.log("▶️ Продолжаем после ручного вмешательства")
+                    # Предполагаем, что пользователь уже на нужной странице
+                    time.sleep(1)
+                else:
+                    return False
                 
             # 3. Анализ результатов поиска и автоматический выбор карточки
             self.log("🤖 Анализируем результаты поиска...")
@@ -1908,57 +1748,62 @@ class AutoFormFillerMass:
             
             if not result:
                 self.log("❌ Не удалось автоматически выбрать карточку")
-                return False
                 
-            # 4. Проверка наличия данных в дополнительной информации
-            time.sleep(1)
-            has_existing_data, existing_text = self._check_existing_data()
+                # Запрашиваем ручное вмешательство
+                if self.wait_for_manual_intervention("Не удалось автоматически выбрать карточку"):
+                    self.log("▶️ Продолжаем после ручного вмешательства")
+                    # Предполагаем, что пользователь уже на нужной карточке
+                    time.sleep(1)
+                else:
+                    return False
+                
+            # 4. ПЕРЕД ПЕРЕХОДОМ НА ДОПОЛНИТЕЛЬНУЮ ИНФОРМАЦИЮ - ПОЛУЧАЕМ ТЕЛЕФОН И АДРЕС
+            self.log("📱 Получаем телефон и адрес СРАЗУ ПОСЛЕ ПЕРЕХОДА НА КАРТОЧКУ...")
             
-            if has_existing_data and existing_text and existing_text != "Информация отсутствует":
-                response = messagebox.askyesno(
-                    "Обнаружены существующие данные",
-                    f"Кажется, человек уже внесен в базу данных.\n\n"
-                    f"Текущие данные:\n{existing_text[:200]}...\n\n"
-                    f"Продолжить? (Существующие данные будут удалены)"
-                )
-                
-                if not response:
-                    self.log("⏭️ Пользователь отказался от продолжения")
+            # Ждем загрузки страницы карточки
+            time.sleep(1.5)
+            
+            # Получаем данные из family_data (из JSON)
+            self._get_phone_and_address_from_family_data(family_data)
+            
+            # Также пытаемся получить со страницы (если не удалось из JSON)
+            self._get_phone_and_address_from_page()
+            
+            # 5. Проверка и заполнение данных
+            if not self._check_additional_info_empty():
+                if not self._warn_existing_data():
+                    self.log("⚠️ Пропускаем - данные уже существуют")
                     # Возвращаемся на страницу поиска
                     self._return_to_search_page()
-                    return False
-                
-                # Если пользователь согласился, очищаем существующие данные
-                self.log("🔄 Очищаем существующие данные...")
-                if not self._clear_existing_data():
-                    self.log("❌ Не удалось очистить существующие данные")
-                    return False
-            
-            # 5. Навигация к форме дополнительной информации
+                    return True  # Возвращаем True, так как это не ошибка
+                    
+            # 6. Навигация к форме дополнительной информации
             self.log("🔄 Переходим на вкладку доп. информации...")
             if not self._navigate_to_additional_info():
-                self.log("❌ Не удалось перейти на вкладку доп. информации")
-                return False
+                # Запрашиваем ручное вмешательство при ошибке навигации
+                if self.wait_for_manual_intervention("Не удалось перейти на вкладку доп. информации"):
+                    self.log("▶️ Продолжаем после ручного вмешательства")
+                    # Предполагаем, что пользователь уже на нужной форме
+                else:
+                    return False
                 
-            # 6. Форматирование данных семьи (с доходами)
+            # 7. Форматирование данных семьи (с доходами)
             formatted_data = self._format_family_data(family_data)
             
-            # 7. Заполнение формы
+            # 8. Заполнение формы
             if not self._fill_form(*formatted_data):
                 self.log("❌ Ошибка заполнения формы")
                 return False
             
-            # 8. Сохранение
+            # 9. Сохранение
             if self._final_verification(family_data):
                 if self._save_and_exit():
-                    # 9. Скриншот
+                    # 10. Скриншот
                     if self.screenshot_dir:
                         self._take_screenshot(formatted_data, family_number, family_data)
                     
-                    # 10. Сохраняем в список обработанных семей
-                    self._save_completed_family(mother_fio)
-                    
-                    # 11. Возвращаемся на страницу поиска
+                    # 11. Возвращаемся на страницу поиска без закрытия браузера
+                    time.sleep(1)
                     self._return_to_search_page()
                     
                     self.log("✅ Семья обработана успешно")
@@ -1971,156 +1816,467 @@ class AutoFormFillerMass:
             import traceback
             self.log(f"📋 Трассировка:\n{traceback.format_exc()}")
             return False
-    
-    def _wait_for_page_ready(self, timeout=10):
-        """Ожидание загрузки страницы (динамическая проверка)"""
+            
+    def _get_phone_and_address_from_family_data(self, family_data):
+        """Получение телефона и адреса из данных семьи (JSON)"""
         try:
-            start_time = time.time()
-            while time.time() - start_time < timeout:
-                # Проверяем, что документ загружен
-                ready_state = self.driver.execute_script("return document.readyState")
-                if ready_state == "complete":
-                    # Дополнительная проверка на наличие основных элементов
+            # Телефон из данных
+            phone_from_data = family_data.get('phone', '')
+            if phone_from_data:
+                self.phone = phone_from_data
+                self.log(f"📱 Используем телефон из JSON данных: {self.phone}")
+            else:
+                self.log("⚠️ Телефон не найден в JSON данных")
+                self.phone = ""
+            
+            # Адрес из данных
+            address_from_data = family_data.get('address', '')
+            if address_from_data:
+                self.address = address_from_data
+                self.log(f"🏠 Используем адрес из JSON данных: {self.address}")
+            else:
+                self.log("⚠️ Адрес не найден в JSON данных")
+                self.address = ""
+                
+        except Exception as e:
+            self.log(f"⚠️ Ошибка получения данных из JSON: {e}")
+            self.phone = ""
+            self.address = ""
+            
+    def _get_phone_and_address_from_page(self):
+        """Дополнительная попытка получить телефон и адрес со страницы"""
+        try:
+            # Если телефон из JSON не получен, пытаемся со страницы
+            if not self.phone:
+                try:
+                    # Ждем появления элемента телефона
+                    phone_element = WebDriverWait(self.driver, 3).until(
+                        EC.presence_of_element_located((By.ID, "ctl00_cph_lblMobilPhone"))
+                    )
+                    phone_text = phone_element.text.strip() if phone_element else ""
+                    if phone_text:
+                        self.phone = phone_text
+                        self.log(f"📱 Телефон со страницы: {self.phone}")
+                except Exception as e:
+                    self.log("⚠️ Телефон не найден на странице")
+            
+            # Если адрес из JSON не получен, пытаемся со страницы
+            if not self.address or self.address == "Адрес не найден":
+                try:
+                    # Ждем появления элемента адреса
+                    address_element = WebDriverWait(self.driver, 3).until(
+                        EC.presence_of_element_located((By.ID, "ctl00_cph_lblRegAddress"))
+                    )
+                    address_text = address_element.text.strip() if address_element else ""
+                    if address_text:
+                        self.address = address_text
+                        self.log(f"🏠 Адрес со страницы: {self.address}")
+                        
+                        # Спрашиваем пользователя, верен ли адрес
+                        result = messagebox.askyesno(
+                            "Проверка адреса", 
+                            f"Адрес верен?\n{self.address}\n\nЕсли нет - отредактируйте в следующих шагах."
+                        )
+                        
+                        if not result:
+                            address_dialog = ctk.CTkInputDialog(
+                                text=f"Введите правильный адрес:",
+                                title="Исправление адреса"
+                            )
+                            new_address = address_dialog.get_input()
+                            if new_address:
+                                self.address = new_address
+                except Exception as e:
+                    self.log("⚠️ Адрес не найден на странице")
+                    if not self.address:
+                        self.address = "Адрес не найден"
+                        
+        except Exception as e:
+            self.log(f"⚠️ Ошибка получения данных со страницы: {e}")
+            
+    def _return_to_search_page(self):
+        """Возврат на страницу поиска без закрытия браузера"""
+        try:
+            self.log("🔄 Возвращаемся на страницу поиска...")
+            self.driver.get("http://localhost:8080/aspnetkp/Common/FindInfo.aspx")
+            time.sleep(1)
+            self.log("✅ Вернулись на страницу поиска")
+        except Exception as e:
+            self.log(f"⚠️ Не удалось вернуться на страницу поиска: {e}")
+            
+    def _analyze_search_results(self, family_number, mother_fio):
+        """Анализ результатов поиска и автоматический выбор карточки"""
+        try:
+            time.sleep(1.5)  # Увеличиваем время ожидания
+            
+            cards = self.driver.find_elements(By.CSS_SELECTOR, "#ctl00_cph_dTabsContainer .pers")
+            
+            if not cards:
+                self.log("❌ Карточки не найдены")
+                return False
+                
+            self.log(f"📊 Найдено карточек: {len(cards)}")
+            
+            if len(cards) == 1:
+                self.log("✅ Найдена одна карточка, переходим...")
+                try:
+                    link = cards[0].find_element(By.CSS_SELECTOR, "a[title='Переход в просмотр ПКУ']")
+                    link.click()
+                    time.sleep(2)  # Увеличиваем время ожидания после перехода
+                    return True
+                except Exception as e:
+                    self.log(f"❌ Не удалось кликнуть на ссылку: {e}")
+                    return False
+            
+            vyishnevolotsk_cards = []
+            
+            for i, card in enumerate(cards):
+                try:
+                    fio_element = card.find_element(By.CSS_SELECTOR, ".fio")
+                    fio = fio_element.text if fio_element else ""
+                    
+                    address = ""
                     try:
-                        # Проверяем наличие body
-                        body = self.driver.find_element(By.TAG_NAME, "body")
-                        if body.is_displayed():
-                            return True
+                        details_table = card.find_element(By.CSS_SELECTOR, "table.tbl-details")
+                        rows = details_table.find_elements(By.TAG_NAME, "tr")
+                        
+                        for row in rows:
+                            cells = row.find_elements(By.TAG_NAME, "td")
+                            if len(cells) >= 2 and "Проживает:" in cells[0].text:
+                                address = cells[1].text
+                                break
                     except:
                         pass
-                time.sleep(0.1)
-            return False
-        except Exception as e:
-            self.log(f"⚠️ Ошибка ожидания загрузки страницы: {e}")
-            return False
-    
-    def _check_existing_data(self):
-        """Проверка наличия существующих данных в поле дополнительной информации"""
-        try:
-            # Кликаем на вкладку дополнительной информации
-            if not self._click_element_with_retry(By.ID, "ctl00_cph_rptAllTabs_ctl10_tdTabL"):
-                return False, ""
-            
-            self._wait_for_page_ready(2)
-            
-            # Получаем текст из поля
-            try:
-                info_element = self.driver.find_element(By.ID, "ctl00_cph_lblAddInfo2")
-                existing_text = info_element.text.strip()
-                
-                # Проверяем, есть ли реальные данные (не только "Информация отсутствует")
-                has_data = existing_text and existing_text != "Информация отсутствует"
-                return has_data, existing_text
-                
-            except Exception as e:
-                self.log(f"⚠️ Не удалось получить текст поля: {e}")
-                return False, ""
-                
-        except Exception as e:
-            self.log(f"⚠️ Ошибка проверки существующих данных: {e}")
-            return False, ""
-    
-    def _clear_existing_data(self):
-        """Очистка существующих данных в дополнительной информации"""
-        try:
-            # Кликаем на кнопку редактирования
-            if not self._click_element_with_retry(By.ID, "ctl00_cph_lbtnEditAddInfo"):
-                return False
-            
-            self._wait_for_page_ready(2)
-            
-            # Ждем загрузки таблицы
-            try:
-                table = WebDriverWait(self.driver, 5).until(
-                    EC.presence_of_element_located((By.ID, "ctl00_cph_ctrlDopFields_gv"))
-                )
-            except TimeoutException:
-                self.log("⚠️ Таблица с данными не загрузилась")
-                return False
-            
-            # Ищем все кнопки удаления в таблице
-            delete_buttons = []
-            max_attempts = 10  # Максимальное количество строк для проверки
-            
-            for i in range(2, max_attempts + 2):
-                try:
-                    # Форматируем индекс для поиска
-                    idx_str = f"{i:02d}"
-                    delete_button_id = f"ctl00_cph_ctrlDopFields_gv_ctl{idx_str}_lbtnDelete"
                     
-                    delete_button = self.driver.find_element(By.ID, delete_button_id)
-                    if delete_button.is_displayed():
-                        delete_buttons.append(delete_button)
-                except Exception:
-                    # Если не нашли кнопку, прекращаем поиск
-                    break
-            
-            self.log(f"🔄 Найдено {len(delete_buttons)} записей для удаления")
-            
-            # Удаляем все найденные записи
-            for i, delete_button in enumerate(delete_buttons):
-                try:
-                    self.log(f"🗑️ Удаляем запись {i+1}")
-                    delete_button.click()
-                    time.sleep(0.3)  # Короткая пауза для обработки
+                    self.log(f"  Карточка {i+1}: {fio}")
+                    self.log(f"    Адрес: {address[:50]}..." if len(address) > 50 else f"    Адрес: {address}")
+                    
+                    if address and any(term in address for term in ["Вышневолоцкий район", "Вышневолоцкий городской округ"]):
+                        vyishnevolotsk_cards.append({
+                            'index': i,
+                            'card': card,
+                            'fio': fio,
+                            'address': address
+                        })
+                        self.log(f"    ✅ Подходит под наш район")
+                        
                 except Exception as e:
-                    self.log(f"⚠️ Не удалось удалить запись {i+1}: {e}")
+                    self.log(f"⚠️ Ошибка анализа карточки {i+1}: {e}")
+                    continue
             
-            # Очищаем основное поле
+            if len(vyishnevolotsk_cards) == 0:
+                self.log("❌ Не найдено карточек в Вышневолоцком районе/городском округе")
+                return self._show_cards_for_selection(cards, family_number, mother_fio)
+                
+            elif len(vyishnevolotsk_cards) == 1:
+                self.log(f"✅ Найдена 1 карточка в Вышневолоцком районе/городском округе")
+                try:
+                    card_info = vyishnevolotsk_cards[0]
+                    link = card_info['card'].find_element(By.CSS_SELECTOR, "a[title='Переход в просмотр ПКУ']")
+                    link.click()
+                    time.sleep(2)  # Увеличиваем время ожидания после перехода
+                    return True
+                except Exception as e:
+                    self.log(f"❌ Не удалось кликнуть на ссылку: {e}")
+                    return False
+                    
+            else:
+                self.log(f"⚠️ Найдено {len(vyishnevolotsk_cards)} карточек в Вышневолоцком районе/городском округе")
+                return self._show_cards_for_selection(
+                    [info['card'] for info in vyishnevolotsk_cards], 
+                    family_number, 
+                    mother_fio,
+                    filtered=True
+                )
+                
+        except Exception as e:
+            self.log(f"❌ Ошибка анализа результатов поиска: {e}")
+            return False
+            
+    def _show_cards_for_selection(self, cards, family_number, mother_fio, filtered=False):
+        """Показ карточек пользователю для выбора"""
+        try:
+            card_info_list = []
+            
+            for i, card in enumerate(cards):
+                try:
+                    fio_element = card.find_element(By.CSS_SELECTOR, ".fio")
+                    fio = fio_element.text if fio_element else f"Карточка {i+1}"
+                    
+                    address = ""
+                    try:
+                        details_table = card.find_element(By.CSS_SELECTOR, "table.tbl-details")
+                        rows = details_table.find_elements(By.TAG_NAME, "tr")
+                        
+                        for row in rows:
+                            cells = row.find_elements(By.TAG_NAME, "td")
+                            if len(cells) >= 2 and "Проживает:" in cells[0].text:
+                                address = cells[1].text
+                                break
+                    except:
+                        pass
+                    
+                    card_info_list.append({
+                        'index': i,
+                        'fio': fio,
+                        'address': address[:100] + "..." if len(address) > 100 else address
+                    })
+                except:
+                    card_info_list.append({
+                        'index': i,
+                        'fio': f"Карточка {i+1}",
+                        'address': "Информация недоступна"
+                    })
+            
+            dialog_text = f"Семья {family_number}: {mother_fio}\n\n"
+            
+            if filtered:
+                dialog_text += "Найдено несколько карточек в Вышневолоцком районе/городском округе:\n\n"
+            else:
+                dialog_text += "Найдено несколько карточек. Выберите нужную:\n\n"
+            
+            for i, info in enumerate(card_info_list):
+                dialog_text += f"{i+1}. {info['fio']}\n"
+                dialog_text += f"   Адрес: {info['address']}\n\n"
+            
+            dialog_text += "Введите номер карточки (1, 2, 3...):"
+            
+            choice_dialog = ctk.CTkInputDialog(
+                text=dialog_text,
+                title="Выбор карточки"
+            )
+            
+            choice = choice_dialog.get_input()
+            
+            if not choice:
+                self.log("❌ Пользователь не сделал выбор")
+                return False
+                
             try:
-                main_field = self.driver.find_element(By.NAME, "ctl00$cph$tbAddInfo")
-                main_field.clear()
-                self.log("✅ Основное поле очищено")
+                choice_num = int(choice) - 1
+                if 0 <= choice_num < len(cards):
+                    selected_card = cards[choice_num]
+                    link = selected_card.find_element(By.CSS_SELECTOR, "a[title='Переход в просмотр ПКУ']")
+                    link.click()
+                    time.sleep(2)  # Увеличиваем время ожидания после перехода
+                    self.log(f"✅ Выбрана карточка {choice_num + 1}")
+                    return True
+                else:
+                    self.log(f"❌ Некорректный номер карточки: {choice}")
+                    return False
+            except ValueError:
+                self.log(f"❌ Некорректный ввод: {choice}")
+                return False
+                
+        except Exception as e:
+            self.log(f"❌ Ошибка при выборе карточки: {e}")
+            return False
+            
+    def _setup_driver(self):
+        """Настройка драйвера"""
+        try:
+            self.log("🔧 Настройка драйвера...")
+            
+            browser = self._detect_browser()
+            if not browser:
+                self.log("❌ Не найден Chrome, Yandex или Chromium")
+                messagebox.showerror("Ошибка", "Не найден браузер Chrome, Yandex или Chromium")
+                return False
+                
+            try:
+                driver_path = ChromeDriverManager(chrome_type=browser['type']).install()
             except Exception as e:
-                self.log(f"⚠️ Не удалось очистить основное поле: {e}")
-            
-            # Сохраняем изменения
-            if not self._click_element_with_retry(By.ID, "ctl00_cph_lbtnExitSave"):
-                self.log("⚠️ Не удалось сохранить после очистки")
+                self.log(f"❌ Не удалось установить драйвер: {e}")
+                messagebox.showerror("Ошибка", f"Не удалось установить драйвер браузера: {e}")
                 return False
+                
+            service = webdriver.chrome.service.Service(driver_path)
             
-            self._wait_for_page_ready(2)
+            options = webdriver.ChromeOptions()
+            if platform.system().lower() in ["linux", "redos"]:
+                options.add_argument('--no-sandbox')
+                options.add_argument('--disable-dev-shm-usage')
             
-            # Возвращаемся к редактированию для заполнения новых данных
-            if not self._click_element_with_retry(By.ID, "ctl00_cph_lbtnEditAddInfo"):
+            options.add_argument('--disable-blink-features=AutomationControlled')
+            options.add_argument('--start-maximized')
+            options.add_experimental_option('excludeSwitches', ['enable-logging'])
+            
+            try:
+                self.driver = webdriver.Chrome(service=service, options=options)
+                self.wait = WebDriverWait(self.driver, 10)
+                
+                self.driver.maximize_window()
+                
+                if not self._login():
+                    return False
+                    
+                self.log("✅ Драйвер настроен и выполнен вход")
+                return True
+                
+            except Exception as e:
+                self.log(f"❌ Не удалось запустить драйвер: {e}")
                 return False
+                
+        except Exception as e:
+            self.log(f"❌ Ошибка настройки драйвера: {e}")
+            return False
             
-            self._wait_for_page_ready(2)
+    def _detect_browser(self):
+        """Определение доступного браузера"""
+        system = platform.system().lower()
+        
+        if system == "windows":
+            try:
+                import winreg
+                browsers = [
+                    (r'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe', 'Chrome', ChromeType.GOOGLE),
+                    (r'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\browser.exe', 'Yandex', ChromeType.YANDEX),
+                ]
+                
+                for path, name, btype in browsers:
+                    try:
+                        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path) as key:
+                            browser_path = winreg.QueryValue(key, None)
+                            if os.path.exists(browser_path):
+                                self.log(f"✅ Найден браузер: {name}")
+                                return {'name': name, 'type': btype}
+                    except Exception:
+                        continue
+                        
+            except ImportError:
+                self.log("⚠️ Модуль winreg недоступен, пробуем стандартный Chrome")
+                return {'name': 'Chrome', 'type': ChromeType.GOOGLE}
+                
+        elif system in ["linux", "redos"]:
+            for path in ['/usr/bin/chromium-browser', '/usr/bin/chromium', '/usr/bin/google-chrome']:
+                if os.path.exists(path):
+                    self.log(f"✅ Найден браузер: {os.path.basename(path)}")
+                    return {'name': 'Chromium', 'type': ChromeType.CHROMIUM}
+        
+        self.log("⚠️ Браузер не найден, пробуем Chrome")
+        return {'name': 'Chrome', 'type': ChromeType.GOOGLE}
+        
+    def _login(self):
+        """Вход в систему"""
+        try:
+            self.log("🔐 Выполняем вход...")
             
+            self.driver.get("http://localhost:8080/aspnetkp/Common/FindInfo.aspx")
+            time.sleep(1)
+            
+            username_field = self.wait.until(
+                EC.element_to_be_clickable((By.NAME, "tbUserName"))
+            )
+            username_field.clear()
+            username_field.send_keys("СРЦ_Вол")
+            
+            password_field = self.wait.until(
+                EC.element_to_be_clickable((By.NAME, "tbPassword"))
+            )
+            password_field.clear()
+            password_field.send_keys("СРЦ_Вол1", Keys.ENTER)
+            
+            time.sleep(1)
+            self.log("✅ Вход выполнен")
             return True
             
         except Exception as e:
-            self.log(f"❌ Ошибка очистки существующих данных: {e}")
+            self.log(f"❌ Ошибка входа: {e}")
+            messagebox.showerror("Ошибка входа", f"Не удалось выполнить вход: {e}")
             return False
-    
+            
+    def _fast_search_mother(self, mother_fio):
+        """Быстрый поиск по ФИО матери"""
+        max_attempts = 2
+        for attempt in range(max_attempts):
+            try:
+                search_field = self.wait.until(
+                    EC.element_to_be_clickable((By.NAME, "ctl00$cph$ctrlFastFind$tbFind"))
+                )
+                
+                search_field.clear()
+                search_field.send_keys(mother_fio)
+                search_field.send_keys(Keys.ENTER)
+                
+                time.sleep(1.5)  # Увеличиваем время ожидания
+                
+                return True
+                
+            except Exception as e:
+                if attempt < max_attempts - 1:
+                    self.log(f"⚠️ Попытка {attempt + 1} поиска не удалась: {e}")
+                    time.sleep(1)
+                else:
+                    self.log(f"❌ Ошибка поиска после {max_attempts} попыток: {e}")
+                    return False
+        return False
+        
+    def _check_additional_info_empty(self):
+        """Проверка пустого поля дополнительной информации"""
+        max_attempts = 2
+        for attempt in range(max_attempts):
+            try:
+                if not self._click_element_with_retry(By.ID, "ctl00_cph_rptAllTabs_ctl10_tdTabL", max_attempts=2):
+                    return False
+                    
+                time.sleep(1.5)  # Увеличиваем время ожидания
+                
+                info_text = self._get_element_text("ctl00_cph_lblAddInfo2", "").strip()
+                return info_text == "Информация отсутствует" or not info_text
+                
+            except Exception as e:
+                if attempt < max_attempts - 1:
+                    self.log(f"⚠️ Попытка {attempt + 1} проверки поля не удалась: {e}")
+                    time.sleep(0.5)
+                else:
+                    self.log(f"⚠️ Ошибка проверки поля: {e}")
+                    return True
+        return True
+        
+    def _warn_existing_data(self):
+        """Предупреждение о существующих данных"""
+        return messagebox.askyesno("Предупреждение", 
+                                 "В разделе уже есть данные! Они будут УДАЛЕНЫ.\nПродолжить?")
+                                 
+    def _navigate_to_additional_info(self):
+        """Навигация к форме дополнительной информации"""
+        try:
+            if not self._click_element_with_retry(By.ID, "ctl00_cph_rptAllTabs_ctl10_tdTabL"):
+                return False
+                
+            time.sleep(0.8)  # Увеличиваем время ожидания
+                
+            if not self._click_element_with_retry(By.ID, "ctl00_cph_lbtnEditAddInfo"):
+                return False
+                
+            time.sleep(0.8)  # Увеличиваем время ожидания
+                
+            if not self._click_element_with_retry(By.ID, "ctl00_cph_ctrlDopFields_lbtnAdd"):
+                return False
+                
+            time.sleep(1.5)  # Увеличиваем время ожидания
+                
+            return True
+            
+        except Exception as e:
+            self.log(f"❌ Ошибка навигации: {e}")
+            return False
+            
     def _format_family_data(self, family_data):
-        """Форматирование данных семьи с учетом всех доходов"""
+        """Форматирование данных семьи с доходами"""
         try:
             lines = []
             
             # Мать
-            mother_fio = family_data.get('mother_fio', '')
-            mother_birth = family_data.get('mother_birth', '')
-            mother_work = family_data.get('mother_work', '')
-            
-            mother_line = f"Мать: {mother_fio} {mother_birth}"
-            lines.append(mother_line)
-            
-            # Добавляем "Работает:" только если есть место работы и оно не пустое/не "нет"
-            if mother_work and mother_work.strip() and mother_work.strip().lower() != "нет":
-                lines.append(f"Работает: {mother_work}")
+            mother_line = f"Мать: {family_data.get('mother_fio', '')} {family_data.get('mother_birth', '')}"
+            lines.extend([mother_line, f"Работает: {family_data.get('mother_work', '')}"])
             
             # Отец
-            father_fio = family_data.get('father_fio', '')
-            if father_fio:
-                father_birth = family_data.get('father_birth', '')
-                father_work = family_data.get('father_work', '')
-                
-                lines.append(f"Отец: {father_fio} {father_birth}")
-                
-                # Добавляем "Работает:" только если есть место работы и оно не пустое/не "нет"
-                if father_work and father_work.strip() and father_work.strip().lower() != "нет":
-                    lines.append(f"Работает: {father_work}")
+            if family_data.get('father_fio'):
+                lines.extend([
+                    f"Отец: {family_data['father_fio']} {family_data.get('father_birth', '')}",
+                    f"Работает: {family_data.get('father_work', '')}"
+                ])
             
             # Дети
             if family_data.get('children'):
@@ -2129,19 +2285,10 @@ class AutoFormFillerMass:
                     edu = f" - {child.get('education', '')}" if child.get('education') else ""
                     lines.append(f"    {child.get('fio', '')} {child.get('birth', '')}{edu}")
             
-            # Доходы - ВКЛЮЧАЕМ ВСЕ ДОХОДЫ ИЗ JSON
+            # Доходы - ВКЛЮЧАЕМ ДОХОДЫ ИЗ JSON
             incomes = family_data.get('incomes', {})
-            other_incomes = family_data.get('other_incomes', {})
-            
-            all_incomes = {}
-            all_incomes.update(incomes)
-            if isinstance(other_incomes, dict):
-                all_incomes.update(other_incomes)
-            
-            if all_incomes:
+            if incomes:
                 lines.append("\nДоходы семьи:")
-                
-                # Список всех возможных типов доходов
                 income_labels = {
                     'mother_salary': 'Зарплата матери',
                     'father_salary': 'Зарплата отца', 
@@ -2149,41 +2296,39 @@ class AutoFormFillerMass:
                     'large_family_benefit': 'Пособие по многодетности',
                     'survivor_pension': 'Пенсия по потере кормильца',
                     'alimony': 'Алименты',
-                    'disability_pension': 'Пенсия по инвалидности',
-                    'child_disability_pension': 'Пенсия ребенка-инвалида',
-                    'care_disability_pension': 'Пенсия по уходу за ребенком-инвалидом'
+                    'disability_pension': 'Пенсия по инвалидности'
                 }
                 
-                total_income = 0
-                
-                for key, value in all_incomes.items():
-                    if value and str(value).strip():
+                for key, value in incomes.items():
+                    if key in income_labels and value:
                         try:
-                            # Очищаем значение от нецифровых символов
                             clean_value = ''.join(filter(str.isdigit, str(value)))
                             if clean_value:
                                 float_value = float(clean_value)
                                 formatted_value = f"{float_value:,.0f} руб.".replace(",", " ")
-                                total_income += float_value
                             else:
                                 formatted_value = value
                         except:
                             formatted_value = value
-                        
-                        # Используем красивое название или ключ
-                        label = income_labels.get(key, key)
-                        lines.append(f"{label}: {formatted_value}")
+                        lines.append(f"{income_labels[key]}: {formatted_value}")
                 
-                # Добавляем общий доход
-                if total_income > 0:
-                    lines.append(f"\nОбщий доход: {total_income:,.0f} руб.".replace(",", " "))
+                try:
+                    total_income = 0
+                    for value in incomes.values():
+                        clean_value = ''.join(filter(str.isdigit, str(value)))
+                        if clean_value:
+                            total_income += float(clean_value)
+                    if total_income > 0:
+                        lines.append(f"\nОбщий доход: {total_income:,.0f} руб.".replace(",", " "))
+                except:
+                    pass
             
             # Категория семьи
-            category = "полная, многодетная" if father_fio else "неполная, многодетная"
+            category = "полная, многодетная" if family_data.get('father_fio') else "неполная, многодетная"
             
             add_info_text = "\n".join(lines)
             
-            # Жилищные условия
+            # Жилищные условия - ВКЛЮЧАЕМ СОБСТВЕННОСТЬ
             rooms = family_data.get('rooms', '')
             square = family_data.get('square', '')
             amenities = family_data.get('amenities', 'со всеми удобствами')
@@ -2201,10 +2346,8 @@ class AutoFormFillerMass:
             
             housing_info = ", ".join(housing_parts)
             
-            # АДПИ данные
-            adpi = family_data.get('adpi', 'нет').lower()
             adpi_data = {
-                'has_adpi': 'д' if adpi == 'да' else 'н',
+                'has_adpi': 'д' if family_data.get('adpi') == 'да' else 'н',
                 'install_date': family_data.get('install_date'),
                 'check_date': family_data.get('check_date')
             }
@@ -2214,84 +2357,75 @@ class AutoFormFillerMass:
         except Exception as e:
             self.log(f"❌ Ошибка форматирования данных: {e}")
             return "", "", "", {'has_adpi': 'н', 'install_date': '', 'check_date': ''}
-    
+            
     def _fill_form(self, add_info_text, category, housing_info, adpi_data):
-        """Заполнение формы с улучшенной обработкой чекбоксов"""
+        """Заполнение формы с динамическим определением индексов"""
         try:
-            self._wait_for_page_ready(3)
+            time.sleep(1.5)  # Увеличиваем время ожидания
             
             # Определяем, есть ли АДПИ
             has_adpi = adpi_data['has_adpi'] == 'д'
             
-            # Проверяем, открыто ли уже окно выбора чекбоксов
-            try:
-                popup_div = self.driver.find_element(By.ID, "ctl00_cph_ctrlDopFields_AJSpr1_PopupDiv")
-                if not popup_div.is_displayed():
-                    # Если окно не открыто, нажимаем кнопку добавления
-                    if not self._click_element_with_retry(By.ID, "ctl00_cph_ctrlDopFields_lbtnAdd"):
-                        self.log("⚠️ Не удалось открыть окно выбора чекбоксов")
-                        return False
-                    time.sleep(1)
-            except:
-                # Если элемент не найден, нажимаем кнопку добавления
-                if not self._click_element_with_retry(By.ID, "ctl00_cph_ctrlDopFields_lbtnAdd"):
-                    self.log("⚠️ Не удалось открыть окно выбора чекбоксов")
-                    return False
-                time.sleep(1)
-            
-            # Отмечаем чекбоксы с проверкой состояния
+            # Отмечаем чекбоксы
             checkbox_ids = [8, 12, 13, 14, 17, 18]
             if has_adpi:
                 checkbox_ids.extend([15, 16])
             
             self.log(f"🔄 Отмечаем чекбоксы: {checkbox_ids}")
             
+            # Проверяем каждый чекбокс перед установкой
             for checkbox_id in checkbox_ids:
                 try:
-                    checkbox = WebDriverWait(self.driver, 3).until(
+                    checkbox = WebDriverWait(self.driver, 2).until(
                         EC.element_to_be_clickable(
                             (By.ID, f"ctl00_cph_ctrlDopFields_AJSpr1_PopupDiv_divContent_AJ_{checkbox_id}")
                         )
                     )
-                    
-                    # ПРОВЕРКА: если чекбокс уже установлен, не пытаемся его поставить
-                    if checkbox.is_selected():
-                        self.log(f"ℹ️ Чекбокс {checkbox_id} уже отмечен, пропускаем")
-                        continue
-                    
-                    # Прокручиваем к элементу
-                    self.driver.execute_script("arguments[0].scrollIntoView(true);", checkbox)
-                    time.sleep(0.1)
-                    
-                    # Пытаемся кликнуть
-                    checkbox.click()
-                    
-                    # Проверяем, что чекбокс стал отмеченным
-                    time.sleep(0.1)
-                    if not checkbox.is_selected():
-                        # Пробуем еще раз
+                    # Проверяем, установлен ли чекбокс уже
+                    is_selected = checkbox.is_selected()
+                    if not is_selected:
                         checkbox.click()
-                        time.sleep(0.1)
-                    
-                    if checkbox.is_selected():
-                        self.log(f"✅ Чекбокс {checkbox_id} отмечен")
+                        time.sleep(0.1)  # Небольшая задержка после клика
+                        # Проверяем, что чекбокс действительно установлен
+                        is_selected_after = checkbox.is_selected()
+                        if is_selected_after:
+                            self.log(f"✅ Чекбокс {checkbox_id} отмечен")
+                        else:
+                            self.log(f"⚠️ Не удалось отметить чекбокс {checkbox_id}")
                     else:
-                        self.log(f"⚠️ Не удалось отметить чекбокс {checkbox_id}")
-                        
+                        self.log(f"ℹ️ Чекбокс {checkbox_id} уже отмечен")
                 except Exception as e:
-                    self.log(f"⚠️ Не удалось найти или кликнуть чекбокс {checkbox_id}: {e}")
+                    self.log(f"⚠️ Не удалось отметить чекбокс {checkbox_id}: {e}")
+                    
+            # Альтернативный метод через JavaScript для уверенности
+            js_script = """
+            var ids = arguments[0];
+            for (var i = 0; i < ids.length; i++) {
+                var checkboxId = 'ctl00_cph_ctrlDopFields_AJSpr1_PopupDiv_divContent_AJ_' + ids[i];
+                var checkbox = document.getElementById(checkboxId);
+                if (checkbox && !checkbox.checked) {
+                    checkbox.checked = true;
+                    checkbox.dispatchEvent(new Event('click', { bubbles: true }));
+                }
+            }
+            """
             
-            # Нажимаем кнопку подтверждения
+            try:
+                self.driver.execute_script(js_script, checkbox_ids)
+                self.log("✅ Чекбоксы дополнительно обработаны через JavaScript")
+            except Exception as e:
+                self.log(f"⚠️ Не удалось обработать чекбоксы через JavaScript: {e}")
+            
             if not self._click_element_with_retry(By.ID, "ctl00_cph_ctrlDopFields_AJSpr1_PopupDiv_ctl06_AJOk"):
                 self.log("⚠️ Не удалось кликнуть кнопку подтверждения чекбоксов")
                 return False
-            
-            self._wait_for_page_ready(2)
+                
+            time.sleep(1.5)  # Увеличиваем время ожидания
             
             # Заполняем основное текстовое поле
             if not self._fill_textarea("ctl00$cph$tbAddInfo", add_info_text, resize=True):
                 self.log("⚠️ Не удалось заполнить текстовую область")
-                return False
+                self._fill_textarea("ctl00$cph$tbAddInfo", add_info_text, resize=True)
             
             # Заполняем АДПИ радио-кнопку
             self.log("🔄 Заполняем данные АДПИ...")
@@ -2307,13 +2441,14 @@ class AutoFormFillerMass:
             
             # Заполняем поля по найденным индексам
             if 'phone' in field_indices:
-                phone_number = self._get_phone_from_family_data() or ''
                 if not self._fill_field_with_retry(
                     'name', 
                     f'ctl00$cph$ctrlDopFields$gv$ctl{field_indices["phone"]}$tb', 
-                    phone_number
+                    self.phone or ''
                 ):
                     self.log("⚠️ Не удалось заполнить телефон")
+            else:
+                self.log("⚠️ Поле телефона не найдено в таблице")
             
             if 'category' in field_indices:
                 if not self._fill_field_with_retry(
@@ -2322,15 +2457,18 @@ class AutoFormFillerMass:
                     category
                 ):
                     self.log("⚠️ Не удалось заполнить категорию семьи")
+            else:
+                self.log("⚠️ Поле категории семьи не найдено в таблице")
             
             if 'address' in field_indices:
-                address = self._get_address_from_family_data() or ''
                 if not self._fill_field_with_retry(
                     'name',
                     f'ctl00$cph$ctrlDopFields$gv$ctl{field_indices["address"]}$tb',
-                    address
+                    self.address
                 ):
                     self.log("⚠️ Не удалось заполнить адрес")
+            else:
+                self.log("⚠️ Поле адреса не найдено в таблице")
             
             if 'housing' in field_indices:
                 if not self._fill_field_with_retry(
@@ -2339,6 +2477,8 @@ class AutoFormFillerMass:
                     housing_info
                 ):
                     self.log("⚠️ Не удалось заполнить жилищные условия")
+            else:
+                self.log("⚠️ Поле жилищных условий не найдено в таблице")
             
             if 'living' in field_indices:
                 living_conditions_text = "Санитарные условия удовлетворительные, для детей имеется отдельное спальное место, место для занятий и отдыха. Продукты питания в достаточном количестве."
@@ -2348,11 +2488,12 @@ class AutoFormFillerMass:
                     living_conditions_text
                 ):
                     self.log("⚠️ Не удалось заполнить бытовые условия")
+            else:
+                self.log("⚠️ Поле бытовых условий не найдено в таблице")
             
             # Заполняем даты АДПИ если есть
             if has_adpi:
-                if not self._fill_adpi_dates_with_indices(adpi_data, field_indices):
-                    self.log("⚠️ Не удалось заполнить даты АДПИ")
+                self._fill_adpi_dates_with_indices(adpi_data, field_indices)
                 
             return True
             
@@ -2362,112 +2503,446 @@ class AutoFormFillerMass:
             self.log(f"📋 Трассировка:\n{traceback.format_exc()}")
             return False
     
+    def _get_field_indices(self):
+        """Динамическое определение индексов полей по их названиям"""
+        field_indices = {}
+        
+        try:
+            # Ждем загрузки таблицы
+            WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.ID, "ctl00_cph_ctrlDopFields_gv"))
+            )
+            
+            # Прокручиваем немного вниз, чтобы таблица была видна
+            self.driver.execute_script("window.scrollBy(0, 300);")
+            time.sleep(0.8)  # Увеличиваем время ожидания
+            
+            # Пробуем найти все строки с полями
+            rows = self.driver.find_elements(By.CSS_SELECTOR, "#ctl00_cph_ctrlDopFields_gv tr:not(:first-child)")
+            
+            if not rows:
+                self.log("⚠️ Не найдены строки в таблице, использую стандартные индексы")
+                return self._get_fallback_indices()
+            
+            self.log(f"📊 Найдено строк в таблице: {len(rows)}")
+            
+            # Проходим по всем строкям и ищем нужные поля
+            for i, row in enumerate(rows, start=2):  # начинаем с 2
+                try:
+                    # Формируем индекс для поиска элемента
+                    index_str = f"{i:02d}"
+                    
+                    # Пробуем найти элемент с названием поля
+                    try:
+                        field_name_elem = row.find_element(By.ID, f"ctl00_cph_ctrlDopFields_gv_ctl{index_str}_lbName")
+                        field_name = field_name_elem.text.strip()
+                        
+                        self.log(f"  Строка {index_str}: {field_name}")
+                        
+                        # Сопоставляем название поля с нашими ключами
+                        if "Номер телефона" in field_name:
+                            field_indices['phone'] = index_str
+                        elif "Категория семьи" in field_name:
+                            field_indices['category'] = index_str
+                        elif "Фактический адрес проживания семьи" in field_name or "адрес" in field_name.lower():
+                            field_indices['address'] = index_str
+                        elif "Жилищные условия" in field_name or "жилищ" in field_name.lower():
+                            field_indices['housing'] = index_str
+                        elif "Бытовые условия" in field_name or "бытов" in field_name.lower():
+                            field_indices['living'] = index_str
+                        elif "Дата установки АДПИ" in field_name or "установки" in field_name.lower():
+                            field_indices['install_date'] = index_str
+                        elif "Дата последней проверки АДПИ" in field_name or "проверки" in field_name.lower():
+                            field_indices['check_date'] = index_str
+                        
+                    except:
+                        # Пробуем альтернативный способ поиска
+                        try:
+                            cells = row.find_elements(By.TAG_NAME, "td")
+                            if len(cells) >= 2:
+                                field_name = cells[1].text.strip()
+                                if field_name:
+                                    self.log(f"  Строка {index_str}: {field_name}")
+                                    
+                                    if "Номер телефона" in field_name:
+                                        field_indices['phone'] = index_str
+                                    elif "Категория семьи" in field_name:
+                                        field_indices['category'] = index_str
+                                    elif "Фактический адрес проживания семьи" in field_name or "адрес" in field_name.lower():
+                                        field_indices['address'] = index_str
+                                    elif "Жилищные условия" in field_name or "жилищ" in field_name.lower():
+                                        field_indices['housing'] = index_str
+                                    elif "Бытовые условия" in field_name or "бытов" in field_name.lower():
+                                        field_indices['living'] = index_str
+                                    elif "Дата установки АДПИ" in field_name or "установки" in field_name.lower():
+                                        field_indices['install_date'] = index_str
+                                    elif "Дата последней проверки АДПИ" in field_name or "проверки" in field_name.lower():
+                                        field_indices['check_date'] = index_str
+                        except:
+                            continue
+                            
+                except Exception as e:
+                    self.log(f"    ⚠️ Ошибка анализа строки {i}: {e}")
+                    continue
+            
+            self.log(f"✅ Определены индексы полей: {field_indices}")
+            
+            # Если не нашли все нужные поля, используем запасной вариант
+            required_fields = ['phone', 'category', 'address', 'housing', 'living']
+            missing_fields = [field for field in required_fields if field not in field_indices]
+            
+            if missing_fields:
+                self.log(f"⚠️ Не найдены поля: {missing_fields}, использую стандартные индексы")
+                fallback_indices = self._get_fallback_indices()
+                # Объединяем найденные индексы со стандартными
+                for field in missing_fields:
+                    if field in fallback_indices:
+                        field_indices[field] = fallback_indices[field]
+            
+            return field_indices
+            
+        except Exception as e:
+            self.log(f"❌ Ошибка определения индексов полей: {e}")
+            return self._get_fallback_indices()
     
+    def _get_fallback_indices(self):
+        """Запасной вариант определения индексов"""
+        # Проверяем, есть ли АДПИ (ищем радио-кнопку "Да" для АДПИ)
+        try:
+            adpi_yes = WebDriverWait(self.driver, 2).until(
+                EC.presence_of_element_located((By.ID, "ctl00_cph_ctrlDopFields_gv_ctl03_rbl_0"))
+            )
+            has_adpi = True
+        except:
+            has_adpi = False
+        
+        if has_adpi:
+            return {
+                'phone': '02',
+                'category': '06',
+                'address': '07',
+                'housing': '08',
+                'living': '09',
+                'install_date': '04',
+                'check_date': '05'
+            }
+        else:
+            return {
+                'phone': '02',
+                'category': '04',
+                'address': '05',
+                'housing': '06',
+                'living': '07'
+            }
+    
+    def _fill_field_with_retry(self, by, selector, text, max_attempts=3):
+        """Улучшенный метод заполнения поля с повторными попытками"""
+        for attempt in range(max_attempts):
+            try:
+                self.log(f"🔄 Попытка {attempt + 1} заполнения поля {selector}")
+                
+                # Ждем и получаем элемент заново каждый раз
+                field = WebDriverWait(self.driver, 5).until(
+                    EC.element_to_be_clickable((by, selector))
+                )
+                
+                # Прокручиваем к элементу
+                self.driver.execute_script("arguments[0].scrollIntoView(true);", field)
+                time.sleep(0.15)  # Увеличиваем время ожидания
+                
+                # Очищаем поле
+                field.clear()
+                time.sleep(0.15)  # Увеличиваем время ожидания
+                
+                # Вводим текст
+                if text:
+                    field.send_keys(text)
+                    time.sleep(0.15)  # Увеличиваем время ожидания
+                    
+                    # Проверяем, что текст введен
+                    try:
+                        value = field.get_attribute('value')
+                        if value and value.strip():
+                            self.log(f"✅ Заполнено поле: {selector}")
+                            return True
+                    except:
+                        # Для textarea проверяем свойство value
+                        try:
+                            value = field.get_property('value')
+                            if value and value.strip():
+                                self.log(f"✅ Заполнено поле: {selector}")
+                                return True
+                        except:
+                            # Если не удалось проверить, считаем успешным
+                            self.log(f"✅ Заполнено поле: {selector} (не удалось проверить)")
+                            return True
+            
+            except Exception as e:
+                if attempt < max_attempts - 1:
+                    self.log(f"⚠️ Попытка {attempt + 1} заполнения поля {selector} не удалась: {e}")
+                    time.sleep(1)
+                else:
+                    self.log(f"❌ Не удалось заполнить поле {selector}: {e}")
+        
+        return False
     
     def _fill_adpi_dates_with_indices(self, adpi_data, field_indices):
         """Заполнение дат АДПИ с использованием найденных индексов"""
         try:
-            success = True
-            
             if adpi_data.get('install_date') and 'install_date' in field_indices:
                 install_idx = field_indices['install_date']
                 if not self._fill_date_field(f"igtxtctl00_cph_ctrlDopFields_gv_ctl{install_idx}_wdte", adpi_data['install_date']):
                     self.log("⚠️ Не удалось заполнить дату установки АДПИ")
-                    success = False
+                    return False
             
             if adpi_data.get('check_date') and 'check_date' in field_indices:
                 check_idx = field_indices['check_date']
                 if not self._fill_date_field(f"igtxtctl00_cph_ctrlDopFields_gv_ctl{check_idx}_wdte", adpi_data['check_date']):
                     self.log("⚠️ Не удалось заполнить дату проверки АДПИ")
-                    success = False
+                    return False
             
-            if success:
-                self.log("✅ Даты АДПИ заполнены")
-            
-            return success
-            
+            self.log("✅ Даты АДПИ заполнены")
+            return True
         except Exception as e:
             self.log(f"⚠️ Ошибка заполнения дат АДПИ: {e}")
             return False
-    
-    def _navigate_to_additional_info(self):
-        """Навигация к форме дополнительной информации с динамическим ожиданием"""
+
+    def _fill_date_field(self, field_id, date_text):
+        """Заполнение поля даты"""
         try:
-            # Кликаем на вкладку дополнительной информации
-            if not self._wait_and_click(By.ID, "ctl00_cph_rptAllTabs_ctl10_tdTabL", timeout=5):
-                return False
-            
-            # Ждем появления кнопки редактирования
-            if not self._wait_for_element(By.ID, "ctl00_cph_lbtnEditAddInfo", timeout=5):
-                return False
-            
-            # Кликаем на кнопку редактирования
-            if not self._wait_and_click(By.ID, "ctl00_cph_lbtnEditAddInfo", timeout=5):
-                return False
-            
-            # Ждем появления кнопки добавления
-            if not self._wait_for_element(By.ID, "ctl00_cph_ctrlDopFields_lbtnAdd", timeout=5):
-                return False
-            
-            # Ждем готовности страницы
-            self._wait_for_page_ready(3)
-            
-            return True
-            
-        except Exception as e:
-            self.log(f"❌ Ошибка навигации к доп. информации: {e}")
-            return False
-    
-    def _wait_and_click(self, by, selector, timeout=10):
-        """Ожидание элемента и клик по нему"""
-        try:
-            element = WebDriverWait(self.driver, timeout).until(
-                EC.element_to_be_clickable((by, selector))
-            )
-            element.click()
-            return True
-        except Exception as e:
-            self.log(f"❌ Не удалось кликнуть элемент {selector}: {e}")
-            return False
-    
-    def _wait_for_element(self, by, selector, timeout=10):
-        """Ожидание появления элемента"""
-        try:
-            WebDriverWait(self.driver, timeout).until(
-                EC.presence_of_element_located((by, selector))
-            )
-            return True
-        except Exception as e:
-            self.log(f"❌ Элемент {selector} не появился за {timeout} секунд: {e}")
-            return False
-    
-    def _fill_textarea(self, field_name, text, resize=False):
-        """Заполнение текстового поля с улучшенной обработкой"""
-        try:
+            # Ищем поле даты
             field = WebDriverWait(self.driver, 5).until(
-                EC.element_to_be_clickable((By.NAME, field_name))
+                EC.element_to_be_clickable((By.ID, field_id))
             )
             
             # Прокручиваем к элементу
             self.driver.execute_script("arguments[0].scrollIntoView(true);", field)
-            time.sleep(0.2)
+            time.sleep(0.25)  # Увеличиваем время ожидания
+            
+            # Кликаем на поле
+            field.click()
+            time.sleep(0.25)  # Увеличиваем время ожидания
             
             # Очищаем поле
-            field.clear()
-            time.sleep(0.2)
+            field.send_keys(Keys.CONTROL + "a")
+            field.send_keys(Keys.DELETE)
+            time.sleep(0.25)  # Увеличиваем время ожидания
             
-            # Вводим текст
-            field.send_keys(text)
+            # Вводим дату посимвольно
+            for char in date_text:
+                field.send_keys(char)
+                time.sleep(0.07)  # Увеличиваем время ожидания
             
-            if resize:
-                self.driver.execute_script("arguments[0].style.height = '352px'; arguments[0].style.width = '1151px';", field)
+            # Нажимаем Enter для подтверждения
+            field.send_keys(Keys.ENTER)
+            time.sleep(0.8)  # Увеличиваем время ожидания
             
-            self.log(f"✅ Текстовая область заполнена ({len(text)} символов)")
+            self.log(f"✅ Дата заполнена: {date_text}")
+            return True
+        except Exception as e:
+            self.log(f"⚠️ Ошибка заполнения даты: {e}")
+            return False
+            
+    def _final_verification(self, family_data):
+        """Финальная проверка"""
+        try:
+            mother_fio = family_data.get('mother_fio', 'неизвестно')
+            return messagebox.askyesno("Финальная проверка", 
+                                     f"Семья: {mother_fio}\n\n"
+                                     "Проверьте все введенные данные на странице.\n\n"
+                                     "Продолжить сохранение?")
+        except:
+            return False
+            
+    def _save_and_exit(self):
+        """Сохранение данных"""
+        try:
+            self.log("💾 Сохраняем данные...")
+            
+            save_button = self.wait.until(
+                EC.element_to_be_clickable((By.ID, "ctl00_cph_lbtnExitSave"))
+            )
+            save_button.click()
+            
+            time.sleep(1.5)  # Увеличиваем время ожидания
+            self.log("✅ Данные сохранены")
             return True
             
         except Exception as e:
-            self.log(f"⚠️ Ошибка заполнения текстовой области: {e}")
+            self.log(f"❌ Ошибка сохранения: {e}")
             return False
+            
+    def _take_screenshot(self, formatted_data, family_number, family_data):
+        """Создание скриншота"""
+        try:
+            add_info_text, _, _, _ = formatted_data
+            lines = add_info_text.split('\n')
+            
+            mother_name = ""
+            for line in lines:
+                if line.startswith('Мать: '):
+                    mother_info = line[6:]
+                    if '(' in mother_info:
+                        mother_name = mother_info[:mother_info.index('(')].strip()
+                    else:
+                        mother_name = mother_info.strip()
+                    break
+            
+            if not mother_name:
+                mother_name = f"семья_{family_number}"
+            
+            safe_name = re.sub(r'[\\/*?:"<>|]', '_', mother_name)
+            safe_name = safe_name[:50]
+            
+            if not self.screenshot_dir:
+                self.screenshot_dir = self.gui.screenshots_dir
+                
+            if not os.path.exists(self.screenshot_dir):
+                try:
+                    os.makedirs(self.screenshot_dir)
+                except Exception as e:
+                    self.log(f"⚠️ Не удалось создать папку для скриншотов: {e}")
+                    return
+            
+            file_path = os.path.join(self.screenshot_dir, f"{family_number:03d}_{safe_name}.png")
+            
+            for attempt in range(3):
+                try:
+                    self.driver.save_screenshot(file_path)
+                    if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+                        self.log(f"📸 Скриншот сохранен: {file_path}")
+                        return
+                except Exception as e:
+                    if attempt < 2:
+                        time.sleep(0.5)
+                    else:
+                        self.log(f"⚠️ Ошибка скриншота: {e}")
+            
+        except Exception as e:
+            self.log(f"⚠️ Ошибка создания скриншота: {e}")
+            
+    def _bulk_click_checkboxes(self, checkbox_ids):
+        try:
+            for checkbox_id in checkbox_ids:
+                try:
+                    checkbox = self.wait.until(
+                        EC.element_to_be_clickable(
+                            (By.ID, f"ctl00_cph_ctrlDopFields_AJSpr1_PopupDiv_divContent_AJ_{checkbox_id}")
+                        )
+                    )
+                    if not checkbox.is_selected():
+                        checkbox.click()
+                        self.log(f"✅ Чекбокс {checkbox_id} отмечен")
+                    else:
+                        self.log(f"ℹ️ Чекбокс {checkbox_id} уже отмечен")
+                    time.sleep(0.07)  # Увеличиваем время ожидания
+                except Exception as e:
+                    self.log(f"⚠️ Не удалось найти или кликнуть чекбокс {checkbox_id}: {e}")
+                    continue
+            return True
+        except Exception as e:
+            self.log(f"⚠️ Ошибка отметки чекбоксов: {e}")
+            return False
+            
+    def _bulk_fill_fields(self, field_data):
+        try:
+            for field_info in field_data:
+                try:
+                    if field_info['by'] == 'name':
+                        element = self.wait.until(
+                            EC.element_to_be_clickable((By.NAME, field_info['selector']))
+                        )
+                        element.clear()
+                        element.send_keys(field_info['value'])
+                        time.sleep(0.07)  # Увеличиваем время ожидания
+                except:
+                    continue
+            return True
+        except Exception as e:
+            self.log(f"❌ Ошибка заполнения полей: {e}")
+            return False
+            
+    def _fill_adpi_radio_button(self, adpi_data):
+        try:
+            if adpi_data['has_adpi'] == 'д':
+                self._click_element_with_retry(By.ID, "ctl00_cph_ctrlDopFields_gv_ctl03_rbl_0")
+                self.log("✅ Выбран 'Да' для АДПИ")
+            else:
+                self._click_element_with_retry(By.ID, "ctl00_cph_ctrlDopFields_gv_ctl03_rbl_1")
+                self.log("✅ Выбран 'Нет' для АДПИ")
+            return True
+        except Exception as e:
+            self.log(f"⚠️ Ошибка заполнения АДПИ: {e}")
+            return False
+            
+    def _click_element_with_retry(self, by, selector, max_attempts=3):
+        for attempt in range(max_attempts):
+            try:
+                element = WebDriverWait(self.driver, 5).until(
+                    EC.element_to_be_clickable((by, selector))
+                )
+                element.click()
+                return True
+            except Exception as e:
+                if attempt < max_attempts - 1:
+                    self.log(f"⚠️ Попытка {attempt + 1} клика на элемент {selector} не удалась")
+                    time.sleep(1)
+                else:
+                    self.log(f"❌ Не удалось кликнуть элемент {selector}: {e}")
+                    return False
+        return False
+        
+    def _fill_textarea(self, field_name, text, resize=False):
+        try:
+            field = self.wait.until(EC.element_to_be_clickable((By.NAME, field_name)))
+            field.clear()
+            field.send_keys(text)
+            if resize:
+                self.driver.execute_script("arguments[0].style.height = '352px'; arguments[0].style.width = '1151px';", field)
+            self.log(f"✅ Текстовая область заполнена ({len(text)} символов)")
+            return True
+        except Exception as e:
+            self.log(f"⚠️ Ошибка текстовой области: {e}")
+            return False
+            
+    def _fill_textarea_directly(self, element_id, text):
+        """Прямое заполнение textarea по ID через JavaScript"""
+        try:
+            script = f"""
+            var textarea = document.getElementById('{element_id}');
+            if (textarea) {{
+                textarea.value = `{text}`;
+                textarea.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                return true;
+            }}
+            return false;
+            """
+            result = self.driver.execute_script(script)
+            if result:
+                self.log(f"✅ Текстовая область заполнена через JavaScript")
+                return True
+        except Exception as e:
+            self.log(f"⚠️ Не удалось заполнить через JavaScript: {e}")
+        return False
+            
+    def _click_element(self, by, selector):
+        try:
+            element = self.wait.until(EC.element_to_be_clickable((by, selector)))
+            element.click()
+            return True
+        except Exception as e:
+            self.log(f"⚠️ Ошибка клика: {e}")
+            return False
+            
+    def _get_element_text(self, element_id, default=""):
+        try:
+            element = WebDriverWait(self.driver, 3).until(
+                EC.presence_of_element_located((By.ID, element_id))
+            )
+            return element.text
+        except:
+            return default
+
 
 if __name__ == "__main__":
     try:
