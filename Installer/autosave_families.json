@@ -1,0 +1,406 @@
+[
+  {
+    "mother_fio": "Гагарина Мария Геннадьевна",
+    "mother_birth": "26.12.1987",
+    "mother_work": "инвалид 2-ой группы",
+    "mother_disability_care": false,
+    "mother_not_working": false,
+    "father_fio": "Гагарин Сергей Юрьевич",
+    "father_birth": "16.06.1982",
+    "father_work": "",
+    "father_not_working": false,
+    "children": [
+      {
+        "fio": "Гагарина Полина Сергеевна",
+        "birth": "11.04.2009",
+        "education": "медколледж"
+      },
+      {
+        "fio": "Гагарина Анастасия Сергеевна",
+        "birth": "14.01.2014",
+        "education": "СОШ 19"
+      },
+      {
+        "fio": "Гагарина Ангелина Сергеевна",
+        "birth": "18.01.2008",
+        "education": "ввк"
+      }
+    ],
+    "phone_number": "79001173900",
+    "address": "г. Вышний Волочек, ул. Южная, д. 6, кв. 10",
+    "rooms": "1",
+    "square": "27",
+    "amenities": "с частичными удобствами",
+    "ownership": "матери",
+    "adpi": "да",
+    "install_date": "16.11.2021",
+    "check_date": "29.11.2025",
+    "unified_benefit": "24000",
+    "large_family_benefit": "1900",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Клименская Ирина Андреевна",
+    "mother_birth": "19.04.1989",
+    "mother_work": "сош 12",
+    "mother_disability_care": false,
+    "mother_not_working": false,
+    "children": [
+      {
+        "fio": "Будаев Никита Александрович",
+        "birth": "11.02.2015",
+        "education": "сош 13"
+      },
+      {
+        "fio": "Клименский Тимофей Тимурович",
+        "birth": "11.05.2009",
+        "education": "сош 4"
+      },
+      {
+        "fio": "Клименский Илья Тимурович",
+        "birth": "17.08.2010",
+        "education": "сош 4"
+      },
+      {
+        "fio": "Никитин Марк Владимирович",
+        "birth": "04.10.2022",
+        "education": "Солнышко"
+      }
+    ],
+    "phone_number": "79320661938",
+    "address": "г. Вышний Волочек, ул. Мещерского, д. 22, кв. 2",
+    "rooms": "3",
+    "square": "50",
+    "amenities": "с частичными удобствами",
+    "ownership": "долевая собственность",
+    "adpi": "нет",
+    "install_date": "15.01.2020",
+    "check_date": "29.07.2025",
+    "large_family_benefit": "1900",
+    "mother_salary": "24000",
+    "child_disability_pension": "24000",
+    "unified_children_count": "3",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Николаева Надежда Олеговна",
+    "mother_birth": "01.06.1991",
+    "mother_work": "",
+    "mother_disability_care": false,
+    "mother_not_working": true,
+    "father_fio": "Николаев Дмитрий Владимирович",
+    "father_birth": "29.12.1978",
+    "father_work": "ООО ЭСМА",
+    "father_not_working": false,
+    "children": [
+      {
+        "fio": "Николаева Кристина Дмитриевна",
+        "birth": "10.01.2012",
+        "education": "СОШ 3"
+      },
+      {
+        "fio": "Николаева Анастасия Дмитриевна",
+        "birth": "10.03.2009",
+        "education": "СОШ 3"
+      },
+      {
+        "fio": "Николаева Карина Дмитриевна",
+        "birth": "08.10.2017",
+        "education": "СОШ 3"
+      }
+    ],
+    "phone_number": "79201637361",
+    "address": "г. Вышний Волочек, Московское шоссе, д. 23",
+    "rooms": "4",
+    "square": "70",
+    "amenities": "со всеми удобствами",
+    "ownership": "Долевая собственность",
+    "adpi": "да",
+    "install_date": "04.12.2020",
+    "check_date": "28.12.2020",
+    "unified_benefit": "38250",
+    "large_family_benefit": "1900",
+    "father_salary": "70000",
+    "unified_children_count": "3",
+    "unified_percentage": "75"
+  },
+  {
+    "mother_fio": "Панфилова Валентина Алексеевна",
+    "mother_birth": "20.09.1985",
+    "mother_work": "военкомат",
+    "mother_disability_care": false,
+    "mother_not_working": false,
+    "father_fio": "Панфилов Константин Николаевич",
+    "father_birth": "27.08.1979",
+    "father_work": "самозанятый",
+    "father_not_working": false,
+    "children": [
+      {
+        "fio": "Панфилова Дарья Константиновна",
+        "birth": "07.02.2007",
+        "education": "ТТК колледж г. Тверь"
+      },
+      {
+        "fio": "Панфилова Олеся Константиновна",
+        "birth": "14.06.2019",
+        "education": "детсад 29"
+      },
+      {
+        "fio": "Панфилова Анна Константиновна",
+        "birth": "20.08.2010",
+        "education": "сош 7"
+      },
+      {
+        "fio": "Панфилов Егор Константинович",
+        "birth": "09.01.2025",
+        "education": "домашний"
+      }
+    ],
+    "phone_number": "79201557723",
+    "address": "Г.Вышний Волочек, ул.Партизанская, д.20",
+    "rooms": "4",
+    "square": "70",
+    "amenities": "со всеми удобствами",
+    "ownership": "долевая собственность",
+    "adpi": "да",
+    "install_date": "10.09.2024",
+    "check_date": "10.09.2024",
+    "unified_benefit": "51000",
+    "large_family_benefit": "1900",
+    "mother_salary": "11000",
+    "father_salary": "24000",
+    "unified_children_count": "3",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Петрова Галина Валерьевна",
+    "mother_birth": "21.08.1984",
+    "mother_work": "детсад красномайский",
+    "mother_disability_care": false,
+    "mother_not_working": false,
+    "children": [
+      {
+        "fio": "Петрова Алиса Дмитриевна",
+        "birth": "21.06.2012",
+        "education": "СОШ 6"
+      },
+      {
+        "fio": "Петров Михаил Дмитриевич",
+        "birth": "29.10.2013",
+        "education": "СОШ 6"
+      },
+      {
+        "fio": "Петрова Валерия Дмитриевна",
+        "birth": "03.01.2020",
+        "education": "Детсад красномайский"
+      },
+      {
+        "fio": "Петрова Диана Дмитриевна",
+        "birth": "16.01.2011",
+        "education": "СОШ 6"
+      }
+    ],
+    "phone_number": "79206815973",
+    "address": "Вышневолоцкий район, пгт Красномайский, ул. Кирова, д. 39, кв. 2",
+    "rooms": "4",
+    "square": "60",
+    "amenities": "со всеми удобствами",
+    "ownership": "родителям матери",
+    "adpi": "да",
+    "install_date": "13.01.2024",
+    "check_date": "13.01.2024",
+    "unified_benefit": "68000",
+    "large_family_benefit": "1900",
+    "mother_salary": "24000",
+    "unified_children_count": "4",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Мясоедова Юлия Александровна",
+    "mother_birth": "22.04.1985",
+    "mother_work": "почта России",
+    "mother_disability_care": false,
+    "mother_not_working": false,
+    "children": [
+      {
+        "fio": "Мясоедова Руслана Олеговна",
+        "birth": "11.10.2007",
+        "education": "ВВК"
+      },
+      {
+        "fio": "Мясоедов Иван Олегович",
+        "birth": "25.01.2013",
+        "education": "Православная СОШ"
+      },
+      {
+        "fio": "Мясоедова Анна Олеговна",
+        "birth": "11.11.2009",
+        "education": "ВВК"
+      }
+    ],
+    "phone_number": "79301687240",
+    "address": "г. Вышний Волочек, ул. Правды, д. 45, кв. 6",
+    "rooms": "2",
+    "square": "55.3",
+    "amenities": "со всеми удобствами",
+    "ownership": "долевая собственность",
+    "adpi": "да",
+    "install_date": "24.12.2021",
+    "check_date": "29.12.2022",
+    "unified_benefit": "25500",
+    "large_family_benefit": "1900",
+    "mother_salary": "19000",
+    "alimony": "7000",
+    "unified_children_count": "2",
+    "unified_percentage": "75"
+  },
+  {
+    "mother_fio": "Беляева Зинаида Андреевна",
+    "mother_birth": "01.10.1988",
+    "mother_work": "ООО ПАРАДИС",
+    "mother_disability_care": false,
+    "mother_not_working": false,
+    "children": [
+      {
+        "fio": "Бунятян Артур Гамлетович",
+        "birth": "17.06.2011",
+        "education": "Холохоленская СОШ"
+      },
+      {
+        "fio": "Бунятян Богдан Гамлетович",
+        "birth": "28.06.2012",
+        "education": ""
+      },
+      {
+        "fio": "Ерёмин Дмитрий Юрьевич",
+        "birth": "30.12.2005",
+        "education": "Педколледж Торжок"
+      },
+      {
+        "fio": "Беляев Андрей Юрьевич",
+        "birth": "21.07.2007",
+        "education": "домашний"
+      },
+      {
+        "fio": "Кузьмин Анатолий Евгеньевич",
+        "birth": "12.11.2015",
+        "education": "Холохоленская СОШ"
+      },
+      {
+        "fio": "Кузьмин Егор Евгеньевич",
+        "birth": "26.02.2019",
+        "education": "детсад Афимьинский"
+      }
+    ],
+    "phone_number": "79806437031",
+    "address": "Афимьино, ул. Мира, д.4, кв.29",
+    "rooms": "2",
+    "square": "48",
+    "amenities": "со всеми удобствами",
+    "ownership": "съемная",
+    "adpi": "да",
+    "install_date": "13.02.2024",
+    "check_date": "21.04.2025",
+    "unified_benefit": "51000",
+    "mother_salary": "28000",
+    "unified_children_count": "3",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Фокина Мария Александровна",
+    "mother_birth": "03.07.1987",
+    "mother_work": "",
+    "mother_disability_care": false,
+    "mother_not_working": true,
+    "children": [
+      {
+        "fio": "Фокина Ульяна Александровна",
+        "birth": "23.04.2016",
+        "education": "СОШ 5"
+      },
+      {
+        "fio": "Фокина Дарина Александровна",
+        "birth": "18.06.2021",
+        "education": "детсад 24"
+      },
+      {
+        "fio": "Фокин Никита Александрович",
+        "birth": "29.04.2014",
+        "education": "Православная СОШ"
+      },
+      {
+        "fio": "Волкова Милана Ивановна",
+        "birth": "12.10.2011",
+        "education": "Православная СОШ"
+      },
+      {
+        "fio": "Волкова Полина Ивановна",
+        "birth": "08.09.2009",
+        "education": "ТПЭК г. Тверь"
+      },
+      {
+        "fio": "Кутузова Ксения Дмитриевна",
+        "birth": "03.08.2017",
+        "education": "сош 5"
+      },
+      {
+        "fio": "Фокина Карина Александровна",
+        "birth": "14.07.2025",
+        "education": "домашний"
+      }
+    ],
+    "phone_number": "79000122231",
+    "address": "г.Вышний Волочек, Красный городок д.249-1",
+    "rooms": "2",
+    "square": "35",
+    "amenities": "со всеми удобствами",
+    "ownership": "долевая собственность",
+    "adpi": "да",
+    "install_date": "26.06.2024",
+    "check_date": "26.06.2024",
+    "unified_benefit": "119000",
+    "large_family_benefit": "4400",
+    "unified_children_count": "7",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Серова Ольга Алексеевна",
+    "mother_birth": "20.01.1987",
+    "mother_work": "гбуз црб",
+    "mother_disability_care": false,
+    "mother_not_working": false,
+    "father_fio": "Серов Андрей Владимирович",
+    "father_birth": "18.07.1988",
+    "father_work": "",
+    "father_not_working": true,
+    "children": [
+      {
+        "fio": "Серов Семён Андреевич",
+        "birth": "14.08.2016",
+        "education": "лицей 15"
+      },
+      {
+        "fio": "Серова Карина Андреевна",
+        "birth": "25.10.2008",
+        "education": "лицей 15"
+      },
+      {
+        "fio": "Серова Арина Андреевна",
+        "birth": "25.10.2008",
+        "education": "лицей 15"
+      }
+    ],
+    "phone_number": "79520874154",
+    "address": "Ржевский Тракт, д.104",
+    "rooms": "4",
+    "square": "100",
+    "amenities": "со всеми удобствами",
+    "ownership": "долевая собственность",
+    "adpi": "да",
+    "install_date": "26.01.2024",
+    "check_date": "18.04.2025",
+    "large_family_benefit": "1900",
+    "mother_salary": "25000",
+    "unified_percentage": "100%"
+  }
+]

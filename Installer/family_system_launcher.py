@@ -38,8 +38,9 @@ class FamilySystemLauncher:
         # Файлы системы
         self.files_to_copy = [
             "json_family_creator.py",
-            "massform.py", 
+            "massform.py",
             "database_client.sh",
+            "database_client.bat",
             "config.env",
             "family_system_launcher.py"  # Этот файл
         ]
@@ -500,10 +501,19 @@ class FamilySystemLauncher:
         missing = []
         
         # Проверяем основные файлы
-        for file in ["json_family_creator.py", "massform.py", "database_client.sh"]:
+        base_files = ["json_family_creator.py", "massform.py", "database_client.sh"]
+        for file in base_files:
             file_path = os.path.join(self.system_dir, file)
             if not os.path.exists(file_path):
                 missing.append(file)
+        
+        # Проверяем Windows-специфичные файлы
+        if platform.system() == "Windows":
+            windows_files = ["database_client.bat"]
+            for file in windows_files:
+                file_path = os.path.join(self.system_dir, file)
+                if not os.path.exists(file_path):
+                    missing.append(file)
         
         if missing:
             self.log_message(f"⚠️ Отсутствуют файлы: {', '.join(missing)}")
@@ -1098,35 +1108,99 @@ StartupNotify=true
         with open(bat_path, 'w', encoding='cp1251') as f:
             f.write("""@echo off
 chcp 65001 >nul
-echo =======================================
-echo    КЛИЕНТ БАЗЫ ДАННЫХ - WINDOWS
-echo =======================================
+setlocal enabledelayedexpansion
+
+echo ========================================
+echo    КЛИЕНТ БАЗЫ ДАННЫХ ДЛЯ WINDOWS
+echo ========================================
 echo.
 
-REM Проверяем конфигурацию
-if not exist "config.env" (
-    echo ❌ Файл конфигурации не найден!
-    pause
-    exit /b 1
+set "SCRIPT_DIR=%%~dp0"
+set "CONFIG_FILE=%%SCRIPT_DIR%%config.env"
+set "LOG_FILE=%%SCRIPT_DIR%%connection_windows.log"
+
+echo [%%date%% %%time%%] - Запуск клиента базы данных >> "%%LOG_FILE%%"
+
+REM Проверка конфигурации
+if not exist "%%CONFIG_FILE%%" (
+   echo ❌ Файл конфигурации не найден: %%CONFIG_FILE%%
+   echo Создайте config.env со следующим содержимым:
+   echo SSH_HOST="192.168.10.59"
+   echo SSH_USER="sshuser"
+   echo SSH_PASSWORD="orsd321"
+   echo LOCAL_PORT="8080"
+   echo REMOTE_HOST="172.30.1.18"
+   echo REMOTE_PORT="80"
+   echo WEB_PATH="/aspnetkp/common/FindInfo.aspx"
+   pause
+   exit /b 1
+)
+
+REM Чтение конфигурации
+for /f "usebackq tokens=1,2 delims==" %%%%i in ("%%CONFIG_FILE%%") do (
+   set "%%%%i=%%%%j"
+)
+
+REM Остановка старых подключений
+echo 🔄 Останавливаю старые подключения...
+taskkill /F /FI "WINDOWTITLE eq SSH_TUNNEL*" 2>nul
+taskkill /F /IM plink.exe 2>nul
+timeout /t 2 /nobreak >nul
+
+REM Проверка наличия plink (PuTTY)
+where plink >nul 2>nul
+if errorlevel 1 (
+   echo ❌ Не найден plink.exe (PuTTY)
+   echo Скачайте PuTTY с: https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html
+   echo И поместите plink.exe в папку с программой
+   pause
+   exit /b 1
 )
 
 echo 🚀 Запускаю подключение к базе данных...
-echo.
+echo [%%date%% %%time%%] - Запуск туннеля: plink -ssh %%SSH_USER%%@%%SSH_HOST%% -pw %%SSH_PASSWORD%% -L %%LOCAL_PORT%%:%%REMOTE_HOST%%:%%REMOTE_PORT%% -N >> "%%LOG_FILE%%"
 
-REM Здесь должна быть логика подключения для Windows
-echo ⚠️  Для Windows требуется настроить подключение вручную
+REM Запуск туннеля в отдельном окне
+start "SSH_TUNNEL_%%LOCAL_PORT%%" plink -ssh %%SSH_USER%%@%%SSH_HOST%% -pw %%SSH_PASSWORD%% -L %%LOCAL_PORT%%:%%REMOTE_HOST%%:%%REMOTE_PORT%% -N
+
+timeout /t 5 /nobreak >nul
+
+REM Проверка запуска
+tasklist /FI "WINDOWTITLE eq SSH_TUNNEL*" 2>nul | find /i "plink" >nul
+if errorlevel 1 (
+   echo ❌ Не удалось запустить туннель
+   echo [%%date%% %%time%%] - Ошибка запуска туннеля >> "%%LOG_FILE%%"
+   pause
+   exit /b 1
+)
+
+echo ✅ Туннель запущен на порту %%LOCAL_PORT%%
+
+REM Открытие браузера
+echo 🌐 Открываю браузер...
+start http://localhost:%%LOCAL_PORT%%%%WEB_PATH%%
+
 echo.
-echo 📚 Инструкция:
-echo 1. Установите PuTTY
-echo 2. Создайте SSH туннель:
-echo    plink -ssh sshuser@192.168.10.59 -pw orsd321 -L 8080:172.30.1.18:80 -N
-echo 3. Откройте браузер: http://localhost:8080/aspnetkp/common/FindInfo.aspx
+echo ========================================
+echo    КЛИЕНТ БАЗЫ ДАННЫХ ЗАПУЩЕН
+echo ========================================
 echo.
+echo 🌐 Адрес: http://localhost:%%LOCAL_PORT%%%%WEB_PATH%%
+echo 📋 Лог: %%LOG_FILE%%
+echo.
+echo Нажмите любую клавишу для остановки...
+pause >nul
+
+REM Остановка туннеля
+echo 🛑 Останавливаю туннель...
+taskkill /F /FI "WINDOWTITLE eq SSH_TUNNEL*" 2>nul
+echo [%%date%% %%time%%] - Туннель остановлен >> "%%LOG_FILE%%"
+echo ✅ Туннель остановлен
 
 pause
 """)
         
-        self.log_message("📄 Создан bat файл для Windows")
+        self.log_message("📄 Создан полноценный bat файл для Windows")
     
     def run(self):
         """Запускает приложение"""

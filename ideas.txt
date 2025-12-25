@@ -262,8 +262,25 @@ EnhancedJSONFamilyCreatorGUI:
 
 папка для скриншотов автоматически создается в папке с FamilySеarch     
 
+нужно проблему решить are the same file при сохраненных файлах ексель
 
+три нуля автоматически подставляется 
+сделать чекбокс который очищает если нет для пособия оп многодетности 1900
+зп родителей перенести к семье
+чекбокс дял подстановки детям если домашний
+
+поменять местами дял удобства вкладки
+
+мб подсчитывать кол-во детей и автоматически считать единое пособие
+
+перенести кнопку автоопределить выше
+
+добавить чекбокс долевая союственность 
+
+фикс бага с чекбоксом не раюоатет
 почистить readme 
+
+очень долгая пауза между семьями
 
 почистить гитхаб от мусора всякого
 
@@ -280,9 +297,34 @@ EnhancedJSONFamilyCreatorGUI:
 
 добавить в автозапуске скрипт для автопечати универсальный для виндовс и линукс
 
-отображение о запуске БД в лаунчере при нажатии на кнопку либо открытие консоли на всех ОС
+отображение о запуске БД в лаунчере при нажатии на кнопку либо открытие консоли на всех 
+
+ошибка при выполнении File "/home/comp_step/.local/lib/python3.11/site-packages/customtkinter/windows/widgets/core_rendering/draw_engine.py", line 128, in draw_rounded_rect_with_border
+    return self.__draw_rounded_rect_with_border_font_shapes(width, height, corner_radius, border_width, inner_corner_radius, ())
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/comp_step/.local/lib/python3.11/site-packages/customtkinter/windows/widgets/core_rendering/draw_engine.py", line 248, in __draw_rounded_rect_with_border_font_shapes
+    self._canvas.delete("border_parts")
+  File "/usr/lib64/python3.11/tkinter/__init__.py", line 2896, in delete
+    self.tk.call((self._w, 'delete') + args)
+_tkinter.TclError: invalid command name ".!ctktabview.!ctkframe.!ctkframe.!ctkframe2.!ctkframe2.!canvas.!ctkscrollableframe.!ctkframe638.!ctklabel4.!ctkcanvas"
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "/usr/lib64/python3.11/tkinter/__init__.py", line 1967, in __call__
+    return self.func(*args)
+           ^^^^^^^^^^^^^^^^
+  File "/home/comp_step/.local/lib/python3.11/site-packages/customtkinter/windows/widgets/core_widget_classes/ctk_base_class.py", line 188, in _update_dimensions_event
+    self._draw(no_color_updates=True)  # faster drawing without color changes
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/comp_step/.local/lib/python3.11/site-packages/customtkinter/windows/widgets/ctk_button.py", line 194, in _draw
+    self._canvas.delete("background_parts")
+  File "/usr/lib64/python3.11/tkinter/__init__.py", line 2896, in delete
+    self.tk.call((self._w, 'delete') + args)
+_tkinter.TclError: invalid command name ".!ctktabview.!ctkframe.!ctkframe.!ctkframe2.!ctkframe2.!canvas.!ctkscrollableframe.!ctkframe638.!ctkframe.!ctkbutton.!ctkcanvas"
 
 
+если не работает, то заполняется ,что не работает
+
+не обрабатывается на то что есть уже заполненная информация
 
 
 
