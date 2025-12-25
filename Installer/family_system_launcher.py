@@ -14,7 +14,7 @@ import customtkinter as ctk
 from tkinter import messagebox, scrolledtext
 import json
 import webbrowser
-from datetime import datetime
+from datetime import datetime, timedelta
 import shutil
 
 ctk.set_appearance_mode("dark")
@@ -49,6 +49,19 @@ class FamilySystemLauncher:
         self.github_token_file = os.path.join(self.system_dir, ".github_token") if hasattr(self, 'system_dir') else None
         self.load_github_token()
 
+        # Организация конфигурационных файлов в отдельную папку
+        self.setup_config_directory()
+        
+        # Файлы конфигурации
+        self.stats_file = os.path.join(self.config_dir, "processing_statistics.json")
+        
+        self.stats = self.load_statistics()
+        
+        # Переменные для статистики
+        self.success_count = 0
+        self.daily_stat = 0
+        self.weekly_stat = 0
+
         # Проверяем установку
         self.is_installed = os.path.exists(self.system_dir)
         
@@ -59,6 +72,152 @@ class FamilySystemLauncher:
         
         # Автоматически проверяем установку при запуске
         self.app.after(100, self.check_installation_status)
+        
+        # Обновляем отображение статистики при запуске
+        self.app.after(200, self.update_statistics_display)
+        
+        # Периодическое обновление статистики (раз в 30 секунд)
+        self.app.after(30000, self.periodic_statistics_update)
+
+    def setup_config_directory(self):
+        """Создание папки для конфигурационных файлов"""
+        try:
+            # Определяем путь к директории приложения
+            app_dir = os.path.dirname(os.path.abspath(__file__))
+            self.config_dir = os.path.join(app_dir, "config")
+            
+            # Создаем папку config, если она не существует
+            if not os.path.exists(self.config_dir):
+                os.makedirs(self.config_dir)
+                print(f"✅ Создана папка конфигурации: {self.config_dir}")
+            
+            # Создаем подпапку для логов
+            self.logs_dir = os.path.join(self.config_dir, "logs")
+            if not os.path.exists(self.logs_dir):
+                os.makedirs(self.logs_dir)
+                print(f"✅ Создана папка для логов: {self.logs_dir}")
+                
+            # Создаем подпапку для скриншотов
+            self.screenshots_dir = os.path.join(self.config_dir, "screenshots")
+            if not os.path.exists(self.screenshots_dir):
+                os.makedirs(self.screenshots_dir)
+                print(f"✅ Создана папка для скриншотов: {self.screenshots_dir}")
+                
+        except Exception as e:
+            print(f"❌ Ошибка создания папки конфигурации: {e}")
+            # Если не удалось создать папку config, используем текущую директорию
+            self.config_dir = os.path.dirname(os.path.abspath(__file__))
+            self.logs_dir = self.config_dir
+            self.screenshots_dir = self.config_dir
+
+    def load_statistics(self):
+        """Загрузка статистики обработки"""
+        try:
+            if os.path.exists(self.stats_file):
+                with open(self.stats_file, 'r', encoding='utf-8') as f:
+                    stats = json.load(f)
+                    
+                    # Проверяем структуру файла
+                    if not isinstance(stats, dict):
+                        stats = {}
+                    
+                    # Проверяем наличие необходимых полей
+                    if 'daily' not in stats:
+                        stats['daily'] = {}
+                    if 'weekly' not in stats:
+                        stats['weekly'] = {}
+                    
+                    return stats
+            return {'daily': {}, 'weekly': {}}
+        except Exception as e:
+            print(f"⚠️ Ошибка загрузки статистики: {e}")
+            return {'daily': {}, 'weekly': {}}
+
+    def save_statistics(self):
+        """Сохранение статистики обработки"""
+        try:
+            with open(self.stats_file, 'w', encoding='utf-8') as f:
+                json.dump(self.stats, f, ensure_ascii=False, indent=2)
+            return True
+        except Exception as e:
+            print(f"⚠️ Ошибка сохранения статистики: {e}")
+            return False
+
+    def update_statistics(self, success_count):
+        """Обновление статистики обработки"""
+        try:
+            today = datetime.now().strftime("%Y-%m-%d")
+            
+            # Обновляем дневную статистику
+            if today in self.stats['daily']:
+                self.stats['daily'][today] += success_count
+            else:
+                self.stats['daily'][today] = success_count
+            
+            # Обновляем недельную статистику
+            # Получаем номер недели
+            week_num = datetime.now().strftime("%Y-W%W")
+            if week_num in self.stats['weekly']:
+                self.stats['weekly'][week_num] += success_count
+            else:
+                self.stats['weekly'][week_num] = success_count
+            
+            # Сохраняем статистику
+            self.save_statistics()
+            
+            # Обновляем отображение статистики
+            self.update_statistics_display()
+            
+            print(f"📊 Статистика обновлена: +{success_count} семей")
+            return True
+        except Exception as e:
+            print(f"⚠️ Ошибка обновления статистики: {e}")
+            return False
+
+    def get_statistics_for_period(self):
+        """Получение статистики за день и неделю"""
+        try:
+            today = datetime.now().strftime("%Y-%m-%d")
+            today_stat = self.stats['daily'].get(today, 0)
+            
+            # Получаем статистику за текущую неделю (понедельник-пятница)
+            week_stat = 0
+            current_date = datetime.now()
+            
+            # Находим понедельник текущей недели
+            start_of_week = current_date - timedelta(days=current_date.weekday())
+            
+            # Для каждого дня недели с понедельника по пятницу (0-4)
+            for i in range(5):
+                day_date = start_of_week + timedelta(days=i)
+                day_str = day_date.strftime("%Y-%m-%d")
+                week_stat += self.stats['daily'].get(day_str, 0)
+            
+            return today_stat, week_stat
+        except Exception as e:
+            print(f"⚠️ Ошибка получения статистики: {e}")
+            return 0, 0
+
+    def update_statistics_display(self):
+        """Обновление отображения статистики в интерфейсе"""
+        try:
+            today_stat, week_stat = self.get_statistics_for_period()
+            self.stat_label.configure(
+                text=f"📊 Статистика: Сегодня - {today_stat} | Неделя - {week_stat}"
+            )
+        except Exception as e:
+            print(f"⚠️ Ошибка обновления отображения статистики: {e}")
+            
+    def periodic_statistics_update(self):
+        """Периодическое обновление статистики"""
+        try:
+            # Обновляем статистику
+            self.update_statistics_display()
+            
+            # Запланировать следующее обновление
+            self.app.after(30000, self.periodic_statistics_update)
+        except Exception as e:
+            print(f"⚠️ Ошибка периодического обновления статистики: {e}")
     
     def center_window(self):
         """Центрирует окно на экране"""
@@ -158,6 +317,15 @@ class FamilySystemLauncher:
             font=ctk.CTkFont(size=12)
         )
         self.status_label.pack(pady=5)
+        
+        # Отображение статистики
+        self.stat_label = ctk.CTkLabel(
+            info_frame,
+            text="📊 Статистика: Сегодня - 0 | Неделя - 0",
+            font=ctk.CTkFont(size=12, weight="bold")
+        )
+        self.stat_label.pack(pady=5)
+        self.update_statistics_display()
         
         # Блок кнопок
         buttons_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
@@ -309,6 +477,9 @@ class FamilySystemLauncher:
             
             # Проверяем доступность компонентов
             self.check_components()
+            
+            # Обновляем статистику
+            self.update_statistics_display()
         else:
             self.status_label.configure(
                 text="❌ Система не установлена. Нажмите 'Установить систему'",
@@ -641,6 +812,14 @@ StartupNotify=true
         except Exception as e:
             self.log_message(f"❌ Ошибка запуска: {str(e)}")
             messagebox.showerror("Ошибка", f"Не удалось запустить Массовый обработчик:\n{str(e)}")
+            
+    def increment_success_count(self, count=1):
+        """Увеличивает счетчик успешных обработок"""
+        try:
+            # Обновляем статистику
+            self.update_statistics(count)
+        except Exception as e:
+            print(f"⚠️ Ошибка обновления статистики: {e}")
     
       
 
