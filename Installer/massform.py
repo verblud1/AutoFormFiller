@@ -234,7 +234,7 @@ class MassFamilyProcessorGUI:
     def get_default_config(self):
         """Возвращает конфигурацию по умолчанию"""
         return {
-            "pause": "2",
+            "pause": "0.5",
             "screenshot": True,
             "stop_on_error": True,
             "screenshot_dir": self.screenshots_dir,  # Используем папку из конфигурации
@@ -283,6 +283,138 @@ class MassFamilyProcessorGUI:
         self.app.protocol("WM_DELETE_WINDOW", self.on_closing)
         
         self.app.after(100, self.check_last_json)
+        
+        # Добавляем поддержку прокрутки колесиком мыши для всех вкладок
+        self.setup_mouse_wheel_binding()
+        
+        # Улучшаем видимость полос прокрутки
+        self.setup_scrollbar_visibility()
+    
+    def setup_mouse_wheel_binding(self):
+        """Настройка прокрутки колесиком мыши для всех вкладок"""
+        # Привязываем прокрутку к основному окну
+        self.app.bind("<MouseWheel>", self._on_mousewheel)  # Windows
+        self.app.bind("<Button-4>", self._on_mousewheel)    # Linux
+        self.app.bind("<Button-5>", self._on_mousewheel)    # Linux
+        
+        # Привязываем к дочерним виджетам (без tabview, так как он не поддерживает bind)
+        for tab_name in ["families_tab", "settings_tab", "log_tab"]:
+            if hasattr(self, tab_name):
+                tab = getattr(self, tab_name)
+                try:
+                    tab.bind("<MouseWheel>", self._on_mousewheel)
+                    tab.bind("<Button-4>", self._on_mousewheel)
+                    tab.bind("<Button-5>", self._on_mousewheel)
+                except:
+                    # Некоторые виджеты могут не поддерживать bind
+                    pass
+                
+                # Рекурсивно привязываем ко всем дочерним элементам
+                self._bind_mousewheel_recursive(tab, self._on_mousewheel)
+    
+    def setup_scrollbar_visibility(self):
+        """Улучшение видимости полос прокрутки"""
+        # Настройка стиля полос прокрутки для лучшей видимости
+        try:
+            # Попытка настроить видимость полос прокрутки в CTk
+            ctk.set_widget_scaling(1.0)  # Устанавливаем масштаб виджетов
+        except:
+            pass
+        
+        # Обновляем все виджеты для лучшей видимости полос прокрутки
+        self.app.update_idletasks()
+    
+    def _bind_mousewheel_recursive(self, widget, callback):
+        """Рекурсивная привязка события прокрутки ко всем дочерним виджетам"""
+        try:
+            for child in widget.winfo_children():
+                try:
+                    child.bind("<MouseWheel>", callback)  # Windows
+                    child.bind("<Button-4>", callback)    # Linux
+                    child.bind("<Button-5>", callback)    # Linux
+                except:
+                    # Некоторые виджеты могут не поддерживать bind
+                    pass
+                # Рекурсивный вызов для вложенных виджетов
+                self._bind_mousewheel_recursive(child, callback)
+        except:
+            # Некоторые виджеты могут не поддерживать winfo_children()
+            pass
+    
+    def _on_mousewheel(self, event):
+        """Обработка события прокрутки колесиком мыши"""
+        # Определяем направление прокрутки в зависимости от ОС
+        if event.num == 4 or event.delta > 0:
+            direction = -1  # Вверх
+        elif event.num == 5 or event.delta < 0:
+            direction = 1   # Вниз
+        else:
+            return
+        
+        # Находим виджет, над которым находится курсор
+        widget = event.widget
+        self._scroll_widget_if_scrollable(widget, direction)
+    
+    def _scroll_widget_if_scrollable(self, widget, direction):
+        """Прокрутка виджета, если он поддерживает прокрутку"""
+        # Проверяем, является ли виджет прокручиваемым фреймом
+        if hasattr(widget, 'yview') and callable(getattr(widget, 'yview', None)):
+            # Это может быть Text, Listbox, Canvas или виджет с прокруткой
+            try:
+                if direction == -1:
+                    widget.yview_scroll(-1, "units")
+                else:
+                    widget.yview_scroll(1, "units")
+            except:
+                pass
+        elif widget.__class__.__name__ in ['CTkScrollableFrame']:
+            # Обработка CTkScrollableFrame - ищем внутренний canvas и прокручиваем его
+            try:
+                # Прокручиваем сам фрейм
+                if direction == -1:
+                    widget._parent_canvas.yview_scroll(-1, "units")
+                else:
+                    widget._parent_canvas.yview_scroll(1, "units")
+            except:
+                # Если прямой доступ не работает, пробуем рекурсивно найти canvas
+                canvas = self._find_canvas_in_widget(widget)
+                if canvas:
+                    try:
+                        if direction == -1:
+                            canvas.yview_scroll(-1, "units")
+                        else:
+                            canvas.yview_scroll(1, "units")
+                    except:
+                        pass
+        
+        # Рекурсивно проверяем родительские виджеты
+        parent = widget.master if hasattr(widget, 'master') else None
+        if parent and parent != self.app:
+            self._scroll_widget_if_scrollable(parent, direction)
+    
+    def _find_canvas_in_widget(self, widget):
+        """Поиск canvas внутри виджета для прокрутки"""
+        try:
+            # Проверяем, есть ли у виджета _parent_canvas
+            if hasattr(widget, '_parent_canvas'):
+                return widget._parent_canvas
+            # Ищем canvas рекурсивно среди дочерних элементов
+            for child in widget.winfo_children():
+                if child.__class__.__name__ in ['Canvas', 'tkinter.Canvas', 'customtkinter.CTkCanvas']:
+                    return child
+                canvas = self._find_canvas_in_widget(child)
+                if canvas:
+                    return canvas
+        except:
+            pass
+        return None
+    
+    def _get_all_children(self, widget):
+        """Получение всех дочерних виджетов рекурсивно"""
+        children = [widget]
+        for child in widget.winfo_children():
+            children.extend(self._get_all_children(child))
+        return children
         
     def on_closing(self):
         """Обработка закрытия программы"""
@@ -378,6 +510,15 @@ class MassFamilyProcessorGUI:
         self.families_scrollframe = ctk.CTkScrollableFrame(table_frame, height=300)
         self.families_scrollframe.pack(fill="both", expand=True, padx=5, pady=5)
         
+        # Привязываем прокрутку колесиком мыши к этому фрейму
+        try:
+            self.families_scrollframe.bind("<MouseWheel>", self._on_mousewheel)
+            self.families_scrollframe.bind("<Button-4>", self._on_mousewheel)
+            self.families_scrollframe.bind("<Button-5>", self._on_mousewheel)
+        except:
+            # Если bind не поддерживается, пропускаем
+            pass
+        
         self.families_widgets = []
         
     def setup_settings_tab(self):
@@ -392,7 +533,7 @@ class MassFamilyProcessorGUI:
         pause_frame.pack(fill="x", padx=10, pady=5)
         
         ctk.CTkLabel(pause_frame, text="Пауза между семьями (сек):").pack(side="left", padx=5)
-        self.pause_var = ctk.StringVar(value=self.config.get("pause", "2"))
+        self.pause_var = ctk.StringVar(value=self.config.get("pause", "0.5"))
         self.pause_entry = ctk.CTkEntry(pause_frame, textvariable=self.pause_var, width=80)
         self.pause_entry.pack(side="left", padx=5)
         
@@ -492,6 +633,15 @@ class MassFamilyProcessorGUI:
         self.log_text = scrolledtext.ScrolledText(log_frame, height=25)
         self.log_text.pack(fill="both", expand=True, padx=10, pady=5)
         self.log_text.config(state="disabled")
+        
+        # Привязываем прокрутку колесиком мыши к этому виджету
+        try:
+            self.log_text.bind("<MouseWheel>", self._on_mousewheel)
+            self.log_text.bind("<Button-4>", self._on_mousewheel)
+            self.log_text.bind("<Button-5>", self._on_mousewheel)
+        except:
+            # Если bind не поддерживается, пропускаем
+            pass
         
         buttons_frame = ctk.CTkFrame(log_frame)
         buttons_frame.pack(fill="x", padx=10, pady=10)
@@ -839,6 +989,15 @@ class MassFamilyProcessorGUI:
                 scroll_frame = ctk.CTkScrollableFrame(dialog)
                 scroll_frame.pack(fill="both", expand=True, padx=10, pady=10)
                 
+                # Привязываем прокрутку колесиком мыши к этому фрейму
+                try:
+                    scroll_frame.bind("<MouseWheel>", self._on_mousewheel)
+                    scroll_frame.bind("<Button-4>", self._on_mousewheel)
+                    scroll_frame.bind("<Button-5>", self._on_mousewheel)
+                except:
+                    # Если bind не поддерживается, пропускаем
+                    pass
+                
                 fields = [
                     ("ФИО матери:", "mother_fio", 300),
                     ("Дата рождения матери:", "mother_birth", 100),
@@ -923,6 +1082,15 @@ class MassFamilyProcessorGUI:
                 text_widget = scrolledtext.ScrolledText(dialog, width=60, height=30)
                 text_widget.pack(fill="both", expand=True, padx=10, pady=10)
                 
+                # Привязываем прокрутку колесиком мыши к этому виджету
+                try:
+                    text_widget.bind("<MouseWheel>", self._on_mousewheel)
+                    text_widget.bind("<Button-4>", self._on_mousewheel)
+                    text_widget.bind("<Button-5>", self._on_mousewheel)
+                except:
+                    # Если bind не поддерживается, пропускаем
+                    pass
+                
                 info_text = f"=== Семья {index + 1} ===\n\n"
                 info_text += f"Статус: {family.get('status', 'неизвестно')}\n"
                 
@@ -958,7 +1126,7 @@ class MassFamilyProcessorGUI:
                 if incomes:
                     income_labels = {
                         'mother_salary': 'Зарплата матери',
-                        'father_salary': 'Зарплата отца', 
+                        'father_salary': 'Зарплата отца',
                         'unified_benefit': 'Единое пособие',
                         'large_family_benefit': 'Пособие по многодетности',
                         'survivor_pension': 'Пенсия по потере кормильца',
@@ -1108,6 +1276,15 @@ class MassFamilyProcessorGUI:
             # Прокручиваемый список семей с увеличенной высотой
             families_listbox = scrolledtext.ScrolledText(dialog, height=10, width=70)  # Увеличили ширину и уменьшили высоту
             families_listbox.pack(pady=10, padx=20, fill="both", expand=True)
+            
+            # Привязываем прокрутку колесиком мыши к этому виджету
+            try:
+                families_listbox.bind("<MouseWheel>", self._on_mousewheel)
+                families_listbox.bind("<Button-4>", self._on_mousewheel)
+                families_listbox.bind("<Button-5>", self._on_mousewheel)
+            except:
+                # Если bind не поддерживается, пропускаем
+                pass
             
             for family_info in families_data:
                 families_listbox.insert("end", family_info + "\n")
@@ -1375,7 +1552,7 @@ class MassFamilyProcessorGUI:
                             if pause_time > 0:
                                 time.sleep(pause_time)
                         except:
-                            time.sleep(2)
+                            time.sleep(0.5)
             
             # Повторная обработка семей с ошибками
             if retry_families and self.is_processing:
@@ -1422,7 +1599,7 @@ class MassFamilyProcessorGUI:
                             if pause_time > 0:
                                 time.sleep(pause_time)
                         except:
-                            time.sleep(2)
+                            time.sleep(0.5)
                 
                 # Если остались семьи с ошибками после повторной попытки
                 if retry_error_count > 0:
@@ -1554,7 +1731,7 @@ class MassFamilyProcessorGUI:
                         # Возвращаемся на страницу поиска
                         try:
                             self.driver.get("http://localhost:8080/aspnetkp/Common/FindInfo.aspx")
-                            time.sleep(1)
+                            time.sleep(0.2)
                         except:
                             pass
                     
@@ -1712,7 +1889,7 @@ class AutoFormFillerMass:
             self.log("🔙 Возвращаемся на страницу поиска...")
             try:
                 self.driver.get("http://localhost:8080/aspnetkp/Common/FindInfo.aspx")
-                time.sleep(1)
+                time.sleep(0.2)  # Уменьшено с 0.5 до 0.2 секунды
             except Exception as e:
                 self.log(f"❌ Не удалось загрузить страницу поиска: {e}")
                 
@@ -1761,7 +1938,7 @@ class AutoFormFillerMass:
             self.log("📱 Получаем телефон и адрес СРАЗУ ПОСЛЕ ПЕРЕХОДА НА КАРТОЧКУ...")
             
             # Ждем загрузки страницы карточки
-            time.sleep(1.5)
+            time.sleep(0.3)  # Уменьшено с 0.8 до 0.3 секунды
             
             # Получаем данные из family_data (из JSON)
             self._get_phone_and_address_from_family_data(family_data)
@@ -1803,7 +1980,7 @@ class AutoFormFillerMass:
                         self._take_screenshot(formatted_data, family_number, family_data)
                     
                     # 11. Возвращаемся на страницу поиска без закрытия браузера
-                    time.sleep(1)
+                    time.sleep(0.2)
                     self._return_to_search_page()
                     
                     self.log("✅ Семья обработана успешно")
@@ -1899,7 +2076,7 @@ class AutoFormFillerMass:
         try:
             self.log("🔄 Возвращаемся на страницу поиска...")
             self.driver.get("http://localhost:8080/aspnetkp/Common/FindInfo.aspx")
-            time.sleep(1)
+            time.sleep(0.2)  # Уменьшено с 0.5 до 0.2 секунды
             self.log("✅ Вернулись на страницу поиска")
         except Exception as e:
             self.log(f"⚠️ Не удалось вернуться на страницу поиска: {e}")
@@ -1907,7 +2084,7 @@ class AutoFormFillerMass:
     def _analyze_search_results(self, family_number, mother_fio):
         """Анализ результатов поиска и автоматический выбор карточки"""
         try:
-            time.sleep(1.5)  # Увеличиваем время ожидания
+            time.sleep(0.5)  # Уменьшено с 1.5 до 0.5 секунды
             
             cards = self.driver.find_elements(By.CSS_SELECTOR, "#ctl00_cph_dTabsContainer .pers")
             
@@ -1922,7 +2099,7 @@ class AutoFormFillerMass:
                 try:
                     link = cards[0].find_element(By.CSS_SELECTOR, "a[title='Переход в просмотр ПКУ']")
                     link.click()
-                    time.sleep(2)  # Увеличиваем время ожидания после перехода
+                    time.sleep(0.8)  # Уменьшено с 2 до 0.8 секунды
                     return True
                 except Exception as e:
                     self.log(f"❌ Не удалось кликнуть на ссылку: {e}")
@@ -1974,7 +2151,7 @@ class AutoFormFillerMass:
                     card_info = vyishnevolotsk_cards[0]
                     link = card_info['card'].find_element(By.CSS_SELECTOR, "a[title='Переход в просмотр ПКУ']")
                     link.click()
-                    time.sleep(2)  # Увеличиваем время ожидания после перехода
+                    time.sleep(0.8)  # Уменьшено с 2 до 0.8 секунды
                     return True
                 except Exception as e:
                     self.log(f"❌ Не удалось кликнуть на ссылку: {e}")
@@ -2058,7 +2235,7 @@ class AutoFormFillerMass:
                     selected_card = cards[choice_num]
                     link = selected_card.find_element(By.CSS_SELECTOR, "a[title='Переход в просмотр ПКУ']")
                     link.click()
-                    time.sleep(2)  # Увеличиваем время ожидания после перехода
+                    time.sleep(0.8)  # Уменьшено с 2 до 0.8 секунды
                     self.log(f"✅ Выбрана карточка {choice_num + 1}")
                     return True
                 else:
@@ -2076,6 +2253,38 @@ class AutoFormFillerMass:
         """Настройка драйвера"""
         try:
             self.log("🔧 Настройка драйвера...")
+            
+            # Импортируем chrome_driver_helper
+            from .chrome_driver_helper import setup_chrome_driver
+            
+            # Используем улучшенный метод настройки ChromeDriver
+            self.driver = setup_chrome_driver()
+            if self.driver is None:
+                self.log("❌ Не удалось настроить ChromeDriver")
+                messagebox.showerror("Ошибка", "Не удалось настроить ChromeDriver")
+                return False
+            
+            self.wait = WebDriverWait(self.driver, 10)
+            self.driver.maximize_window()
+            
+            if not self._login():
+                return False
+                
+            self.log("✅ Драйвер настроен и выполнен вход")
+            return True
+            
+        except ImportError:
+            # Если не удается импортировать chrome_driver_helper, используем старую логику
+            self.log("⚠️ chrome_driver_helper не найден, используем старую логику...")
+            return self._setup_driver_legacy()
+        except Exception as e:
+            self.log(f"❌ Ошибка настройки драйвера: {e}")
+            return False
+            
+    def _setup_driver_legacy(self):
+        """Старая логика настройки драйвера (резервный вариант)"""
+        try:
+            self.log("🔧 Настройка драйвера (старый метод)...")
             
             browser = self._detect_browser()
             if not browser:
@@ -2198,14 +2407,14 @@ class AutoFormFillerMass:
                 search_field.send_keys(mother_fio)
                 search_field.send_keys(Keys.ENTER)
                 
-                time.sleep(1.5)  # Увеличиваем время ожидания
+                time.sleep(0.2)  # Уменьшено с 0.8 до 0.2 секунды
                 
                 return True
                 
             except Exception as e:
                 if attempt < max_attempts - 1:
                     self.log(f"⚠️ Попытка {attempt + 1} поиска не удалась: {e}")
-                    time.sleep(1)
+                    time.sleep(0.2)
                 else:
                     self.log(f"❌ Ошибка поиска после {max_attempts} попыток: {e}")
                     return False
@@ -2219,7 +2428,7 @@ class AutoFormFillerMass:
                 if not self._click_element_with_retry(By.ID, "ctl00_cph_rptAllTabs_ctl10_tdTabL", max_attempts=2):
                     return False
                     
-                time.sleep(1.5)  # Увеличиваем время ожидания
+                time.sleep(0.8)  # Уменьшено с 1.5 до 0.8 секунды
                 
                 info_text = self._get_element_text("ctl00_cph_lblAddInfo2", "").strip()
                 return info_text == "Информация отсутствует" or not info_text
@@ -2244,17 +2453,17 @@ class AutoFormFillerMass:
             if not self._click_element_with_retry(By.ID, "ctl00_cph_rptAllTabs_ctl10_tdTabL"):
                 return False
                 
-            time.sleep(0.8)  # Увеличиваем время ожидания
+            time.sleep(0.5)  # Уменьшено с 0.8 до 0.5 секунды
                 
             if not self._click_element_with_retry(By.ID, "ctl00_cph_lbtnEditAddInfo"):
                 return False
                 
-            time.sleep(0.8)  # Увеличиваем время ожидания
+            time.sleep(0.5)  # Уменьшено с 0.8 до 0.5 секунды
                 
             if not self._click_element_with_retry(By.ID, "ctl00_cph_ctrlDopFields_lbtnAdd"):
                 return False
                 
-            time.sleep(1.5)  # Увеличиваем время ожидания
+            time.sleep(0.8)  # Уменьшено с 1.5 до 0.8 секунды
                 
             return True
             
@@ -2361,7 +2570,7 @@ class AutoFormFillerMass:
     def _fill_form(self, add_info_text, category, housing_info, adpi_data):
         """Заполнение формы с динамическим определением индексов"""
         try:
-            time.sleep(1.5)  # Увеличиваем время ожидания
+            time.sleep(0.5)  # Уменьшено с 1.5 до 0.5 секунды
             
             # Определяем, есть ли АДПИ
             has_adpi = adpi_data['has_adpi'] == 'д'
@@ -2385,7 +2594,7 @@ class AutoFormFillerMass:
                     is_selected = checkbox.is_selected()
                     if not is_selected:
                         checkbox.click()
-                        time.sleep(0.1)  # Небольшая задержка после клика
+                        time.sleep(0.02)  # Уменьшено с 0.1 до 0.02 секунды
                         # Проверяем, что чекбокс действительно установлен
                         is_selected_after = checkbox.is_selected()
                         if is_selected_after:
@@ -2420,7 +2629,7 @@ class AutoFormFillerMass:
                 self.log("⚠️ Не удалось кликнуть кнопку подтверждения чекбоксов")
                 return False
                 
-            time.sleep(1.5)  # Увеличиваем время ожидания
+            time.sleep(0.5)  # Уменьшено с 1.5 до 0.5 секунды
             
             # Заполняем основное текстовое поле
             if not self._fill_textarea("ctl00$cph$tbAddInfo", add_info_text, resize=True):
@@ -2515,7 +2724,7 @@ class AutoFormFillerMass:
             
             # Прокручиваем немного вниз, чтобы таблица была видна
             self.driver.execute_script("window.scrollBy(0, 300);")
-            time.sleep(0.8)  # Увеличиваем время ожидания
+            time.sleep(0.3)  # Уменьшено с 0.8 до 0.3 секунды
             
             # Пробуем найти все строки с полями
             rows = self.driver.find_elements(By.CSS_SELECTOR, "#ctl00_cph_ctrlDopFields_gv tr:not(:first-child)")
@@ -2648,16 +2857,16 @@ class AutoFormFillerMass:
                 
                 # Прокручиваем к элементу
                 self.driver.execute_script("arguments[0].scrollIntoView(true);", field)
-                time.sleep(0.15)  # Увеличиваем время ожидания
+                time.sleep(0.05)  # Уменьшено с 0.15 до 0.05 секунды
                 
                 # Очищаем поле
                 field.clear()
-                time.sleep(0.15)  # Увеличиваем время ожидания
+                time.sleep(0.05)  # Уменьшено с 0.15 до 0.05 секунды
                 
                 # Вводим текст
                 if text:
                     field.send_keys(text)
-                    time.sleep(0.15)  # Увеличиваем время ожидания
+                    time.sleep(0.05)  # Уменьшено с 0.15 до 0.05 секунды
                     
                     # Проверяем, что текст введен
                     try:
@@ -2717,25 +2926,25 @@ class AutoFormFillerMass:
             
             # Прокручиваем к элементу
             self.driver.execute_script("arguments[0].scrollIntoView(true);", field)
-            time.sleep(0.25)  # Увеличиваем время ожидания
+            time.sleep(0.05)  # Уменьшено с 0.25 до 0.05 секунды
             
             # Кликаем на поле
             field.click()
-            time.sleep(0.25)  # Увеличиваем время ожидания
+            time.sleep(0.05)  # Уменьшено с 0.25 до 0.05 секунды
             
             # Очищаем поле
             field.send_keys(Keys.CONTROL + "a")
             field.send_keys(Keys.DELETE)
-            time.sleep(0.25)  # Увеличиваем время ожидания
+            time.sleep(0.05)  # Уменьшено с 0.25 до 0.05 секунды
             
             # Вводим дату посимвольно
             for char in date_text:
                 field.send_keys(char)
-                time.sleep(0.07)  # Увеличиваем время ожидания
+                time.sleep(0.02)  # Уменьшено с 0.07 до 0.02 секунды
             
             # Нажимаем Enter для подтверждения
             field.send_keys(Keys.ENTER)
-            time.sleep(0.8)  # Увеличиваем время ожидания
+            time.sleep(0.3)  # Уменьшено с 0.8 до 0.3 секунды
             
             self.log(f"✅ Дата заполнена: {date_text}")
             return True
@@ -2764,7 +2973,7 @@ class AutoFormFillerMass:
             )
             save_button.click()
             
-            time.sleep(1.5)  # Увеличиваем время ожидания
+            time.sleep(0.8)  # Уменьшено с 1.5 до 0.8 секунды
             self.log("✅ Данные сохранены")
             return True
             
@@ -2835,7 +3044,7 @@ class AutoFormFillerMass:
                         self.log(f"✅ Чекбокс {checkbox_id} отмечен")
                     else:
                         self.log(f"ℹ️ Чекбокс {checkbox_id} уже отмечен")
-                    time.sleep(0.07)  # Увеличиваем время ожидания
+                    time.sleep(0.02)  # Уменьшено с 0.07 до 0.02 секунды
                 except Exception as e:
                     self.log(f"⚠️ Не удалось найти или кликнуть чекбокс {checkbox_id}: {e}")
                     continue
@@ -2854,7 +3063,7 @@ class AutoFormFillerMass:
                         )
                         element.clear()
                         element.send_keys(field_info['value'])
-                        time.sleep(0.07)  # Увеличиваем время ожидания
+                        time.sleep(0.02)  # Уменьшено с 0.07 до 0.02 секунды
                 except:
                     continue
             return True

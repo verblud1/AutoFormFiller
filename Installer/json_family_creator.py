@@ -361,6 +361,138 @@ class EnhancedJSONFamilyCreatorGUI:
         self.setup_adpi_tab()
         self.setup_manage_tab()
         self.app.protocol("WM_DELETE_WINDOW", self.on_closing)
+        
+        # Добавляем поддержку прокрутки колесиком мыши для всех вкладок
+        self.setup_mouse_wheel_binding()
+        
+        # Улучшаем видимость полос прокрутки
+        self.setup_scrollbar_visibility()
+    
+    def setup_scrollbar_visibility(self):
+        """Улучшение видимости полос прокрутки"""
+        # Настройка стиля полос прокрутки для лучшей видимости
+        try:
+            # Попытка настроить видимость полос прокрутки в CTk
+            ctk.set_widget_scaling(1.0)  # Устанавливаем масштаб виджетов
+        except:
+            pass
+        
+        # Обновляем все виджеты для лучшей видимости полос прокрутки
+        self.app.update_idletasks()
+    
+    def setup_mouse_wheel_binding(self):
+        """Настройка прокрутки колесиком мыши для всех вкладок"""
+        # Привязываем прокрутку к основному окну
+        self.app.bind("<MouseWheel>", self._on_mousewheel)  # Windows
+        self.app.bind("<Button-4>", self._on_mousewheel)    # Linux
+        self.app.bind("<Button-5>", self._on_mousewheel)    # Linux
+        
+        # Привязываем к дочерним виджетам (без tabview, так как он не поддерживает bind)
+        for tab_name in ["auto_tab", "family_tab", "children_tab", "housing_tab", "income_tab", "adpi_tab", "manage_tab"]:
+            if hasattr(self, tab_name):
+                tab = getattr(self, tab_name)
+                try:
+                    tab.bind("<MouseWheel>", self._on_mousewheel)
+                    tab.bind("<Button-4>", self._on_mousewheel)
+                    tab.bind("<Button-5>", self._on_mousewheel)
+                except:
+                    # Некоторые виджеты могут не поддерживать bind
+                    pass
+                
+                # Рекурсивно привязываем ко всем дочерним элементам
+                self._bind_mousewheel_recursive(tab, self._on_mousewheel)
+    
+    def _bind_mousewheel_recursive(self, widget, callback):
+        """Рекурсивная привязка события прокрутки ко всем дочерним виджетам"""
+        try:
+            for child in widget.winfo_children():
+                try:
+                    child.bind("<MouseWheel>", callback)  # Windows
+                    child.bind("<Button-4>", callback)    # Linux
+                    child.bind("<Button-5>", callback)    # Linux
+                except:
+                    # Некоторые виджеты могут не поддерживать bind
+                    pass
+                # Рекурсивный вызов для вложенных виджетов
+                self._bind_mousewheel_recursive(child, callback)
+        except:
+            # Некоторые виджеты могут не поддерживать winfo_children()
+            pass
+    
+    def _on_mousewheel(self, event):
+        """Обработка события прокрутки колесиком мыши"""
+        # Определяем направление прокрутки в зависимости от ОС
+        if event.num == 4 or event.delta > 0:
+            direction = -1  # Вверх
+        elif event.num == 5 or event.delta < 0:
+            direction = 1   # Вниз
+        else:
+            return
+        
+        # Находим виджет, над которым находится курсор
+        widget = event.widget
+        self._scroll_widget_if_scrollable(widget, direction)
+    
+    def _scroll_widget_if_scrollable(self, widget, direction):
+        """Прокрутка виджета, если он поддерживает прокрутку"""
+        # Проверяем, является ли виджет прокручиваемым фреймом
+        if hasattr(widget, 'yview') and callable(getattr(widget, 'yview', None)):
+            # Это может быть Text, Listbox, Canvas или виджет с прокруткой
+            try:
+                if direction == -1:
+                    widget.yview_scroll(-1, "units")
+                else:
+                    widget.yview_scroll(1, "units")
+            except:
+                pass
+        elif widget.__class__.__name__ in ['CTkScrollableFrame']:
+            # Обработка CTkScrollableFrame - ищем внутренний canvas и прокручиваем его
+            try:
+                # Прокручиваем сам фрейм
+                if direction == -1:
+                    widget._parent_canvas.yview_scroll(-1, "units")
+                else:
+                    widget._parent_canvas.yview_scroll(1, "units")
+            except:
+                # Если прямой доступ не работает, пробуем рекурсивно найти canvas
+                canvas = self._find_canvas_in_widget(widget)
+                if canvas:
+                    try:
+                        if direction == -1:
+                            canvas.yview_scroll(-1, "units")
+                        else:
+                            canvas.yview_scroll(1, "units")
+                    except:
+                        pass
+        
+        # Рекурсивно проверяем родительские виджеты
+        parent = widget.master if hasattr(widget, 'master') else None
+        if parent and parent != self.app:
+            self._scroll_widget_if_scrollable(parent, direction)
+    
+    def _find_canvas_in_widget(self, widget):
+        """Поиск canvas внутри виджета для прокрутки"""
+        try:
+            # Проверяем, есть ли у виджета _parent_canvas
+            if hasattr(widget, '_parent_canvas'):
+                return widget._parent_canvas
+            # Ищем canvas рекурсивно среди дочерних элементов
+            for child in widget.winfo_children():
+                if child.__class__.__name__ in ['Canvas', 'tkinter.Canvas', 'customtkinter.CTkCanvas']:
+                    return child
+                canvas = self._find_canvas_in_widget(child)
+                if canvas:
+                    return canvas
+        except:
+            pass
+        return None
+    
+    def _get_all_children(self, widget):
+        """Получение всех дочерних виджетов рекурсивно"""
+        children = [widget]
+        for child in widget.winfo_children():
+            children.extend(self._get_all_children(child))
+        return children
     
     def on_closing(self):
         """Обработка закрытия программы"""
@@ -514,6 +646,15 @@ class EnhancedJSONFamilyCreatorGUI:
         self.register_info_text.pack(fill="x", padx=5, pady=5)
         self.register_info_text.config(state="disabled")
         
+        # Привязываем прокрутку колесиком мыши к этому виджету
+        try:
+            self.register_info_text.bind("<MouseWheel>", self._on_mousewheel)
+            self.register_info_text.bind("<Button-4>", self._on_mousewheel)
+            self.register_info_text.bind("<Button-5>", self._on_mousewheel)
+        except:
+            # Если bind не поддерживается, пропускаем
+            pass
+        
         # Блок загрузки АДПИ из xlsx
         adpi_frame = ctk.CTkFrame(main_frame)
         adpi_frame.pack(fill="x", padx=10, pady=10)
@@ -546,6 +687,15 @@ class EnhancedJSONFamilyCreatorGUI:
         self.adpi_info_text = scrolledtext.ScrolledText(adpi_frame, height=8, width=80)
         self.adpi_info_text.pack(fill="x", padx=5, pady=5)
         self.adpi_info_text.config(state="disabled")
+        
+        # Привязываем прокрутку колесиком мыши к этому виджету
+        try:
+            self.adpi_info_text.bind("<MouseWheel>", self._on_mousewheel)
+            self.adpi_info_text.bind("<Button-4>", self._on_mousewheel)
+            self.adpi_info_text.bind("<Button-5>", self._on_mousewheel)
+        except:
+            # Если bind не поддерживается, пропускаем
+            pass
     
     def load_last_register(self):
         """Загрузка последнего файла реестра"""
@@ -1487,6 +1637,16 @@ class EnhancedJSONFamilyCreatorGUI:
         
         self.children_scrollframe = ctk.CTkScrollableFrame(main_frame, height=400)
         self.children_scrollframe.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        # Привязываем прокрутку колесиком мыши к этому фрейму
+        try:
+            self.children_scrollframe.bind("<MouseWheel>", self._on_mousewheel)
+            self.children_scrollframe.bind("<Button-4>", self._on_mousewheel)
+            self.children_scrollframe.bind("<Button-5>", self._on_mousewheel)
+        except:
+            # Если bind не поддерживается, пропускаем
+            pass
+        
         self.children_entries = []
         
         buttons_frame = ctk.CTkFrame(main_frame)
@@ -1621,6 +1781,15 @@ class EnhancedJSONFamilyCreatorGUI:
         
         income_scrollframe = ctk.CTkScrollableFrame(main_frame, height=500)
         income_scrollframe.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        # Привязываем прокрутку колесиком мыши к этому фрейму
+        try:
+            income_scrollframe.bind("<MouseWheel>", self._on_mousewheel)
+            income_scrollframe.bind("<Button-4>", self._on_mousewheel)
+            income_scrollframe.bind("<Button-5>", self._on_mousewheel)
+        except:
+            # Если bind не поддерживается, пропускаем
+            pass
         
         self.income_fields = {}
         
@@ -1869,6 +2038,15 @@ class EnhancedJSONFamilyCreatorGUI:
         self.preview_text.config(state="normal")
         self.preview_text.insert("1.0", "Здесь будет отображаться JSON структура...")
         self.preview_text.config(state="disabled")
+        
+        # Привязываем прокрутку колесиком мыши к этому виджету
+        try:
+            self.preview_text.bind("<MouseWheel>", self._on_mousewheel)
+            self.preview_text.bind("<Button-4>", self._on_mousewheel)
+            self.preview_text.bind("<Button-5>", self._on_mousewheel)
+        except:
+            # Если bind не поддерживается, пропускаем
+            pass
         
         buttons_frame = ctk.CTkFrame(main_frame)
         buttons_frame.pack(fill="x", padx=10, pady=10)
@@ -2381,7 +2559,16 @@ class EnhancedJSONFamilyCreatorGUI:
             text_widget.insert("1.0", json_str)
             text_widget.config(state="disabled")
             
-            save_button = ctk.CTkButton(preview_window, text="💾 Сохранить как JSON", 
+            # Привязываем прокрутку колесиком мыши к этому виджету
+            try:
+                text_widget.bind("<MouseWheel>", self._on_mousewheel)
+                text_widget.bind("<Button-4>", self._on_mousewheel)
+                text_widget.bind("<Button-5>", self._on_mousewheel)
+            except:
+                # Если bind не поддерживается, пропускаем
+                pass
+            
+            save_button = ctk.CTkButton(preview_window, text="💾 Сохранить как JSON",
                                        command=lambda: self.save_json_from_preview(json_str, preview_window))
             save_button.pack(pady=10)
         except Exception as e:

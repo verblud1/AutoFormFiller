@@ -128,6 +128,21 @@ def check_dependencies():
             print_colored("Переустановите Python с опцией 'tcl/tk and IDLE'", "yellow")
         return False
     
+    # Проверяем наличие selenium и webdriver-manager
+    try:
+        import selenium
+        print_colored("✅ selenium установлена", "green")
+    except ImportError:
+        missing_deps.append("selenium")
+        print_colored("❌ selenium не установлена", "red")
+    
+    try:
+        import webdriver_manager
+        print_colored("✅ webdriver-manager установлена", "green")
+    except ImportError:
+        missing_deps.append("webdriver-manager")
+        print_colored("❌ webdriver-manager не установлена", "red")
+    
     # Предлагаем установить недостающие зависимости
     if missing_deps:
         print_colored(f"\n⚠️  Отсутствуют библиотеки: {', '.join(missing_deps)}", "yellow")
@@ -142,7 +157,7 @@ def check_dependencies():
                     print_colored(f"✅ {dep} установлена", "green")
             except Exception as e:
                 print_colored(f"❌ Ошибка установки: {e}", "red")
-                print_colored("Установите вручную: pip install customtkinter", "yellow")
+                print_colored("Установите вручную: pip install customtkinter selenium webdriver-manager", "yellow")
                 return False
     
     return True
