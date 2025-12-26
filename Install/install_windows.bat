@@ -118,6 +118,17 @@ copy /Y "!INSTALLER_DIR!\chrome_driver_helper.py" "!INSTALL_DIR!" >nul
 if not errorlevel 1 (echo ✅ chrome_driver_helper.py скопирован) else (echo ⚠️ chrome_driver_helper.py не найден)
 copy /Y "!INSTALLER_DIR!\database_client.bat" "!INSTALL_DIR!" >nul
 if not errorlevel 1 (echo ✅ database_client.bat скопирован) else (echo ⚠️ database_client.bat не найден)
+copy /Y "!INSTALLER_DIR!\autosave_families.json" "!INSTALL_DIR!" >nul
+if not errorlevel 1 (echo ✅ autosave_families.json скопирован) else (echo ⚠️ autosave_families.json не найден)
+
+REM Копирование папки registry если она существует
+if exist "!INSTALLER_DIR!\registry" (
+    echo Копирование папки registry...
+    xcopy /E /I /Y "!INSTALLER_DIR!\registry" "!INSTALL_DIR!\registry" >nul
+    if not errorlevel 1 (echo ✅ Папка registry скопирована) else (echo ⚠️ Ошибка копирования папки registry)
+) else (
+    echo Папка registry не найдена - пропущена
+)
 
 REM Создание конфигурационного файла
 if not exist "!INSTALL_DIR!\config.env" (
