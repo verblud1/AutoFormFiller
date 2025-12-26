@@ -161,7 +161,10 @@ def install_dependencies():
         # Для Red OS используем проверенные версии
         required_packages = [
             "selenium==3.141.0",
-            "webdriver-manager==3.8.0"
+            "webdriver-manager==3.8.0",
+            "xlrd>=1.2.0",
+            "pandas>=1.3.0",
+            "openpyxl>=3.0.7"
         ]
         optional_packages = [
             "customtkinter==5.2.0"
@@ -170,7 +173,10 @@ def install_dependencies():
         # Для Windows 7 используем совместимые версии
         required_packages = [
             "selenium==3.141.0",
-            "webdriver-manager==3.8.0"
+            "webdriver-manager==3.8.0",
+            "xlrd>=1.2.0",
+            "pandas>=1.3.0",
+            "openpyxl>=3.0.7"
         ]
         optional_packages = [
             "customtkinter==4.6.3"
@@ -179,7 +185,10 @@ def install_dependencies():
         # Для других систем используем последние версии
         required_packages = [
             "selenium>=3.141.0",
-            "webdriver-manager>=3.8.0"
+            "webdriver-manager>=3.8.0",
+            "xlrd>=1.2.0",
+            "pandas>=1.3.0",
+            "openpyxl>=3.0.7"
         ]
         optional_packages = [
             "customtkinter"
