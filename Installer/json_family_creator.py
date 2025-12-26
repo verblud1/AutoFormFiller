@@ -38,9 +38,6 @@ class EnhancedJSONFamilyCreatorGUI:
         self.autosave_filename = os.path.join(self.config_dir, "autosave_families.json")
         self.load_on_startup = True
         
-        # Файл для завершенных семей
-        self.completed_families_file = os.path.join(self.config_dir, "completed_families.json")
-        
         # Константа для единого пособия
         self.BASE_UNIFIED_BENEFIT = 17000
         
@@ -52,9 +49,6 @@ class EnhancedJSONFamilyCreatorGUI:
         # Обязательная загрузка JSON при запуске
         if self.load_on_startup:
             self.load_json_on_startup()
-        
-        # Загрузка завершенных семей при запуске
-        self.load_completed_families()
         
         # Загрузка последних файлов реестра и АДПИ при запуске
         self.load_last_files()
@@ -69,32 +63,198 @@ class EnhancedJSONFamilyCreatorGUI:
                 os.makedirs(self.config_dir)
                 print(f"✅ Создана папка конфигурации: {self.config_dir}")
             
-            # Подпапки для реестра и АДПИ
-            self.register_dir = os.path.join(self.config_dir, "register")
-            self.adpi_dir = os.path.join(self.config_dir, "adpi")
-            
-            if not os.path.exists(self.register_dir):
-                os.makedirs(self.register_dir)
-                print(f"✅ Создана папка для реестра: {self.register_dir}")
-            
-            if not os.path.exists(self.adpi_dir):
-                os.makedirs(self.adpi_dir)
-                print(f"✅ Создана папка для АДПИ: {self.adpi_dir}")
+            # Динамическое определение папки registry относительно текущего файла
+            self.registry_dir = self.find_registry_directory(app_dir)
+            if not os.path.exists(self.registry_dir):
+                os.makedirs(self.registry_dir)
+                print(f"✅ Создана папка registry: {self.registry_dir}")
+            else:
+                print(f"✅ Найдена папка registry: {self.registry_dir}")
             
             self.screenshots_dir = os.path.join(self.config_dir, "screenshots")
             if not os.path.exists(self.screenshots_dir):
                 os.makedirs(self.screenshots_dir)
                 print(f"✅ Создана папка для скриншотов: {self.screenshots_dir}")
                 
+            # Используем папки installer для хранения файлов
+            installer_dir = os.path.dirname(app_dir)
+            self.register_dir = installer_dir
+            self.adpi_dir = installer_dir
+                
         except Exception as e:
             print(f"❌ Ошибка создания папки конфигурации: {e}")
             self.config_dir = os.path.dirname(os.path.abspath(__file__))
             self.screenshots_dir = self.config_dir
-            self.register_dir = self.config_dir
-            self.adpi_dir = self.config_dir
+            installer_dir = os.path.dirname(self.config_dir)
+            self.registry_dir = self.find_registry_directory(self.config_dir)
+            self.register_dir = installer_dir
+            self.adpi_dir = installer_dir
+    
+    def find_registry_directory(self, start_dir):
+        """Поиск папки registry относительно текущего файла"""
+        import os
+        
+        # Проверяем в текущей папке (рядом с json_family_creator.py)
+        current_dir_registry = os.path.join(start_dir, "registry")
+        if os.path.exists(current_dir_registry):
+            return current_dir_registry
+        
+        # Проверяем в родительской папке (installer)
+        parent_dir = os.path.dirname(start_dir)
+        parent_registry = os.path.join(parent_dir, "registry")
+        if os.path.exists(parent_registry):
+            return parent_registry
+        
+        # Проверяем в родительской папке родительской папки (корень проекта)
+        grandparent_dir = os.path.dirname(parent_dir)
+        grandparent_registry = os.path.join(grandparent_dir, "registry")
+        if os.path.exists(grandparent_registry):
+            return grandparent_registry
+        
+        # Если не нашли, возвращаем папку рядом с json_family_creator.py
+        # и она будет создана позже
+        return current_dir_registry
+    
+    def check_registry_files(self):
+        """Проверка наличия файлов в папке registry и запрос на подгрузку"""
+        try:
+            registry_files = [f for f in os.listdir(self.registry_dir) if f.lower().endswith(('.xls', '.xlsx', '.ods'))]
+            if len(registry_files) == 2:
+                # Если есть два файла в папке registry, спрашиваем пользователя
+                from tkinter import messagebox
+                result = messagebox.askyesno("Подгрузка файлов",
+                                          f"Найдено 2 файла в папке registry:\n{registry_files[0]}\n{registry_files[1]}\n\nПодгрузить из папки?")
+                if result:
+                    # Подгружаем два файла с соответствующей структурой
+                    return self.load_registry_files(registry_files)
+            return False
+        except Exception as e:
+            print(f"Ошибка проверки файлов в registry: {e}")
+            return False
+    
+    def load_registry_files(self, registry_files):
+        """Загрузка файлов из папки registry с определением их типа по структуре"""
+        try:
+            import pandas as pd
+            
+            # Определяем типы файлов по заголовкам
+            register_file = None
+            adpi_file = None
+            files_processed = {}
+            
+            for file in registry_files:
+                file_path = os.path.join(self.registry_dir, file)
+                try:
+                    # Определяем формат файла
+                    if file.lower().endswith('.xls'):
+                        df = pd.read_excel(file_path, header=None, engine='xlrd')
+                    else:
+                        df = pd.read_excel(file_path, header=None)
+                    
+                    # Проверяем, является ли это файлом реестра многодетных
+                    if not df.empty:
+                        first_row = df.iloc[0] if len(df) > 0 else pd.Series()
+                        # Проверяем наличие характерных заголовков реестра многодетных
+                        registry_headers = ['№ п/п', 'Фамилия', 'Имя', 'Отчество', 'Дата рождения', 'Район', 'регион', 'Адрес', 'Населенный пункт', 'Улица', 'Дом', 'корпус', 'квартира', 'Тел', 'Фамилия чл. семьи', 'Имя чл. семьи', 'Отчество чл. семьи', 'Дата рождения 2', 'Детей в семье']
+                        registry_matches = sum(1 for header in registry_headers if any(str(header).lower() in str(cell).lower() for cell in first_row if pd.notna(cell)))
+                        
+                        # Проверяем, является ли это файлом АДПИ
+                        # Учитываем полную структуру заголовка АДПИ: "№ п/п	ФИО	Кол-во детей до 18 лет	Адрес проживания (установка АДПИ)	Кол-во и марка (модель) установленных АДПИ 		Дата установки	Дата проверки работоспособности	Комментарии (исправен, неисправен/заме-нен и т.п.)	Элименты питания, шт.	Дата выдачи 		Комментарии о семье 	Примечание"
+                        adpi_headers = ['ФИО', 'Кол-во детей', 'Адрес проживания', 'установка АДПИ', 'марка', 'модель', 'установки', 'работоспособности', 'Элименты питания', 'элементы питания', 'Дата установки', 'Дата проверки', 'Комментарии', 'Примечание']
+                        adpi_matches = sum(1 for header in adpi_headers if any(str(header).lower() in str(cell).lower() for cell in first_row if pd.notna(cell)))
+                        
+                        print(f"Анализ файла {file}: реестр_многодетных={registry_matches}, адпи={adpi_matches}")
+                        
+                        if registry_matches > adpi_matches:
+                            register_file = file_path
+                            files_processed[file] = 'register'
+                            print(f"Файл {file} определен как реестр многодетных")
+                        elif adpi_matches > registry_matches:
+                            adpi_file = file_path
+                            files_processed[file] = 'adpi'
+                            print(f"Файл {file} определен как АДПИ")
+                        else:
+                            # Если неясно, пробуем определить по содержимому
+                            if len(df.columns) >= 15 and any('Фамилия' in str(col) for col in first_row[:10] if pd.notna(col)):
+                                register_file = file_path
+                                files_processed[file] = 'register'
+                                print(f"Файл {file} определен как реестр многодетных по колонкам")
+                            elif len(df.columns) >= 10 and any('ФИО' in str(col) for col in first_row[:5] if pd.notna(col)):
+                                adpi_file = file_path
+                                files_processed[file] = 'adpi'
+                                print(f"Файл {file} определен как АДПИ по колонкам")
+                            else:
+                                # Если по-прежнему неясно, проверим другие признаки
+                                # Для АДПИ часто есть колонки с упоминанием "АДПИ", "установки", "работоспособности", "элементы питания"
+                                content_text = ' '.join([str(cell) for cell in first_row if pd.notna(cell)])
+                                if any(keyword in content_text.lower() for keyword in ['адпи', 'установки', 'работоспособности', 'элементы питания', 'элименты питания', 'установк', 'проверк', 'марка', 'модель']):
+                                    adpi_file = file_path
+                                    files_processed[file] = 'adpi'
+                                    print(f"Файл {file} определен как АДПИ по ключевым словам")
+                                elif any(keyword in content_text.lower() for keyword in ['фамилия', 'имя', 'отчество', 'дата рождения', 'детей в семье']):
+                                    register_file = file_path
+                                    files_processed[file] = 'register'
+                                    print(f"Файл {file} определен как реестр многодетных по ключевым словам")
+                                else:
+                                    # Если не удалось определить тип файла, сохраняем для последующей обработки
+                                    files_processed[file] = 'unknown'
+                                    print(f"Файл {file} не определен, отложен для обработки")
+                except Exception as e:
+                    print(f"Ошибка анализа файла {file}: {e}")
+                    continue
+            
+            # Если один файл определен, а другой остался неопределенным, назначаем второй файл как оставшийся тип
+            if len(files_processed) == 2:
+                processed_types = list(files_processed.values())
+                if 'register' in processed_types and 'adpi' not in processed_types and 'unknown' in processed_types:
+                    # Назначаем оставшийся файл как adpi
+                    for file in registry_files:
+                        if files_processed[file] == 'unknown':
+                            file_path = os.path.join(self.registry_dir, file)
+                            adpi_file = file_path
+                            files_processed[file] = 'adpi'
+                            print(f"Неопределенный файл {file} назначен как АДПИ")
+                elif 'adpi' in processed_types and 'register' not in processed_types and 'unknown' in processed_types:
+                    # Назначаем оставшийся файл как register
+                    for file in registry_files:
+                        if files_processed[file] == 'unknown':
+                            file_path = os.path.join(self.registry_dir, file)
+                            register_file = file_path
+                            files_processed[file] = 'register'
+                            print(f"Неопределенный файл {file} назначен как реестр многодетных")
+            
+            # Выводим итоговую информацию
+            print(f"Итог: register_file = {register_file is not None}, adpi_file = {adpi_file is not None}")
+            
+            # Загружаем определенные файлы
+            if register_file:
+                self.load_register_file(register_file, auto_load=True)
+                print(f"✅ Загружен файл реестра из registry: {os.path.basename(register_file)}")
+            
+            if adpi_file:
+                self.load_adpi_xlsx(adpi_file, auto_load=True)
+                print(f"✅ Загружен файл АДПИ из registry: {os.path.basename(adpi_file)}")
+                
+                # После загрузки АДПИ, если уже введены данные о семье, автоматически заполняем АДПИ
+                mother_fio = self.mother_fio.get().strip()
+                father_fio = self.father_fio.get().strip()
+                if mother_fio or father_fio:
+                    self.fill_adpi_from_loaded_data()
+            else:
+                print("⚠️ Файл АДПИ не найден или не определен в папке registry")
+            
+            return True
+        except Exception as e:
+            print(f"Ошибка загрузки файлов из registry: {e}")
+            return False
     
     def load_last_files(self):
         """Загрузка последних файлов реестра и АДПИ при запуске"""
+        # Проверяем наличие файлов в папке registry
+        if self.check_registry_files():
+            print("✅ Файлы из папки registry успешно загружены")
+            return
+        
         # Ищем последний файл реестра
         register_files = [f for f in os.listdir(self.register_dir) if f.lower().endswith(('.xls', '.xlsx'))]
         if register_files:
@@ -110,42 +270,6 @@ class EnhancedJSONFamilyCreatorGUI:
             last_adpi = os.path.join(self.adpi_dir, adpi_files[0])
             self.load_adpi_xlsx(last_adpi, auto_load=True)
     
-    def load_completed_families(self):
-        """Загрузка завершенных семей из файла"""
-        try:
-            if os.path.exists(self.completed_families_file):
-                with open(self.completed_families_file, 'r', encoding='utf-8') as f:
-                    self.completed_families = json.load(f)
-                print(f"✅ Загружено {len(self.completed_families)} завершенных семей")
-            else:
-                self.completed_families = []
-                print("✅ Создан новый файл завершенных семей")
-        except Exception as e:
-            print(f"❌ Ошибка загрузки завершенных семей: {e}")
-            self.completed_families = []
-    
-    def save_to_completed_families(self, family_data):
-        """Сохранение семьи в файл завершенных семей"""
-        try:
-            mother_fio = family_data.get('mother_fio', '')
-            if not mother_fio:
-                return
-            
-            # Проверяем, нет ли уже такой семьи
-            for i, family in enumerate(self.completed_families):
-                if family.get('mother_fio') == mother_fio:
-                    self.completed_families[i] = family_data
-                    break
-            else:
-                self.completed_families.append(family_data)
-            
-            # Сохраняем в файл
-            with open(self.completed_families_file, 'w', encoding='utf-8') as f:
-                json.dump(self.completed_families, f, ensure_ascii=False, indent=2)
-            
-            print(f"✅ Семья сохранена в завершенные: {mother_fio}")
-        except Exception as e:
-            print(f"❌ Ошибка сохранения в завершенные семьи: {e}")
     
     def clean_string(self, text):
         """Очистка строки от специальных символов и нормализация пробелов"""
@@ -627,14 +751,14 @@ class EnhancedJSONFamilyCreatorGUI:
         # Кнопки загрузки реестра и автоопределения
         load_buttons_frame = ctk.CTkFrame(register_frame)
         load_buttons_frame.pack(fill="x", padx=5, pady=5)
-        ctk.CTkButton(load_buttons_frame, text="📋 Загрузить реестр (xls/xlsx)", 
+        ctk.CTkButton(load_buttons_frame, text="📋 Загрузить реестр (xls/xlsx)",
                     command=self.load_register_file, width=200).pack(side="left", padx=5)
         
         # ВОССТАНОВЛЕНА КНОПКА АВТООПРЕДЕЛЕНИЯ
-        ctk.CTkButton(load_buttons_frame, text="🔄 Автоопределить семью", 
+        ctk.CTkButton(load_buttons_frame, text="🔄 Автоопределить семью",
                     command=self.auto_detect_family_from_register, width=200).pack(side="left", padx=5)
         
-        ctk.CTkButton(load_buttons_frame, text="📂 Загрузить последний реестр", 
+        ctk.CTkButton(load_buttons_frame, text="📂 Загрузить последний реестр",
                     command=self.load_last_register, width=200).pack(side="left", padx=5)
         
         # Статус загрузки реестра
@@ -674,9 +798,9 @@ class EnhancedJSONFamilyCreatorGUI:
         # Кнопки загрузки АДПИ
         adpi_buttons_frame = ctk.CTkFrame(adpi_frame)
         adpi_buttons_frame.pack(fill="x", padx=5, pady=5)
-        ctk.CTkButton(adpi_buttons_frame, text="📂 Загрузить новый xlsx/ods с АДПИ", 
+        ctk.CTkButton(adpi_buttons_frame, text="📂 Загрузить новый xlsx/ods с АДПИ",
                     command=self.load_adpi_xlsx, width=200).pack(side="left", padx=5)
-        ctk.CTkButton(adpi_buttons_frame, text="📂 Загрузить последний АДПИ", 
+        ctk.CTkButton(adpi_buttons_frame, text="📂 Загрузить последний АДПИ",
                     command=self.load_last_adpi, width=200).pack(side="left", padx=5)
         
         # Статус загрузки АДПИ
@@ -734,10 +858,11 @@ class EnhancedJSONFamilyCreatorGUI:
             self.last_register_directory = os.path.dirname(file_path)
             self.save_config()
             
-            # Копируем файл в папку register
+            # Копируем файл в папку register, если он не находится уже в этой папке
             filename = os.path.basename(file_path)
             dst_path = os.path.join(self.register_dir, filename)
-            shutil.copy2(file_path, dst_path)
+            if file_path != dst_path:
+                shutil.copy2(file_path, dst_path)
             
             file_ext = os.path.splitext(file_path)[1].lower()
             
@@ -801,7 +926,7 @@ class EnhancedJSONFamilyCreatorGUI:
                                     'surname': self.clean_string(str(next_row[11]).strip()),
                                     'name': self.clean_string(str(next_row[12]).strip()) if len(next_row) > 12 and not pd.isna(next_row[12]) else "",
                                     'patronymic': self.clean_string(str(next_row[13]).strip()) if len(next_row) > 13 and not pd.isna(next_row[13]) else "",
-                                    'birth_date': self.parse_date(str(next_row[14])) if len(next_row) > 14 and not pd.isna(next_row[14]) else "",
+                                    'birth_date': self.parse_date(str(next_row[14])) if len(next_row) > 14 and not pd.isna(row[14]) else "",
                                     'fio_full': self.clean_fio(f"{str(next_row[11]).strip()} {str(next_row[12]).strip() if len(next_row) > 12 and not pd.isna(next_row[12]) else ''} {str(next_row[13]).strip() if len(next_row) > 13 and not pd.isna(next_row[13]) else ''}".strip())
                                 })
                                 j += 1
@@ -1252,10 +1377,11 @@ class EnhancedJSONFamilyCreatorGUI:
             self.last_adpi_directory = os.path.dirname(file_path)
             self.save_config()
             
-            # Копируем файл в папку adpi
+            # Копируем файл в папку adpi, если он не находится уже в этой папке
             filename = os.path.basename(file_path)
             dst_path = os.path.join(self.adpi_dir, filename)
-            shutil.copy2(file_path, dst_path)
+            if file_path != dst_path:
+                shutil.copy2(file_path, dst_path)
             
             file_ext = os.path.splitext(file_path)[1].lower()
             
@@ -2428,8 +2554,6 @@ class EnhancedJSONFamilyCreatorGUI:
                     self.update_families_info()
                     self.autosave_families()
                     
-                    # НОВОЕ: Сохраняем в завершенные семьи
-                    self.save_to_completed_families(family_data)
                     return
                 else:
                     return
@@ -2442,8 +2566,6 @@ class EnhancedJSONFamilyCreatorGUI:
         
         self.autosave_families()
         
-        # НОВОЕ: Сохраняем в завершенные семьи
-        self.save_to_completed_families(family_data)
     
     def delete_family_from_list(self):
         """Удаление конкретной семьи из списка"""
