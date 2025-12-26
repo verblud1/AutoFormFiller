@@ -858,12 +858,6 @@ class EnhancedJSONFamilyCreatorGUI:
             self.last_register_directory = os.path.dirname(file_path)
             self.save_config()
             
-            # Копируем файл в папку register, если он не находится уже в этой папке
-            filename = os.path.basename(file_path)
-            dst_path = os.path.join(self.register_dir, filename)
-            if file_path != dst_path:
-                shutil.copy2(file_path, dst_path)
-            
             file_ext = os.path.splitext(file_path)[1].lower()
             
             if file_ext == '.xls':
@@ -1376,12 +1370,6 @@ class EnhancedJSONFamilyCreatorGUI:
         try:
             self.last_adpi_directory = os.path.dirname(file_path)
             self.save_config()
-            
-            # Копируем файл в папку adpi, если он не находится уже в этой папке
-            filename = os.path.basename(file_path)
-            dst_path = os.path.join(self.adpi_dir, filename)
-            if file_path != dst_path:
-                shutil.copy2(file_path, dst_path)
             
             file_ext = os.path.splitext(file_path)[1].lower()
             
