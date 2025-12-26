@@ -111,8 +111,6 @@ install_system() {
     mkdir -p "$INSTALL_DIR/config"
     mkdir -p "$INSTALL_DIR/config/logs"
     mkdir -p "$INSTALL_DIR/config/screenshots"
-    mkdir -p "$INSTALL_DIR/config/adpi"
-    mkdir -p "$INSTALL_DIR/config/register"
     
     # Копирование файлов из установщика
     cp -f "$INSTALLER_DIR/json_family_creator.py" "$INSTALL_DIR/" 2>/dev/null || log_error "Не удалось скопировать json_family_creator.py"
@@ -120,6 +118,19 @@ install_system() {
     cp -f "$INSTALLER_DIR/family_system_launcher.py" "$INSTALL_DIR/" 2>/dev/null || log_error "Не удалось скопировать family_system_launcher.py"
     cp -f "$INSTALLER_DIR/chrome_driver_helper.py" "$INSTALL_DIR/" 2>/dev/null || log_error "Не удалось скопировать chrome_driver_helper.py"
     cp -f "$INSTALLER_DIR/database_client.sh" "$INSTALL_DIR/" 2>/dev/null || log_error "Не удалось скопировать database_client.sh"
+    cp -f "$INSTALLER_DIR/autosave_families.json" "$INSTALL_DIR/" 2>/dev/null || log "Файл автосохранения не найден - пропущен"
+    
+    # Копирование папки registry если она существует
+    if [ -d "$INSTALLER_DIR/registry" ]; then
+        cp -r "$INSTALLER_DIR/registry" "$INSTALL_DIR/" 2>/dev/null
+        if [ $? -eq 0 ]; then
+            log_success "Скопирована папка registry"
+        else
+            log_error "Ошибка копирования папки registry"
+        fi
+    else
+        log "Папка registry не найдена - пропущена"
+    fi
     
     # Создание конфигурационного файла
     if [ ! -f "$INSTALL_DIR/config.env" ]; then

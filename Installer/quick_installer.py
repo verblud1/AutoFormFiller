@@ -115,9 +115,10 @@ def install_system():
     # Копируем основные файлы
     files_to_copy = [
         "json_family_creator.py",
-        "massform.py", 
+        "massform.py",
         "family_system_launcher.py",
-        "chrome_driver_helper.py"
+        "chrome_driver_helper.py",
+        "autosave_families.json"  # Добавляем файл автосохранения
     ]
     
     # Добавляем скрипт подключения к базе данных в зависимости от ОС
@@ -139,13 +140,21 @@ def install_system():
         else:
             print_error(f"Файл не найден: {filename}")
     
+    # Копируем папку registry если она существует
+    registry_src = os.path.join(installer_dir, "registry")
+    registry_dst = os.path.join(default_path, "registry")
+    if os.path.exists(registry_src):
+        try:
+            shutil.copytree(registry_src, registry_dst, dirs_exist_ok=True)
+            print_success("Скопирована папка registry")
+        except Exception as e:
+            print_error(f"Ошибка копирования папки registry: {e}")
+    
     # Создаем структуру папок
     subdirs = [
         "config",
         os.path.join("config", "logs"),
-        os.path.join("config", "screenshots"),
-        os.path.join("config", "adpi"),
-        os.path.join("config", "register")
+        os.path.join("config", "screenshots")
     ]
     
     for subdir in subdirs:

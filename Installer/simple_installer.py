@@ -252,6 +252,7 @@ def copy_system_files(install_dir):
         ("family_system_launcher.py", True),
         ("chrome_driver_helper.py", True),
         ("requirements.txt", True),
+        ("autosave_families.json", False),  # Необязательный файл
     ]
     
     # Добавляем скрипты подключения к базе данных в зависимости от ОС
@@ -282,6 +283,17 @@ def copy_system_files(install_dir):
                 return False
             else:
                 print_status(f"Файл не найден (необязательный): {filename}")
+    
+    # Копируем папку registry если она существует
+    registry_src = os.path.join(installer_dir, "registry")
+    registry_dst = os.path.join(install_dir, "registry")
+    if os.path.exists(registry_src):
+        try:
+            shutil.copytree(registry_src, registry_dst, dirs_exist_ok=True)
+            print_success("Скопирована папка registry")
+            copied_files += 1
+        except Exception as e:
+            print_error(f"Ошибка копирования папки registry: {e}")
     
     # Создаем конфигурационный файл если его нет
     config_file = os.path.join(install_dir, "config.env")
