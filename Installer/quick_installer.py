@@ -89,6 +89,81 @@ def get_default_install_path():
     return os.path.join(desktop, "FamilySystem")
 
 
+def install_dependencies():
+    """Устанавливает зависимости через pip с учетом старых систем"""
+    print_status("Установка зависимостей...")
+    
+    system_info = get_system_info()
+    
+    # Определяем зависимости в зависимости от ОС
+    if system_info['is_redos']:
+        # Для Red OS используем проверенные версии
+        required_packages = [
+            "selenium==3.141.0",
+            "webdriver-manager==3.8.0",
+            "xlrd>=1.2.0",
+            "pandas>=1.3.0",
+            "openpyxl>=3.0.7"
+        ]
+        optional_packages = [
+            "customtkinter==5.2.0"
+        ]
+    elif 'Windows-7' in platform.platform() or '6.1.' in platform.release():
+        # Для Windows 7 используем совместимые версии
+        required_packages = [
+            "selenium==3.141.0",
+            "webdriver-manager==3.8.0",
+            "xlrd>=1.2.0",
+            "pandas>=1.3.0",
+            "openpyxl>=3.0.7"
+        ]
+        optional_packages = [
+            "customtkinter==4.6.3"
+        ]
+    else:
+        # Для других систем используем последние версии
+        required_packages = [
+            "selenium>=3.141.0",
+            "webdriver-manager>=3.8.0",
+            "xlrd>=1.2.0",
+            "pandas>=1.3.0",
+            "openpyxl>=3.0.7"
+        ]
+        optional_packages = [
+            "customtkinter"
+        ]
+    
+    # Устанавливаем обязательные пакеты
+    for package in required_packages:
+        try:
+            print_status(f"Установка обязательной зависимости: {package}...")
+            # Используем --user для избежания проблем с правами
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "--user", package])
+            print_success(f"Установлена зависимость: {package}")
+        except subprocess.CalledProcessError as e:
+            print_error(f"Ошибка установки обязательной зависимости {package}: {e}")
+            # Пробуем установить с дополнительными флагами для старых систем
+            try:
+                print_status(f"Повторная попытка установки {package} с флагами для совместимости...")
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "--user", "--upgrade", "--force-reinstall", "--no-cache-dir", package])
+                print_success(f"Установлена зависимость: {package} (после повторной попытки)")
+            except subprocess.CalledProcessError as e2:
+                print_error(f"Критическая ошибка установки {package}: {e2}")
+                return False
+    
+    # Устанавливаем необязательные пакеты
+    for package in optional_packages:
+        try:
+            print_status(f"Установка необязательной зависимости: {package}...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "--user", package])
+            print_success(f"Установлена зависимость: {package}")
+        except subprocess.CalledProcessError as e:
+            print_error(f"Не удалось установить необязательную зависимость {package}: {e}")
+            print_status("Продолжение установки без этой зависимости...")
+    
+    return True
+
+
 def install_system():
     """Упрощенная функция установки системы"""
     print_status("=== БЫСТРАЯ УСТАНОВКА СИСТЕМЫ РАБОТЫ С СЕМЬЯМИ ===")
@@ -96,6 +171,9 @@ def install_system():
     # Проверяем версию Python
     if not check_python_version():
         return False
+        
+    # Устанавливаем зависимости
+    install_dependencies()
     
     # Получаем информацию о системе
     system_info = get_system_info()

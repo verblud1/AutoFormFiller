@@ -177,50 +177,119 @@ def download_old_chrome_driver_manually(download_path):
 def setup_chrome_driver():
     """Настройка ChromeDriver с учетом старых версий"""
     system = platform.system().lower()
-    chrome_version = get_chrome_version()
+    print(f"Определение системы: {system}")
     
-    print(f"Обнаруженная версия Chrome: {chrome_version}")
+    try:
+        chrome_version = get_chrome_version()
+        print(f"Обнаруженная версия Chrome: {chrome_version}")
+    except Exception as e:
+        print(f"Ошибка при определении версии Chrome: {e}")
+        chrome_version = None
     
     # Создаем директорию для драйверов
     driver_dir = os.path.join(os.path.dirname(__file__), "drivers")
     os.makedirs(driver_dir, exist_ok=True)
     
-    if chrome_version:
-        # Проверяем, является ли версия старой (ниже 70)
-        major_version = int(chrome_version.split('.')[0]) if chrome_version.split('.')[0].isdigit() else 0
+    driver_path = None
+    # Сначала пробуем стандартный подход через webdriver-manager
+    try:
+        print("Попытка установки ChromeDriver через webdriver-manager...")
+        driver_path = ChromeDriverManager().install()
+        print(f"ChromeDriver установлен: {driver_path}")
+    except Exception as e:
+        print(f"Ошибка установки ChromeDriver через webdriver-manager: {e}")
         
-        if major_version < 70:
-            print(f"Обнаружена старая версия Chrome ({chrome_version}), используем совместимый драйвер...")
+        # Если стандартный способ не сработал, пробуем альтернативные методы
+        if chrome_version:
+            major_version = int(chrome_version.split('.')[0]) if chrome_version.split('.')[0].isdigit() else 0
             
-            # Для старых версий Chrome используем альтернативный подход
-            driver_path = download_chrome_driver_for_old_version(chrome_version, driver_dir)
-            
-            if driver_path and os.path.exists(driver_path):
-                print(f"Используем ChromeDriver: {driver_path}")
-            else:
-                # Если не удалось получить подходящий драйвер, пробуем использовать любой доступный
-                print("Попытка использования последней доступной версии ChromeDriver...")
-                try:
-                    driver_path = ChromeDriverManager().install()
-                except:
-                    # Если ничего не помогает, возвращаем None и будем использовать альтернативный подход
-                    print("Не удалось получить подходящий ChromeDriver")
-                    return None
-        else:
-            # Для новых версий используем стандартный подход
+            if major_version < 70:
+                print(f"Обнаружена старая версия Chrome ({chrome_version}), используем совместимый драйвер...")
+                driver_path = download_chrome_driver_for_old_version(chrome_version, driver_dir)
+        
+        # Если все еще нет драйвера, пробуем получить последнюю версию
+        if not driver_path:
+            print("Попытка использования последней доступной версии ChromeDriver...")
             try:
+                # Пытаемся установить последнюю версию без указания конкретной версии браузера
                 driver_path = ChromeDriverManager().install()
-            except Exception as e:
-                print(f"Ошибка установки ChromeDriver через webdriver-manager: {e}")
-                return None
-    else:
-        # Если версию Chrome определить не удалось, используем последнюю версия драйвера
-        print("Не удалось определить версию Chrome, используем последнюю версию ChromeDriver")
+                print(f"Установлена последняя версия ChromeDriver: {driver_path}")
+            except Exception as e2:
+                print(f"Ошибка установки последней версии ChromeDriver: {e2}")
+                # В крайнем случае, пробуем ручную загрузку
+                driver_path = download_old_chrome_driver_manually(driver_dir)
+    
+    if not driver_path or not os.path.exists(driver_path):
+        print("Не удалось получить подходящий ChromeDriver")
+        return None
+    
+    # Настройка опций Chrome
+    options = Options()
+    if system in ["linux", "redos"]:
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+    
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    options.add_argument('--start-maximized')
+    options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    
+    # Для старых версий Chrome добавляем дополнительные опции
+    if chrome_version and chrome_version.split('.')[0].isdigit():
+        major_version = int(chrome_version.split('.')[0])
+        if major_version < 70:
+            print("Добавляем опции для совместимости с устаревшей версией Chrome")
+            options.add_argument('--disable-extensions')
+            options.add_argument('--disable-plugins')
+            options.add_argument('--disable-images')
+            options.add_experimental_option("useAutomationExtension", False)
+            options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    
+    # Установка драйвера с сервисом
+    service = Service(driver_path)
+    
+    # Попытка создания драйвера с несколькими резервными вариантами
+    try:
+        driver = webdriver.Chrome(service=service, options=options)
+        print("ChromeDriver успешно настроен")
+        return driver
+    except Exception as e:
+        print(f"Ошибка создания экземпляра ChromeDriver: {e}")
+        
+        # Вторая попытка с упрощенными опциями
         try:
-            driver_path = ChromeDriverManager().install()
-        except Exception as e:
-            print(f"Ошибка установки ChromeDriver: {e}")
-            return None
+            simple_options = Options()
+            if system in ["linux", "redos"]:
+                simple_options.add_argument('--no-sandbox')
+                simple_options.add_argument('--disable-dev-shm-usage')
+            
+            simple_options.add_experimental_option('excludeSwitches', ['enable-logging'])
+            driver = webdriver.Chrome(service=service, options=simple_options)
+            print("ChromeDriver успешно настроен (с упрощенными опциями)")
+            return driver
+        except Exception as e2:
+            print(f"Ошибка создания ChromeDriver с упрощенными опциями: {e2}")
+            
+            # Третья попытка - старый метод (для совместимости с очень старыми версиями)
+            try:
+                driver = webdriver.Chrome(executable_path=driver_path, options=options)
+                print("ChromeDriver успешно настроен (старый метод)")
+                return driver
+            except Exception as e3:
+                print(f"Ошибка создания ChromeDriver старым методом: {e3}")
+                
+                # Четвертая попытка - с минимальными опциями
+                try:
+                    minimal_options = Options()
+                    if system in ["linux", "redos"]:
+                        minimal_options.add_argument('--no-sandbox')
+                        minimal_options.add_argument('--disable-dev-shm-usage')
+                    
+                    driver = webdriver.Chrome(executable_path=driver_path, options=minimal_options)
+                    print("ChromeDriver успешно настроен (минимальные опции)")
+                    return driver
+                except Exception as e4:
+                    print(f"Все попытки настройки ChromeDriver не увенчались успехом: {e4}")
+                    return None
     
     # Настройка опций Chrome
     options = Options()

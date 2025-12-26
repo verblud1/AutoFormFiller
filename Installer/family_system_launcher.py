@@ -501,25 +501,42 @@ class FamilySystemLauncher:
         missing = []
         
         # Проверяем основные файлы
-        base_files = ["json_family_creator.py", "massform.py", "database_client.sh"]
+        base_files = ["json_family_creator.py", "massform.py"]
         for file in base_files:
             file_path = os.path.join(self.system_dir, file)
             if not os.path.exists(file_path):
                 missing.append(file)
         
-        # Проверяем Windows-специфичные файлы
+        # Проверяем OS-специфичные файлы
         if platform.system() == "Windows":
             windows_files = ["database_client.bat"]
             for file in windows_files:
                 file_path = os.path.join(self.system_dir, file)
                 if not os.path.exists(file_path):
                     missing.append(file)
+        else:  # Linux/RedOS
+            linux_files = ["database_client.sh"]
+            for file in linux_files:
+                file_path = os.path.join(self.system_dir, file)
+                if not os.path.exists(file_path):
+                    missing.append(file)
         
         if missing:
             self.log_message(f"⚠️ Отсутствуют файлы: {', '.join(missing)}")
-            self.btn_json.configure(state="disabled")
-            self.btn_mass.configure(state="disabled")
-            self.btn_db.configure(state="disabled")
+            # Разрешаем использовать компоненты, даже если нет файлов базы данных
+            self.btn_json.configure(state="normal")
+            self.btn_mass.configure(state="normal")
+            # Разрешаем кнопку базы данных только если файл есть
+            if platform.system() == "Windows":
+                if os.path.exists(os.path.join(self.system_dir, "database_client.bat")):
+                    self.btn_db.configure(state="normal")
+                else:
+                    self.btn_db.configure(state="disabled")
+            else:
+                if os.path.exists(os.path.join(self.system_dir, "database_client.sh")):
+                    self.btn_db.configure(state="normal")
+                else:
+                    self.btn_db.configure(state="disabled")
         else:
             self.btn_json.configure(state="normal")
             self.btn_mass.configure(state="normal")
