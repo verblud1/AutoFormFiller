@@ -2035,6 +2035,11 @@ class EnhancedJSONFamilyCreatorGUI:
         ctk.CTkButton(large_family_entry_frame, text="0", width=40,
                      command=lambda: self.clear_large_family_benefit()).pack(side="left", padx=5)
         
+        # НОВОЕ: Общие доходы семьи
+        self.income_fields['general_income'] = self.create_income_field(
+            income_scrollframe, "Общие доходы семьи (руб.):", "general_income"
+        )
+        
         # НОВОЕ: Пенсия матери (перемещена ниже пособия по многодетности)
         self.income_fields['mother_pension'] = self.create_income_field(
             income_scrollframe, "Пенсия матери (руб.):", "mother_pension"
@@ -2150,6 +2155,8 @@ class EnhancedJSONFamilyCreatorGUI:
             self.unified_percentage_var.set("100%")
             self.large_family_benefit_var.set("")
             self.large_family_benefit_entry.delete(0, 'end')
+            if 'general_income' in self.income_fields:
+                self.income_fields['general_income'].delete(0, 'end')
             self.other_incomes_text.delete("1.0", "end")
     
     def setup_adpi_tab(self):
@@ -2405,8 +2412,15 @@ class EnhancedJSONFamilyCreatorGUI:
         
         mother_fio = self.mother_fio.get().strip()
         mother_fio = self.clean_fio(mother_fio)
-        if not mother_fio:
-            errors.append("Не указано ФИО матери")
+        # ИЗМЕНЕНО: Поле матери больше не является обязательным
+        # if not mother_fio:
+        #     errors.append("Не указано ФИО матери")
+        
+        # Проверяем, что хотя бы одно из полей (мать или отец) заполнено
+        father_fio = self.father_fio.get().strip()
+        father_fio = self.clean_fio(father_fio)
+        if not mother_fio and not father_fio:
+            errors.append("Должно быть указано ФИО матери или отца")
         
         mother_birth = self.mother_birth.get().strip()
         mother_birth = self.clean_date(mother_birth)
@@ -2598,6 +2612,11 @@ class EnhancedJSONFamilyCreatorGUI:
         
         if incomes:
             family_data.update(incomes)
+        
+        # НОВОЕ: Сохраняем общие доходы семьи
+        general_income_value = self.clean_numeric_field(self.income_fields['general_income'].get().strip())
+        if general_income_value:
+            family_data['general_income'] = general_income_value
         
         children_count = self.clean_numeric_field(self.unified_children_count.get().strip())
         if children_count:
@@ -3054,6 +3073,13 @@ class EnhancedJSONFamilyCreatorGUI:
                     benefit_value = str(family_data[key])
                     if benefit_value in ["1900", "2700", "3500"]:
                         self.large_family_benefit_var.set(benefit_value)
+        
+        # НОВОЕ: Загрузка общих доходов семьи
+        if 'general_income' in family_data:
+            general_income_value = self.clean_numeric_field(str(family_data['general_income']))
+            if 'general_income' in self.income_fields:
+                self.income_fields['general_income'].delete(0, 'end')
+                self.income_fields['general_income'].insert(0, general_income_value)
         
         if 'unified_children_count' in family_data:
             children_count = self.clean_numeric_field(str(family_data['unified_children_count']))
