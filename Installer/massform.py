@@ -54,6 +54,9 @@ class MassFamilyProcessorGUI:
         self.daily_stat = 0
         self.weekly_stat = 0
         
+        # Переменная для пропуска ручной проверки
+        self.skip_manual_check = self.config.get("skip_manual_check", False)
+        
         self.setup_ui()
         self.setup_error_handling()
         
@@ -220,7 +223,7 @@ class MassFamilyProcessorGUI:
                 with open(self.config_file, 'r', encoding='utf-8') as f:
                     config = json.load(f)
                     
-                    required_keys = ['pause', 'screenshot', 'stop_on_error', 'screenshot_dir', 'start_index', 'last_json_path']
+                    required_keys = ['pause', 'screenshot', 'stop_on_error', 'screenshot_dir', 'start_index', 'last_json_path', 'skip_manual_check']
                     for key in required_keys:
                         if key not in config:
                             config[key] = self.get_default_config()[key]
@@ -239,7 +242,8 @@ class MassFamilyProcessorGUI:
             "stop_on_error": True,
             "screenshot_dir": self.screenshots_dir,  # Используем папку из конфигурации
             "start_index": "1",
-            "last_json_path": ""
+            "last_json_path": "",
+            "skip_manual_check": False
         }
     
     def save_config(self):
@@ -258,6 +262,8 @@ class MassFamilyProcessorGUI:
                 self.config["screenshot_dir"] = self.screenshot_dir.get()
             if hasattr(self, 'start_index_var'):
                 self.config["start_index"] = self.start_index_var.get()
+            # Сохраняем настройку пропуска ручной проверки
+            self.config["skip_manual_check"] = self.skip_manual_check
             
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(self.config, f, ensure_ascii=False, indent=2)
@@ -550,12 +556,17 @@ class MassFamilyProcessorGUI:
         self.pause_entry.configure(validate="key", validatecommand=validate_cmd)
         
         self.screenshot_var = ctk.BooleanVar(value=self.config.get("screenshot", True))
-        ctk.CTkCheckBox(settings_frame, text="Сохранять скриншоты", 
+        ctk.CTkCheckBox(settings_frame, text="Сохранять скриншоты",
                        variable=self.screenshot_var).pack(anchor="w", padx=10, pady=5)
         
         self.stop_on_error_var = ctk.BooleanVar(value=self.config.get("stop_on_error", True))
-        ctk.CTkCheckBox(settings_frame, text="Останавливать при ошибке", 
+        ctk.CTkCheckBox(settings_frame, text="Останавливать при ошибке",
                        variable=self.stop_on_error_var).pack(anchor="w", padx=10, pady=5)
+        
+        # Чекбокс для пропуска ручной проверки
+        self.skip_manual_check_var = ctk.BooleanVar(value=self.skip_manual_check)
+        ctk.CTkCheckBox(settings_frame, text="Пропускать ручную проверку",
+                       variable=self.skip_manual_check_var).pack(anchor="w", padx=10, pady=5)
         
         dir_frame = ctk.CTkFrame(settings_frame)
         dir_frame.pack(fill="x", padx=10, pady=10)
@@ -569,7 +580,7 @@ class MassFamilyProcessorGUI:
         self.screenshot_dir.insert(0, screenshot_dir_value)
         self.screenshot_dir.pack(fill="x", padx=5, pady=2)
         
-        ctk.CTkButton(dir_frame, text="Выбрать папку", 
+        ctk.CTkButton(dir_frame, text="Выбрать папку",
                      command=self.select_screenshot_dir, width=120).pack(pady=5)
         
         start_frame = ctk.CTkFrame(settings_frame)
@@ -592,7 +603,7 @@ class MassFamilyProcessorGUI:
         validate_cmd_index = (self.app.register(validate_index_input), '%P')
         self.start_entry.configure(validate="key", validatecommand=validate_cmd_index)
         
-        ctk.CTkButton(settings_frame, text="💾 Сохранить настройки", 
+        ctk.CTkButton(settings_frame, text="💾 Сохранить настройки",
                      command=self.save_settings_ui, width=200, fg_color="green").pack(pady=20)
         
     def save_settings_ui(self):
@@ -613,6 +624,9 @@ class MassFamilyProcessorGUI:
             except ValueError as e:
                 messagebox.showerror("Ошибка", f"Некорректный индекс: {e}")
                 return
+            
+            # Обновляем значение пропуска ручной проверки
+            self.skip_manual_check = self.skip_manual_check_var.get()
             
             if self.save_config():
                 messagebox.showinfo("Настройки", "Настройки успешно сохранены!")
@@ -1865,14 +1879,19 @@ class AutoFormFillerMass:
                 self.driver.quit()
             except:
                 pass
-    
     def wait_for_manual_intervention(self, message):
         """Ожидание ручного вмешательства пользователя"""
         self.log(f"🛠️ {message}")
+        
+        # Проверяем, нужно ли пропускать ручную проверку
+        if self.gui.skip_manual_check:
+            self.log("⏭️ Пропуск ручной проверки по настройке")
+            return True
+        
         self.gui.manual_intervention_required = True
         
         # Показываем сообщение пользователю
-        messagebox.showinfo("Требуется ручное вмешательство", 
+        messagebox.showinfo("Требуется ручное вмешательство",
                            f"{message}\n\n"
                            "Пожалуйста, перейдите на нужную страницу в браузере и нажмете 'Продолжить' в программе.")
         
@@ -1882,6 +1901,7 @@ class AutoFormFillerMass:
         
         return not self.should_stop
         
+        
     def process_family(self, family_data, family_number):
         """Обработка одной семьи"""
         try:
@@ -1889,7 +1909,7 @@ class AutoFormFillerMass:
             self.log("🔙 Возвращаемся на страницу поиска...")
             try:
                 self.driver.get("http://localhost:8080/aspnetkp/Common/FindInfo.aspx")
-                time.sleep(0.2)  # Уменьшено с 0.5 до 0.2 секунды
+                # Убираем задержку, т.к. WebDriverWait будет ждать загрузки элементов
             except Exception as e:
                 self.log(f"❌ Не удалось загрузить страницу поиска: {e}")
                 
@@ -1915,7 +1935,6 @@ class AutoFormFillerMass:
                 if self.wait_for_manual_intervention(f"Не удалось найти семью: {mother_fio}"):
                     self.log("▶️ Продолжаем после ручного вмешательства")
                     # Предполагаем, что пользователь уже на нужной странице
-                    time.sleep(1)
                 else:
                     return False
                 
@@ -1930,15 +1949,11 @@ class AutoFormFillerMass:
                 if self.wait_for_manual_intervention("Не удалось автоматически выбрать карточку"):
                     self.log("▶️ Продолжаем после ручного вмешательства")
                     # Предполагаем, что пользователь уже на нужной карточке
-                    time.sleep(1)
                 else:
                     return False
                 
             # 4. ПЕРЕД ПЕРЕХОДОМ НА ДОПОЛНИТЕЛЬНУЮ ИНФОРМАЦИЮ - ПОЛУЧАЕМ ТЕЛЕФОН И АДРЕС
             self.log("📱 Получаем телефон и адрес СРАЗУ ПОСЛЕ ПЕРЕХОДА НА КАРТОЧКУ...")
-            
-            # Ждем загрузки страницы карточки
-            time.sleep(0.3)  # Уменьшено с 0.8 до 0.3 секунды
             
             # Получаем данные из family_data (из JSON)
             self._get_phone_and_address_from_family_data(family_data)
@@ -1980,7 +1995,6 @@ class AutoFormFillerMass:
                         self._take_screenshot(formatted_data, family_number, family_data)
                     
                     # 11. Возвращаемся на страницу поиска без закрытия браузера
-                    time.sleep(0.2)
                     self._return_to_search_page()
                     
                     self.log("✅ Семья обработана успешно")
@@ -2076,7 +2090,7 @@ class AutoFormFillerMass:
         try:
             self.log("🔄 Возвращаемся на страницу поиска...")
             self.driver.get("http://localhost:8080/aspnetkp/Common/FindInfo.aspx")
-            time.sleep(0.2)  # Уменьшено с 0.5 до 0.2 секунды
+            # Убрали задержку, т.к. следующее действие будет ждать элемент
             self.log("✅ Вернулись на страницу поиска")
         except Exception as e:
             self.log(f"⚠️ Не удалось вернуться на страницу поиска: {e}")
@@ -2084,9 +2098,10 @@ class AutoFormFillerMass:
     def _analyze_search_results(self, family_number, mother_fio):
         """Анализ результатов поиска и автоматический выбор карточки"""
         try:
-            time.sleep(0.5)  # Уменьшено с 1.5 до 0.5 секунды
-            
-            cards = self.driver.find_elements(By.CSS_SELECTOR, "#ctl00_cph_dTabsContainer .pers")
+            # Убираем задержку, используем ожидание элементов
+            cards = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, "#ctl00_cph_dTabsContainer .pers"))
+            )
             
             if not cards:
                 self.log("❌ Карточки не найдены")
@@ -2097,9 +2112,10 @@ class AutoFormFillerMass:
             if len(cards) == 1:
                 self.log("✅ Найдена одна карточка, переходим...")
                 try:
-                    link = cards[0].find_element(By.CSS_SELECTOR, "a[title='Переход в просмотр ПКУ']")
+                    link = WebDriverWait(self.driver, 10).until(
+                        EC.element_to_be_clickable(cards[0].find_element(By.CSS_SELECTOR, "a[title='Переход в просмотр ПКУ']"))
+                    )
                     link.click()
-                    time.sleep(0.8)  # Уменьшено с 2 до 0.8 секунды
                     return True
                 except Exception as e:
                     self.log(f"❌ Не удалось кликнуть на ссылку: {e}")
@@ -2149,9 +2165,10 @@ class AutoFormFillerMass:
                 self.log(f"✅ Найдена 1 карточка в Вышневолоцком районе/городском округе")
                 try:
                     card_info = vyishnevolotsk_cards[0]
-                    link = card_info['card'].find_element(By.CSS_SELECTOR, "a[title='Переход в просмотр ПКУ']")
+                    link = WebDriverWait(self.driver, 10).until(
+                        EC.element_to_be_clickable(card_info['card'].find_element(By.CSS_SELECTOR, "a[title='Переход в просмотр ПКУ']"))
+                    )
                     link.click()
-                    time.sleep(0.8)  # Уменьшено с 2 до 0.8 секунды
                     return True
                 except Exception as e:
                     self.log(f"❌ Не удалось кликнуть на ссылку: {e}")
@@ -2160,8 +2177,8 @@ class AutoFormFillerMass:
             else:
                 self.log(f"⚠️ Найдено {len(vyishnevolotsk_cards)} карточек в Вышневолоцком районе/городском округе")
                 return self._show_cards_for_selection(
-                    [info['card'] for info in vyishnevolotsk_cards], 
-                    family_number, 
+                    [info['card'] for info in vyishnevolotsk_cards],
+                    family_number,
                     mother_fio,
                     filtered=True
                 )
@@ -2399,7 +2416,7 @@ class AutoFormFillerMass:
         max_attempts = 2
         for attempt in range(max_attempts):
             try:
-                search_field = self.wait.until(
+                search_field = WebDriverWait(self.driver, 10).until(
                     EC.element_to_be_clickable((By.NAME, "ctl00$cph$ctrlFastFind$tbFind"))
                 )
                 
@@ -2407,7 +2424,7 @@ class AutoFormFillerMass:
                 search_field.send_keys(mother_fio)
                 search_field.send_keys(Keys.ENTER)
                 
-                time.sleep(0.2)  # Уменьшено с 0.8 до 0.2 секунды
+                # Убрали задержку, т.к. следующий шаг будет ожидать результаты поиска
                 
                 return True
                 
@@ -2428,15 +2445,21 @@ class AutoFormFillerMass:
                 if not self._click_element_with_retry(By.ID, "ctl00_cph_rptAllTabs_ctl10_tdTabL", max_attempts=2):
                     return False
                     
-                time.sleep(0.8)  # Уменьшено с 1.5 до 0.8 секунды
+                # Ждем появления элемента с информацией
+                try:
+                    info_element = WebDriverWait(self.driver, 5).until(
+                        EC.presence_of_element_located((By.ID, "ctl00_cph_lblAddInfo2"))
+                    )
+                    info_text = info_element.text.strip()
+                except:
+                    # Если элемент не найден, проверяем наличие других элементов
+                    info_text = ""
                 
-                info_text = self._get_element_text("ctl00_cph_lblAddInfo2", "").strip()
                 return info_text == "Информация отсутствует" or not info_text
                 
             except Exception as e:
                 if attempt < max_attempts - 1:
                     self.log(f"⚠️ Попытка {attempt + 1} проверки поля не удалась: {e}")
-                    time.sleep(0.5)
                 else:
                     self.log(f"⚠️ Ошибка проверки поля: {e}")
                     return True
@@ -2450,20 +2473,30 @@ class AutoFormFillerMass:
     def _navigate_to_additional_info(self):
         """Навигация к форме дополнительной информации"""
         try:
+            # Клик по вкладке "Доп. информация"
             if not self._click_element_with_retry(By.ID, "ctl00_cph_rptAllTabs_ctl10_tdTabL"):
                 return False
                 
-            time.sleep(0.5)  # Уменьшено с 0.8 до 0.5 секунды
+            # Ожидаем появление кнопки редактирования
+            WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable((By.ID, "ctl00_cph_lbtnEditAddInfo"))
+            )
                 
             if not self._click_element_with_retry(By.ID, "ctl00_cph_lbtnEditAddInfo"):
                 return False
                 
-            time.sleep(0.5)  # Уменьшено с 0.8 до 0.5 секунды
+            # Ожидаем появление кнопки добавления
+            WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable((By.ID, "ctl00_cph_ctrlDopFields_lbtnAdd"))
+            )
                 
             if not self._click_element_with_retry(By.ID, "ctl00_cph_ctrlDopFields_lbtnAdd"):
                 return False
                 
-            time.sleep(0.8)  # Уменьшено с 1.5 до 0.8 секунды
+            # Ждем загрузки формы
+            WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.NAME, "ctl00$cph$tbAddInfo"))
+            )
                 
             return True
             
@@ -2570,8 +2603,6 @@ class AutoFormFillerMass:
     def _fill_form(self, add_info_text, category, housing_info, adpi_data):
         """Заполнение формы с динамическим определением индексов"""
         try:
-            time.sleep(0.5)  # Уменьшено с 1.5 до 0.5 секунды
-            
             # Определяем, есть ли АДПИ
             has_adpi = adpi_data['has_adpi'] == 'д'
             
@@ -2594,7 +2625,6 @@ class AutoFormFillerMass:
                     is_selected = checkbox.is_selected()
                     if not is_selected:
                         checkbox.click()
-                        time.sleep(0.02)  # Уменьшено с 0.1 до 0.02 секунды
                         # Проверяем, что чекбокс действительно установлен
                         is_selected_after = checkbox.is_selected()
                         if is_selected_after:
@@ -2629,8 +2659,6 @@ class AutoFormFillerMass:
                 self.log("⚠️ Не удалось кликнуть кнопку подтверждения чекбоксов")
                 return False
                 
-            time.sleep(0.5)  # Уменьшено с 1.5 до 0.5 секунды
-            
             # Заполняем основное текстовое поле
             if not self._fill_textarea("ctl00$cph$tbAddInfo", add_info_text, resize=True):
                 self.log("⚠️ Не удалось заполнить текстовую область")
@@ -2651,8 +2679,8 @@ class AutoFormFillerMass:
             # Заполняем поля по найденным индексам
             if 'phone' in field_indices:
                 if not self._fill_field_with_retry(
-                    'name', 
-                    f'ctl00$cph$ctrlDopFields$gv$ctl{field_indices["phone"]}$tb', 
+                    'name',
+                    f'ctl00$cph$ctrlDopFields$gv$ctl{field_indices["phone"]}$tb',
                     self.phone or ''
                 ):
                     self.log("⚠️ Не удалось заполнить телефон")
@@ -2724,7 +2752,7 @@ class AutoFormFillerMass:
             
             # Прокручиваем немного вниз, чтобы таблица была видна
             self.driver.execute_script("window.scrollBy(0, 300);")
-            time.sleep(0.3)  # Уменьшено с 0.8 до 0.3 секунды
+            # Убрали задержку, так как используем ожидание элементов
             
             # Пробуем найти все строки с полями
             rows = self.driver.find_elements(By.CSS_SELECTOR, "#ctl00_cph_ctrlDopFields_gv tr:not(:first-child)")
@@ -2851,22 +2879,22 @@ class AutoFormFillerMass:
                 self.log(f"🔄 Попытка {attempt + 1} заполнения поля {selector}")
                 
                 # Ждем и получаем элемент заново каждый раз
-                field = WebDriverWait(self.driver, 5).until(
+                field = WebDriverWait(self.driver, 10).until(
                     EC.element_to_be_clickable((by, selector))
                 )
                 
                 # Прокручиваем к элементу
                 self.driver.execute_script("arguments[0].scrollIntoView(true);", field)
-                time.sleep(0.05)  # Уменьшено с 0.15 до 0.05 секунды
+                # Убрали задержку, т.к. используем ожидания
                 
                 # Очищаем поле
                 field.clear()
-                time.sleep(0.05)  # Уменьшено с 0.15 до 0.05 секунды
+                # Убрали задержку
                 
                 # Вводим текст
                 if text:
                     field.send_keys(text)
-                    time.sleep(0.05)  # Уменьшено с 0.15 до 0.05 секунды
+                    # Убрали задержку
                     
                     # Проверяем, что текст введен
                     try:
@@ -2889,7 +2917,7 @@ class AutoFormFillerMass:
             except Exception as e:
                 if attempt < max_attempts - 1:
                     self.log(f"⚠️ Попытка {attempt + 1} заполнения поля {selector} не удалась: {e}")
-                    time.sleep(1)
+                    time.sleep(0.2)  # Уменьшили задержку с 0.5 до 0.2 секунды
                 else:
                     self.log(f"❌ Не удалось заполнить поле {selector}: {e}")
         
@@ -2920,31 +2948,30 @@ class AutoFormFillerMass:
         """Заполнение поля даты"""
         try:
             # Ищем поле даты
-            field = WebDriverWait(self.driver, 5).until(
+            field = WebDriverWait(self.driver, 10).until(
                 EC.element_to_be_clickable((By.ID, field_id))
             )
             
             # Прокручиваем к элементу
             self.driver.execute_script("arguments[0].scrollIntoView(true);", field)
-            time.sleep(0.05)  # Уменьшено с 0.25 до 0.05 секунды
+            # Убрали задержку, т.к. используем ожидания
             
             # Кликаем на поле
             field.click()
-            time.sleep(0.05)  # Уменьшено с 0.25 до 0.05 секунды
+            # Убрали задержку
             
             # Очищаем поле
             field.send_keys(Keys.CONTROL + "a")
             field.send_keys(Keys.DELETE)
-            time.sleep(0.05)  # Уменьшено с 0.25 до 0.05 секунды
+            # Убрали задержку
             
-            # Вводим дату посимвольно
-            for char in date_text:
-                field.send_keys(char)
-                time.sleep(0.02)  # Уменьшено с 0.07 до 0.02 секунды
+            # Вводим дату
+            field.send_keys(date_text)
+            # Убрали посимвольный ввод и задержки
             
             # Нажимаем Enter для подтверждения
             field.send_keys(Keys.ENTER)
-            time.sleep(0.3)  # Уменьшено с 0.8 до 0.3 секунды
+            # Убрали задержку, т.к. следующее действие будет ждать элемент
             
             self.log(f"✅ Дата заполнена: {date_text}")
             return True
@@ -2968,12 +2995,12 @@ class AutoFormFillerMass:
         try:
             self.log("💾 Сохраняем данные...")
             
-            save_button = self.wait.until(
+            save_button = WebDriverWait(self.driver, 10).until(
                 EC.element_to_be_clickable((By.ID, "ctl00_cph_lbtnExitSave"))
             )
             save_button.click()
             
-            time.sleep(0.8)  # Уменьшено с 1.5 до 0.8 секунды
+            # Убрали задержку, т.к. следующее действие будет ожидать элемент
             self.log("✅ Данные сохранены")
             return True
             
@@ -3087,15 +3114,17 @@ class AutoFormFillerMass:
     def _click_element_with_retry(self, by, selector, max_attempts=3):
         for attempt in range(max_attempts):
             try:
-                element = WebDriverWait(self.driver, 5).until(
+                element = WebDriverWait(self.driver, 10).until(
                     EC.element_to_be_clickable((by, selector))
                 )
+                # Прокручиваем к элементу перед кликом
+                self.driver.execute_script("arguments[0].scrollIntoView(true);", element)
                 element.click()
                 return True
             except Exception as e:
                 if attempt < max_attempts - 1:
                     self.log(f"⚠️ Попытка {attempt + 1} клика на элемент {selector} не удалась")
-                    time.sleep(1)
+                    time.sleep(0.2)  # Уменьшили задержку с 0.5 до 0.2 секунды
                 else:
                     self.log(f"❌ Не удалось кликнуть элемент {selector}: {e}")
                     return False

@@ -92,7 +92,7 @@ class EnhancedJSONFamilyCreatorGUI:
     
     def find_registry_directory(self, start_dir):
         """Поиск папки registry относительно текущего файла"""
-        import os
+        
         
         # Проверяем в текущей папке (рядом с json_family_creator.py)
         current_dir_registry = os.path.join(start_dir, "registry")
@@ -135,7 +135,7 @@ class EnhancedJSONFamilyCreatorGUI:
     def load_registry_files(self, registry_files):
         """Загрузка файлов из папки registry с определением их типа по структуре"""
         try:
-            import pandas as pd
+            
             
             # Определяем типы файлов по заголовкам
             register_file = None
@@ -310,58 +310,68 @@ class EnhancedJSONFamilyCreatorGUI:
         return address
     
     def clean_date(self, date_str):
-        """Очистка и валидация даты - ИСПРАВЛЕНА ОБРАБОТКА ФОРМАТА MM/DD/YYYY"""
-        if not isinstance(date_str, str):
-            return date_str
-        
-        date_str = self.clean_string(date_str)
-        
-        # Убираем все лишние символы, кроме цифр и точек и слэшей
-        date_str = re.sub(r'[^\d./]+', '', date_str)
-        
-        # Обработка формата MM/DD/YYYY или M/D/YYYY
-        if '/' in date_str:
-            parts = date_str.split('/')
-            if len(parts) == 3:
+            """Очистка и валидация даты - ИСПРАВЛЕНА ОБРАБОТКА ФОРМАТА MM/DD/YYYY"""
+            if not isinstance(date_str, str):
+                return date_str
+            
+            date_str = self.clean_string(date_str)
+            
+            # Обработка ошибки с датой в формате 28.12.202026 (оставляем первые 4 числа года)
+            # Находим паттерн DD.MM.YYYY где YYYY содержит больше 4 цифр
+            pattern = r'(\d{1,2}\.\d{1,2}\.)(\d{4})\d+'
+            match = re.match(pattern, date_str)
+            if match:
+                day_month = match.group(1)
+                year = match.group(2)
+                corrected_date = day_month + year
+                return corrected_date
+            
+            # Обработка формата MM/DD/YYYY или M/D/YYYY
+            if '/' in date_str:
+                parts = date_str.split('/')
+                if len(parts) == 3:
+                    try:
+                        month, day, year = map(int, parts)
+                        # Проверяем валидность
+                        if 1 <= month <= 12 and 1 <= day <= 31 and 1900 <= year <= datetime.now().year:
+                            # Преобразуем в DD.MM.YYYY
+                            return f"{day:02d}.{month:02d}.{year}"
+                    except:
+                        pass
+            
+            # Обработка формата DD.MM.YYYY
+            if re.match(r'^\d{1,2}\.\d{1,2}\.\d{4}$', date_str):
                 try:
-                    month, day, year = map(int, parts)
-                    # Проверяем валидность
-                    if 1 <= month <= 12 and 1 <= day <= 31 and 1900 <= year <= datetime.now().year:
-                        # Преобразуем в DD.MM.YYYY
+                    day, month, year = map(int, date_str.split('.'))
+                    if 1 <= day <= 31 and 1 <= month <= 12 and 1900 <= year <= datetime.now().year:
                         return f"{day:02d}.{month:02d}.{year}"
                 except:
                     pass
-        
-        # Обработка формата DD.MM.YYYY
-        if re.match(r'^\d{1,2}\.\d{1,2}\.\d{4}$', date_str):
-            try:
-                day, month, year = map(int, date_str.split('.'))
-                if 1 <= day <= 31 and 1 <= month <= 12 and 1900 <= year <= datetime.now().year:
-                    return f"{day:02d}.{month:02d}.{year}"
-            except:
-                pass
-        
-        # Обработка двух дат в одной строке (например: 28.01.2024.21.05.2025)
-        if date_str.count('.') >= 5:
-            parts = date_str.split('.')
-            if len(parts) >= 6:
-                try:
-                    # Пробуем получить две даты
-                    date1_str = f"{parts[0]}.{parts[1]}.{parts[2]}"
-                    date2_str = f"{parts[3]}.{parts[4]}.{parts[5]}"
-                    
-                    date1 = datetime.strptime(date1_str, '%d.%m.%Y')
-                    date2 = datetime.strptime(date2_str, '%d.%m.%Y')
-                    
-                    # Берем более позднюю дату
-                    if date1 > date2:
-                        return date1_str
-                    else:
-                        return date2_str
-                except:
-                    pass
-        
-        return date_str
+            
+            # Обработка двух дат в одной строке (например: 28.01.2024.21.05.2025)
+            if date_str.count('.') >= 5:
+                parts = date_str.split('.')
+                if len(parts) >= 6:
+                    try:
+                        # Пробуем получить две даты
+                        date1_str = f"{parts[0]}.{parts[1]}.{parts[2]}"
+                        date2_str = f"{parts[3]}.{parts[4]}.{parts[5]}"
+                        
+                        date1 = datetime.strptime(date1_str, '%d.%m.%Y')
+                        date2 = datetime.strptime(date2_str, '%d.%m.%Y')
+                        
+                        # Берем более позднюю дату
+                        if date1 > date2:
+                            return date1_str
+                        else:
+                            return date2_str
+                    except:
+                        pass
+            
+            # Убираем все лишние символы, кроме цифр и точек и слэшей
+            date_str = re.sub(r'[^\d./]+', '', date_str)
+            
+            return date_str
     
     def clean_phone(self, phone):
         """Очистка и форматирование телефона"""
@@ -748,15 +758,17 @@ class EnhancedJSONFamilyCreatorGUI:
             ctk.CTkButton(file_info_frame, text="📂 Открыть", 
                         command=self.load_register_file, width=80, height=25).pack(side="right", padx=5)
         
-        # Кнопки загрузки реестра и автоопределения
+        # ВОССТАНОВЛЕНА КНОПКА АВТООПРЕДЕЛЕНИЯ (перемещена выше)
+        auto_detect_frame = ctk.CTkFrame(auto_frame)
+        auto_detect_frame.pack(fill="x", padx=5, pady=5)
+        ctk.CTkButton(auto_detect_frame, text="🔄 Автоопределить семью",
+                    command=self.auto_detect_family_from_register, width=200).pack(side="left", padx=5)
+        
+        # Кнопки загрузки реестра
         load_buttons_frame = ctk.CTkFrame(register_frame)
         load_buttons_frame.pack(fill="x", padx=5, pady=5)
         ctk.CTkButton(load_buttons_frame, text="📋 Загрузить реестр (xls/xlsx)",
                     command=self.load_register_file, width=200).pack(side="left", padx=5)
-        
-        # ВОССТАНОВЛЕНА КНОПКА АВТООПРЕДЕЛЕНИЯ
-        ctk.CTkButton(load_buttons_frame, text="🔄 Автоопределить семью",
-                    command=self.auto_detect_family_from_register, width=200).pack(side="left", padx=5)
         
         ctk.CTkButton(load_buttons_frame, text="📂 Загрузить последний реестр",
                     command=self.load_last_register, width=200).pack(side="left", padx=5)
@@ -1719,26 +1731,36 @@ class EnhancedJSONFamilyCreatorGUI:
     def on_mother_not_working_toggle(self):
         """Обработчик чекбокса 'Не работает' для матери"""
         if self.mother_not_working_var.get():
-            # Скрываем поле зарплаты матери
-            self.income_fields['mother_salary'].configure(state="disabled")
+            # Устанавливаем значение "не работает" в поле работы
+            self.mother_work.delete(0, 'end')
+            self.mother_work.insert(0, "не работает")
+            # Также устанавливаем значение 0 в поле зарплаты
             self.income_fields['mother_salary'].delete(0, 'end')
             self.income_fields['mother_salary'].insert(0, "0")
         else:
-            # Показываем поле зарплаты матери
-            self.income_fields['mother_salary'].configure(state="normal")
+            # Очищаем поле работы, если там было "не работает"
+            current_text = self.mother_work.get().strip()
+            if current_text.lower() == "не работает":
+                self.mother_work.delete(0, 'end')
+            # Очищаем поле зарплаты, если оно содержит 0
             if self.income_fields['mother_salary'].get() == "0":
                 self.income_fields['mother_salary'].delete(0, 'end')
     
     def on_father_not_working_toggle(self):
         """Обработчик чекбокса 'Не работает' для отца"""
         if self.father_not_working_var.get():
-            # Скрываем поле зарплаты отца
-            self.income_fields['father_salary'].configure(state="disabled")
+            # Устанавливаем значение "не работает" в поле работы
+            self.father_work.delete(0, 'end')
+            self.father_work.insert(0, "не работает")
+            # Также устанавливаем значение 0 в поле зарплаты
             self.income_fields['father_salary'].delete(0, 'end')
             self.income_fields['father_salary'].insert(0, "0")
         else:
-            # Показываем поле зарплаты отца
-            self.income_fields['father_salary'].configure(state="normal")
+            # Очищаем поле работы, если там было "не работает"
+            current_text = self.father_work.get().strip()
+            if current_text.lower() == "не работает":
+                self.father_work.delete(0, 'end')
+            # Очищаем поле зарплаты, если оно содержит 0
             if self.income_fields['father_salary'].get() == "0":
                 self.income_fields['father_salary'].delete(0, 'end')
     
@@ -1746,8 +1768,9 @@ class EnhancedJSONFamilyCreatorGUI:
         """Вкладка информации о детях"""
         main_frame = ctk.CTkFrame(self.children_tab)
         main_frame.pack(fill="both", expand=True, padx=10, pady=10)
-        ctk.CTkLabel(main_frame, text="👶 ДЕТИ", 
+        ctk.CTkLabel(main_frame, text="👶 ДЕТИ",
                     font=ctk.CTkFont(size=16, weight="bold")).pack(pady=10)
+        
         
         self.children_scrollframe = ctk.CTkScrollableFrame(main_frame, height=400)
         self.children_scrollframe.pack(fill="both", expand=True, padx=10, pady=5)
@@ -1765,14 +1788,24 @@ class EnhancedJSONFamilyCreatorGUI:
         
         buttons_frame = ctk.CTkFrame(main_frame)
         buttons_frame.pack(fill="x", padx=10, pady=10)
-        ctk.CTkButton(buttons_frame, text="➕ Добавить ребенка", 
+        ctk.CTkButton(buttons_frame, text="➕ Добавить ребенка",
                      command=self.add_child_entry, width=150).pack(side="left", padx=5)
-        ctk.CTkButton(buttons_frame, text="➖ Удалить последнего", 
+        ctk.CTkButton(buttons_frame, text="➖ Удалить последнего",
                      command=self.remove_child_entry, width=150).pack(side="left", padx=5)
-        ctk.CTkButton(buttons_frame, text="🧹 Очистить всех детей", 
+        ctk.CTkButton(buttons_frame, text="🧹 Очистить всех детей",
                      command=self.clear_all_children, width=150, fg_color="orange").pack(side="left", padx=5)
         
         self.add_child_entry()
+    
+    def on_individual_home_education_toggle(self, var, education_field):
+        """Обработчик индивидуального чекбокса 'Домашний' для конкретного ребенка"""
+        if var.get():
+            education_field.delete(0, 'end')
+            education_field.insert(0, "домашний")
+        else:
+            current_text = education_field.get().strip()
+            if current_text.lower() == "домашний":
+                education_field.delete(0, 'end')
     
     def add_child_entry(self):
         """Добавление полей для ввода информации о ребенке"""
@@ -1782,7 +1815,7 @@ class EnhancedJSONFamilyCreatorGUI:
         
         header_frame = ctk.CTkFrame(child_frame, fg_color="transparent")
         header_frame.pack(fill="x", padx=5, pady=2)
-        ctk.CTkLabel(header_frame, text=f"👶 Ребенок {child_number}:", 
+        ctk.CTkLabel(header_frame, text=f"👶 Ребенок {child_number}:",
                     font=ctk.CTkFont(weight="bold")).pack(anchor="w")
         
         fio_frame = ctk.CTkFrame(child_frame, fg_color="transparent")
@@ -1803,6 +1836,18 @@ class EnhancedJSONFamilyCreatorGUI:
         child_education = ctk.CTkEntry(edu_frame, placeholder_text="Школа №123 или детский сад")
         child_education.pack(side="left", fill="x", expand=True, padx=5)
         
+        # Чекбокс "Домашний" для конкретного ребенка
+        home_edu_checkbox_frame = ctk.CTkFrame(child_frame, fg_color="transparent")
+        home_edu_checkbox_frame.pack(fill="x", padx=5, pady=2)
+        child_home_edu_var = ctk.BooleanVar(value=False)
+        child_home_edu_checkbox = ctk.CTkCheckBox(
+            home_edu_checkbox_frame,
+            text="Домашний",
+            variable=child_home_edu_var,
+            command=lambda var=child_home_edu_var, edu=child_education: self.on_individual_home_education_toggle(var, edu)
+        )
+        child_home_edu_checkbox.pack(side="left", padx=5, pady=2)
+        
         # НОВОЕ: Кнопка удаления конкретного ребенка
         delete_button = ctk.CTkButton(child_frame, text="🗑️ Удалить", width=80,
                                      command=lambda f=child_frame: self.remove_specific_child(f))
@@ -1812,7 +1857,8 @@ class EnhancedJSONFamilyCreatorGUI:
             'frame': child_frame,
             'fio': child_fio,
             'birth': child_birth,
-            'education': child_education
+            'education': child_education,
+            'home_edu_var': child_home_edu_var
         })
     
     def remove_specific_child(self, child_frame):
@@ -1882,9 +1928,19 @@ class EnhancedJSONFamilyCreatorGUI:
         ownership_frame = ctk.CTkFrame(main_frame)
         ownership_frame.pack(fill="x", padx=10, pady=10)
         ctk.CTkLabel(ownership_frame, text="Собственность:").pack(anchor="w", padx=5)
-        self.ownership = ctk.CTkEntry(ownership_frame, 
+        self.ownership = ctk.CTkEntry(ownership_frame,
                                      placeholder_text="Например: Иванова М.П., муниципальная, долевая и т.д.")
         self.ownership.pack(fill="x", padx=5, pady=2)
+        
+        # Чекбокс "Долевая собственность"
+        self.shared_ownership_var = ctk.BooleanVar(value=False)
+        self.shared_ownership_checkbox = ctk.CTkCheckBox(
+            main_frame,
+            text="Долевая собственность",
+            variable=self.shared_ownership_var,
+            command=self.on_shared_ownership_toggle
+        )
+        self.shared_ownership_checkbox.pack(anchor="w", padx=10, pady=5)
     
     def setup_income_tab(self):
         """Вкладка информации о доходах"""
@@ -1917,16 +1973,6 @@ class EnhancedJSONFamilyCreatorGUI:
             income_scrollframe, "Зарплата отца (руб.):", "father_salary"
         )
         
-        # НОВОЕ: Пенсия матери
-        self.income_fields['mother_pension'] = self.create_income_field(
-            income_scrollframe, "Пенсия матери (руб.):", "mother_pension"
-        )
-        
-        # НОВОЕ: Пенсия отца
-        self.income_fields['father_pension'] = self.create_income_field(
-            income_scrollframe, "Пенсия отца (руб.):", "father_pension"
-        )
-        
         # Единое пособие
         unified_benefit_frame = ctk.CTkFrame(income_scrollframe)
         unified_benefit_frame.pack(fill="x", padx=5, pady=5)
@@ -1942,7 +1988,7 @@ class EnhancedJSONFamilyCreatorGUI:
         
         calculation_frame = ctk.CTkFrame(income_scrollframe)
         calculation_frame.pack(fill="x", padx=5, pady=5)
-        ctk.CTkLabel(calculation_frame, text="📊 Автоподсчет единого пособия:", 
+        ctk.CTkLabel(calculation_frame, text="📊 Автоподсчет единого пособия:",
                     font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=5, pady=2)
         
         children_count_frame = ctk.CTkFrame(calculation_frame, fg_color="transparent")
@@ -1957,13 +2003,13 @@ class EnhancedJSONFamilyCreatorGUI:
         self.unified_percentage_var = ctk.StringVar(value="100%")
         percentages = ["100%", "75", "50%"]
         for perc in percentages:
-            ctk.CTkRadioButton(percentage_frame, text=perc, 
+            ctk.CTkRadioButton(percentage_frame, text=perc,
                               variable=self.unified_percentage_var, value=perc,
                               command=self.calculate_unified_benefit).pack(side="left", padx=10)
         
         calculate_button_frame = ctk.CTkFrame(calculation_frame, fg_color="transparent")
         calculate_button_frame.pack(fill="x", padx=5, pady=5)
-        ctk.CTkButton(calculate_button_frame, text="🧮 Рассчитать пособие", 
+        ctk.CTkButton(calculate_button_frame, text="🧮 Рассчитать пособие",
                      command=self.calculate_unified_benefit, width=150).pack(side="left", padx=5)
         
         large_family_frame = ctk.CTkFrame(income_scrollframe)
@@ -1976,18 +2022,28 @@ class EnhancedJSONFamilyCreatorGUI:
         self.large_family_benefit_var = ctk.StringVar(value="")
         large_family_options = ["1900", "2700", "3500"]
         for option in large_family_options:
-            ctk.CTkRadioButton(large_family_checkboxes_frame, text=option, 
+            ctk.CTkRadioButton(large_family_checkboxes_frame, text=option,
                               variable=self.large_family_benefit_var, value=option,
                               command=self.on_large_family_benefit_change).pack(side="left", padx=10)
         
         large_family_entry_frame = ctk.CTkFrame(large_family_frame, fg_color="transparent")
         large_family_entry_frame.pack(fill="x", padx=5, pady=2)
-        self.large_family_benefit_entry = ctk.CTkEntry(large_family_entry_frame, 
+        self.large_family_benefit_entry = ctk.CTkEntry(large_family_entry_frame,
                                                       placeholder_text="Или введите другую сумму")
         self.large_family_benefit_entry.pack(side="left", fill="x", expand=True, padx=5)
         
         ctk.CTkButton(large_family_entry_frame, text="0", width=40,
                      command=lambda: self.clear_large_family_benefit()).pack(side="left", padx=5)
+        
+        # НОВОЕ: Пенсия матери (перемещена ниже пособия по многодетности)
+        self.income_fields['mother_pension'] = self.create_income_field(
+            income_scrollframe, "Пенсия матери (руб.):", "mother_pension"
+        )
+        
+        # НОВОЕ: Пенсия отца (перемещена ниже пособия по многодетности)
+        self.income_fields['father_pension'] = self.create_income_field(
+            income_scrollframe, "Пенсия отца (руб.):", "father_pension"
+        )
         
         self.income_fields['survivor_pension'] = self.create_income_field(
             income_scrollframe, "Пенсия по потере кормильца (руб.):", "survivor_pension"
@@ -2135,19 +2191,100 @@ class EnhancedJSONFamilyCreatorGUI:
         self.check_date.delete(0, 'end')
         self.adpi_var.set("нет")
     
+    def on_shared_ownership_toggle(self):
+        """Обработчик чекбокса 'Долевая собственность'"""
+        ownership_text = self.ownership.get().strip()
+        if self.shared_ownership_var.get():
+            # Если чекбокс отмечен, добавляем "долевая" в поле собственности
+            if "долевая" not in ownership_text.lower():
+                if ownership_text:
+                    self.ownership.delete(0, 'end')
+                    self.ownership.insert(0, f"{ownership_text}, долевая")
+                else:
+                    self.ownership.insert(0, "долевая")
+        else:
+            # Если чекбокс снят, убираем "долевая" из поля собственности
+            if "долевая" in ownership_text.lower():
+                # Убираем "долевая" и лишние запятые
+                import re
+                updated_text = re.sub(r',\s*долевая\b', '', ownership_text, flags=re.IGNORECASE)
+                updated_text = re.sub(r'\bдолевая\s*,?', '', updated_text, flags=re.IGNORECASE)
+                updated_text = updated_text.strip().strip(',')
+                self.ownership.delete(0, 'end')
+                self.ownership.insert(0, updated_text.strip())
+    
     def setup_manage_tab(self):
         """Вкладка управления JSON файлом"""
         main_frame = ctk.CTkFrame(self.manage_tab)
         main_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
-        preview_frame = ctk.CTkFrame(main_frame)
+        # Информация о семьях наверху
+        info_frame = ctk.CTkFrame(main_frame)
+        info_frame.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(info_frame, text="📋 СПИСОК СЕМЕЙ",
+                    font=ctk.CTkFont(size=16, weight="bold")).pack(pady=5)
+        
+        # Создаем фрейм со скроллом для списка семей
+        families_scroll_frame = ctk.CTkScrollableFrame(info_frame, height=150)
+        families_scroll_frame.pack(fill="x", padx=10, pady=5)
+        
+        # Добавляем метку с информацией о семьях внутрь скроллируемого фрейма
+        self.families_info = ctk.CTkLabel(families_scroll_frame, text="Список семей пуст", justify="left", anchor="nw")
+        self.families_info.pack(fill="x")
+        
+        # Основной фрейм для остальных элементов
+        content_frame = ctk.CTkFrame(main_frame)
+        content_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Фрейм для кнопок
+        buttons_frame = ctk.CTkFrame(content_frame)
+        buttons_frame.pack(fill="x", padx=10, pady=10)
+        
+        row1_frame = ctk.CTkFrame(buttons_frame, fg_color="transparent")
+        row1_frame.pack(fill="x", pady=5)
+        ctk.CTkButton(row1_frame, text="💾 Сохранить в JSON",
+                    command=self.save_to_json, width=200, fg_color="green").pack(side="left", padx=5)
+        ctk.CTkButton(row1_frame, text="➕ Добавить семью в список",
+                    command=self.add_to_families_list, width=200).pack(side="left", padx=5)
+        ctk.CTkButton(row1_frame, text="📋 Просмотр всего списка",
+                    command=self.preview_all_families, width=200).pack(side="left", padx=5)
+        
+        row2_frame = ctk.CTkFrame(buttons_frame, fg_color="transparent")
+        row2_frame.pack(fill="x", pady=5)
+        ctk.CTkButton(row2_frame, text="📄 Просмотр текущей семьи",
+                    command=self.preview_current_family, width=200).pack(side="left", padx=5)
+        ctk.CTkButton(row2_frame, text="📂 Загрузить JSON",
+                    command=self.load_json, width=200).pack(side="left", padx=5)
+        ctk.CTkButton(row2_frame, text="🔄 Загрузить семью из списка",
+                    command=self.load_family_from_list, width=200).pack(side="left", padx=5)
+        
+        row3_frame = ctk.CTkFrame(buttons_frame, fg_color="transparent")
+        row3_frame.pack(fill="x", pady=5)
+        ctk.CTkButton(row3_frame, text="🧹 Очистить форму",
+                    command=self.clear_form, width=200, fg_color="orange").pack(side="left", padx=5)
+        ctk.CTkButton(row3_frame, text="🗑️ Удалить семью из списка",
+                    command=self.delete_family_from_list, width=200, fg_color="red").pack(side="left", padx=5)
+        
+        row4_frame = ctk.CTkFrame(buttons_frame, fg_color="transparent")
+        row4_frame.pack(fill="x", pady=5)
+        ctk.CTkButton(row4_frame, text="🗑️ Очистить список семей",
+                    command=self.clear_families_list, width=200, fg_color="darkred").pack(side="left", padx=5)
+        
+        row5_frame = ctk.CTkFrame(buttons_frame, fg_color="transparent")
+        row5_frame.pack(fill="x", pady=10)
+        ctk.CTkButton(row5_frame, text="🚀 Старт базы данных",
+                    command=self.start_database_system, width=200,
+                    fg_color="purple", hover_color="#6a0dad").pack(side="left", padx=5)
+        
+        # Фрейм для предпросмотра JSON (уменьшенный)
+        preview_frame = ctk.CTkFrame(content_frame)
         preview_frame.pack(fill="both", expand=True, padx=10, pady=10)
-        ctk.CTkLabel(preview_frame, text="📋 ПРЕДПРОСМОТР JSON", 
-                    font=ctk.CTkFont(size=16, weight="bold")).pack(pady=10)
+        ctk.CTkLabel(preview_frame, text="📋 ПРЕДПРОСМОТР JSON",
+                    font=ctk.CTkFont(size=16, weight="bold")).pack(pady=5)
         
         preview_text_frame = ctk.CTkFrame(preview_frame)
-        preview_text_frame.pack(fill="both", expand=True, padx=10, pady=10)
-        self.preview_text = scrolledtext.ScrolledText(preview_text_frame, height=20, width=80)
+        preview_text_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        self.preview_text = scrolledtext.ScrolledText(preview_text_frame, height=8, width=80)  # Уменьшенная высота
         self.preview_text.pack(fill="both", expand=True)
         self.preview_text.config(state="normal")
         self.preview_text.insert("1.0", "Здесь будет отображаться JSON структура...")
@@ -2161,50 +2298,6 @@ class EnhancedJSONFamilyCreatorGUI:
         except:
             # Если bind не поддерживается, пропускаем
             pass
-        
-        buttons_frame = ctk.CTkFrame(main_frame)
-        buttons_frame.pack(fill="x", padx=10, pady=10)
-        
-        row1_frame = ctk.CTkFrame(buttons_frame, fg_color="transparent")
-        row1_frame.pack(fill="x", pady=5)
-        ctk.CTkButton(row1_frame, text="📄 Просмотр текущей семьи", 
-                    command=self.preview_current_family, width=200).pack(side="left", padx=5)
-        ctk.CTkButton(row1_frame, text="➕ Добавить семью в список", 
-                    command=self.add_to_families_list, width=200).pack(side="left", padx=5)
-        ctk.CTkButton(row1_frame, text="📋 Просмотр всего списка", 
-                    command=self.preview_all_families, width=200).pack(side="left", padx=5)
-        
-        row2_frame = ctk.CTkFrame(buttons_frame, fg_color="transparent")
-        row2_frame.pack(fill="x", pady=5)
-        ctk.CTkButton(row2_frame, text="💾 Сохранить в JSON", 
-                    command=self.save_to_json, width=200, fg_color="green").pack(side="left", padx=5)
-        ctk.CTkButton(row2_frame, text="📂 Загрузить JSON", 
-                    command=self.load_json, width=200).pack(side="left", padx=5)
-        ctk.CTkButton(row2_frame, text="🔄 Загрузить семью из списка", 
-                    command=self.load_family_from_list, width=200).pack(side="left", padx=5)
-        
-        row3_frame = ctk.CTkFrame(buttons_frame, fg_color="transparent")
-        row3_frame.pack(fill="x", pady=5)
-        ctk.CTkButton(row3_frame, text="🧹 Очистить форму", 
-                    command=self.clear_form, width=200, fg_color="orange").pack(side="left", padx=5)
-        ctk.CTkButton(row3_frame, text="🗑️ Удалить семью из списка", 
-                    command=self.delete_family_from_list, width=200, fg_color="red").pack(side="left", padx=5)
-        
-        row4_frame = ctk.CTkFrame(buttons_frame, fg_color="transparent")
-        row4_frame.pack(fill="x", pady=5)
-        ctk.CTkButton(row4_frame, text="🗑️ Очистить список семей", 
-                    command=self.clear_families_list, width=200, fg_color="darkred").pack(side="left", padx=5)
-        
-        row5_frame = ctk.CTkFrame(buttons_frame, fg_color="transparent")
-        row5_frame.pack(fill="x", pady=10)
-        ctk.CTkButton(row5_frame, text="🚀 Старт базы данных", 
-                    command=self.start_database_system, width=200, 
-                    fg_color="purple", hover_color="#6a0dad").pack(side="left", padx=5)
-        
-        info_frame = ctk.CTkFrame(main_frame)
-        info_frame.pack(fill="x", padx=10, pady=10)
-        self.families_info = ctk.CTkLabel(info_frame, text="Список семей пуст")
-        self.families_info.pack()
     
     def start_database_system(self):
         """Запуск базы данных и массового обработчика"""
@@ -2437,6 +2530,9 @@ class EnhancedJSONFamilyCreatorGUI:
                     'birth': self.clean_date(child['birth'].get().strip()),
                     'education': self.clean_string(child['education'].get().strip())
                 }
+                # Добавляем информацию о домашнем ребенке, если чекбокс установлен
+                if 'home_edu_var' in child and child['home_edu_var'].get():
+                    child_data['home_education'] = True
                 children.append(child_data)
         if children:
             family_data['children'] = children
@@ -2462,6 +2558,17 @@ class EnhancedJSONFamilyCreatorGUI:
         ownership = self.clean_string(self.ownership.get().strip())
         if ownership:
             family_data['ownership'] = ownership
+        
+        # Обработка долевой собственности
+        ownership_text = self.ownership.get().strip()
+        if self.shared_ownership_var.get():
+            # Если отмечен чекбокс "Долевая собственность", добавляем это в поле собственности
+            if "долевая" not in ownership_text.lower():
+                if ownership_text:
+                    ownership_text += ", долевая"
+                else:
+                    ownership_text = "долевая"
+        family_data['ownership'] = self.clean_string(ownership_text)
         
         family_data['adpi'] = self.adpi_var.get()
         
@@ -2877,6 +2984,11 @@ class EnhancedJSONFamilyCreatorGUI:
                 if 'education' in child:
                     child_education = self.clean_string(child['education'])
                     self.children_entries[i]['education'].insert(0, child_education)
+                # Загружаем информацию о домашнем ребенке
+                if 'home_education' in child and child['home_education'] and 'home_edu_var' in self.children_entries[i]:
+                    self.children_entries[i]['home_edu_var'].set(True)
+                    self.on_individual_home_education_toggle(self.children_entries[i]['home_edu_var'],
+                                                            self.children_entries[i]['education'])
         
         if 'phone_number' in family_data:
             phone = self.clean_phone(family_data['phone_number'])
@@ -2895,7 +3007,20 @@ class EnhancedJSONFamilyCreatorGUI:
             self.amenities_var.set(family_data['amenities'])
         if 'ownership' in family_data:
             ownership = self.clean_string(family_data['ownership'])
+            self.ownership.delete(0, 'end')
             self.ownership.insert(0, ownership)
+            # Автоматически установим чекбокс "долевая собственность", если в тексте есть "долевая"
+            if "долевая" in ownership.lower():
+                self.shared_ownership_var.set(True)
+            else:
+                self.shared_ownership_var.set(False)
+        
+        # Обновляем состояние чекбокса в соответствии с содержимым поля собственности
+        ownership_text = self.ownership.get().strip()
+        if "долевая" in ownership_text.lower():
+            self.shared_ownership_var.set(True)
+        else:
+            self.shared_ownership_var.set(False)
         
         if 'adpi' in family_data:
             self.adpi_var.set(family_data['adpi'])
