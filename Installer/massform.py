@@ -54,9 +54,6 @@ class MassFamilyProcessorGUI:
         self.daily_stat = 0
         self.weekly_stat = 0
         
-        # Переменная для пропуска ручной проверки
-        self.skip_manual_check = self.config.get("skip_manual_check", False)
-        
         self.setup_ui()
         self.setup_error_handling()
         
@@ -183,9 +180,14 @@ class MassFamilyProcessorGUI:
         """Обновление отображения статистики в интерфейсе"""
         try:
             today_stat, week_stat = self.get_statistics_for_period()
-            self.stat_label.configure(
-                text=f"📊 Статистика: Сегодня - {today_stat} | Неделя - {week_stat}"
-            )
+            # Проверяем, существует ли виджет перед обновлением
+            try:
+                self.stat_label.configure(
+                    text=f"📊 Статистика: Сегодня - {today_stat} | Неделя - {week_stat}"
+                )
+            except:
+                # Виджет может быть уничтожен, игнорируем ошибку
+                pass
         except Exception as e:
             self.log_message(f"⚠️ Ошибка обновления отображения статистики: {e}")
     
@@ -223,7 +225,7 @@ class MassFamilyProcessorGUI:
                 with open(self.config_file, 'r', encoding='utf-8') as f:
                     config = json.load(f)
                     
-                    required_keys = ['pause', 'screenshot', 'stop_on_error', 'screenshot_dir', 'start_index', 'last_json_path', 'skip_manual_check']
+                    required_keys = ['pause', 'screenshot', 'stop_on_error', 'screenshot_dir', 'start_index', 'last_json_path']
                     for key in required_keys:
                         if key not in config:
                             config[key] = self.get_default_config()[key]
@@ -242,8 +244,7 @@ class MassFamilyProcessorGUI:
             "stop_on_error": True,
             "screenshot_dir": self.screenshots_dir,  # Используем папку из конфигурации
             "start_index": "1",
-            "last_json_path": "",
-            "skip_manual_check": False
+            "last_json_path": ""
         }
     
     def save_config(self):
@@ -262,8 +263,6 @@ class MassFamilyProcessorGUI:
                 self.config["screenshot_dir"] = self.screenshot_dir.get()
             if hasattr(self, 'start_index_var'):
                 self.config["start_index"] = self.start_index_var.get()
-            # Сохраняем настройку пропуска ручной проверки
-            self.config["skip_manual_check"] = self.skip_manual_check
             
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(self.config, f, ensure_ascii=False, indent=2)
@@ -558,15 +557,10 @@ class MassFamilyProcessorGUI:
         self.screenshot_var = ctk.BooleanVar(value=self.config.get("screenshot", True))
         ctk.CTkCheckBox(settings_frame, text="Сохранять скриншоты",
                        variable=self.screenshot_var).pack(anchor="w", padx=10, pady=5)
-        
+
         self.stop_on_error_var = ctk.BooleanVar(value=self.config.get("stop_on_error", True))
         ctk.CTkCheckBox(settings_frame, text="Останавливать при ошибке",
                        variable=self.stop_on_error_var).pack(anchor="w", padx=10, pady=5)
-        
-        # Чекбокс для пропуска ручной проверки
-        self.skip_manual_check_var = ctk.BooleanVar(value=self.skip_manual_check)
-        ctk.CTkCheckBox(settings_frame, text="Пропускать ручную проверку",
-                       variable=self.skip_manual_check_var).pack(anchor="w", padx=10, pady=5)
         
         dir_frame = ctk.CTkFrame(settings_frame)
         dir_frame.pack(fill="x", padx=10, pady=10)
@@ -624,9 +618,6 @@ class MassFamilyProcessorGUI:
             except ValueError as e:
                 messagebox.showerror("Ошибка", f"Некорректный индекс: {e}")
                 return
-            
-            # Обновляем значение пропуска ручной проверки
-            self.skip_manual_check = self.skip_manual_check_var.get()
             
             if self.save_config():
                 messagebox.showinfo("Настройки", "Настройки успешно сохранены!")
@@ -898,8 +889,8 @@ class MassFamilyProcessorGUI:
     def update_families_table(self):
         """Обновление таблицы семей"""
         try:
-            for widget in self.families_widgets:
-                widget.destroy()
+            # Сохраняем ссылки на старые виджеты перед их уничтожением
+            old_widgets = list(self.families_widgets)
             self.families_widgets = []
             
             for i, family in enumerate(self.families_list):
@@ -945,6 +936,14 @@ class MassFamilyProcessorGUI:
                 
                 for j in range(6):
                     row_frame.grid_columnconfigure(j, weight=1)
+            
+            # Уничтожаем старые виджеты только после создания новых
+            for widget in old_widgets:
+                try:
+                    widget.destroy()
+                except:
+                    # Игнорируем ошибки при уничтожении, если виджет уже уничтожен
+                    pass
                     
         except Exception as e:
             self.log_message(f"❌ Ошибка обновления таблицы: {e}")
@@ -954,7 +953,12 @@ class MassFamilyProcessorGUI:
         try:
             total = len(self.families_list)
             if total == 0:
-                self.families_info.configure(text="Семей загружено: 0")
+                # Проверяем, существует ли виджет перед обновлением
+                try:
+                    self.families_info.configure(text="Семей загружено: 0")
+                except:
+                    # Виджет может быть уничтожен, игнорируем ошибку
+                    pass
                 return
                 
             stats = {
@@ -981,7 +985,12 @@ class MassFamilyProcessorGUI:
             if stats['ручное вмешательство'] > 0:
                 info_text += f" | 🛠️: {stats['ручное вмешательство']}"
                 
-            self.families_info.configure(text=info_text)
+            # Проверяем, существует ли виджет перед обновлением
+            try:
+                self.families_info.configure(text=info_text)
+            except:
+                # Виджет может быть уничтожен, игнорируем ошибку
+                pass
             
         except Exception as e:
             self.log_message(f"⚠️ Ошибка обновления информации: {e}")
@@ -1212,11 +1221,16 @@ class MassFamilyProcessorGUI:
         """Добавление сообщения в лог"""
         try:
             timestamp = datetime.now().strftime("%H:%M:%S")
-            self.log_text.config(state="normal")
-            self.log_text.insert("end", f"[{timestamp}] {message}\n")
-            self.log_text.see("end")
-            self.log_text.config(state="disabled")
-            self.app.update_idletasks()
+            # Проверяем, существует ли виджет перед обновлением
+            try:
+                self.log_text.config(state="normal")
+                self.log_text.insert("end", f"[{timestamp}] {message}\n")
+                self.log_text.see("end")
+                self.log_text.config(state="disabled")
+                self.app.update_idletasks()
+            except (tkinter.TclError, AttributeError):
+                # Виджет может быть уничтожен, игнорируем ошибку
+                pass
         except:
             pass
         
@@ -1232,16 +1246,26 @@ class MassFamilyProcessorGUI:
     def update_progress(self, value):
         """Обновление прогресса"""
         try:
-            self.progress.set(value)
-            self.app.update_idletasks()
+            # Проверяем, существует ли виджет перед обновлением
+            try:
+                self.progress.set(value)
+                self.app.update_idletasks()
+            except:
+                # Виджет может быть уничтожен, игнорируем ошибку
+                pass
         except:
             pass
         
     def update_status(self, message):
         """Обновление статуса"""
         try:
-            self.status_label.configure(text=message)
-            self.app.update_idletasks()
+            # Проверяем, существует ли виджет перед обновлением
+            try:
+                self.status_label.configure(text=message)
+                self.app.update_idletasks()
+            except:
+                # Виджет может быть уничтожен, игнорируем ошибку
+                pass
         except:
             pass
         
@@ -1315,13 +1339,17 @@ class MassFamilyProcessorGUI:
             
             def validate_family_number():
                 try:
-                    num = int(family_number_var.get())
+                    num_str = family_number_var.get().strip()
+                    if not num_str:
+                        messagebox.showerror("Ошибка", "Введите номер семьи")
+                        return False
+                    num = int(num_str)
                     if 1 <= num <= len(self.families_list):
                         return True
                     else:
                         messagebox.showerror("Ошибка", f"Номер должен быть от 1 до {len(self.families_list)}")
                         return False
-                except:
+                except ValueError:
                     messagebox.showerror("Ошибка", "Введите корректный номер")
                     return False
             
@@ -1357,8 +1385,11 @@ class MassFamilyProcessorGUI:
             def start_from_beginning():
                 if validate_family_number():
                     start_index = int(family_number_var.get()) - 1
-                    self._start_processing_from_index(start_index)
-                    dialog.destroy()
+                    if 0 <= start_index < len(self.families_list):
+                        self._start_processing_from_index(start_index)
+                        dialog.destroy()
+                    else:
+                        messagebox.showerror("Ошибка", f"Индекс вне диапазона. Должен быть от 1 до {len(self.families_list)}")
             
             def start_from_error():
                 # Ищем первую семью со статусом "ошибка"
@@ -1418,7 +1449,7 @@ class MassFamilyProcessorGUI:
             self.save_config()
             
             self.processing_thread = threading.Thread(target=self.process_families)
-            self.processing_thread.daemon = True
+            self.processing_thread.daemon = False
             self.processing_thread.start()
             
         except Exception as e:
@@ -1487,15 +1518,17 @@ class MassFamilyProcessorGUI:
                     
                     # Обновляем статус
                     family['status'] = 'в процессе'
-                    self.update_families_table()
+                    # Проверяем, не остановлена ли обработка, чтобы избежать лишних обновлений UI
+                    if self.is_processing:
+                        self.update_families_table()
                     
                     self.log_message(f"\n📋 Обработка семьи {i+1}/{total}")
                     self.log_message(f"👩 Мать: {family.get('mother_fio', '')}")
                     
-                    if not family.get('mother_fio'):
-                        self.log_message("⚠️ Пропуск: не указано ФИО матери")
+                    if not family.get('mother_fio') and not family.get('father_fio'):
+                        self.log_message("⚠️ Пропуск: не указано ФИО матери или отца")
                         family['status'] = 'пропущено'
-                        family['error_message'] = 'Не указано ФИО матери'
+                        family['error_message'] = 'Не указано ФИО матери или отца'
                         skipped_count += 1
                         continue
                     
@@ -1503,7 +1536,9 @@ class MassFamilyProcessorGUI:
                     if self.manual_intervention_required:
                         family['status'] = 'ручное вмешательство'
                         self.log_message("🛠️ Требуется ручное вмешательство")
-                        self.update_families_table()
+                        # Проверяем, не остановлена ли обработка, чтобы избежать лишних обновлений UI
+                        if self.is_processing:
+                            self.update_families_table()
                         
                         # Ждем, пока пользователь не нажмет "Продолжить"
                         self.continue_button.configure(state="normal")
@@ -1550,14 +1585,8 @@ class MassFamilyProcessorGUI:
                         break
                         
                 finally:
-                    # Обновляем прогресс
-                    progress_value = (i + 1) / total
-                    self.update_progress(progress_value)
-                    
-                    # Обновляем статус с детальной информацией
-                    status_text = f"Обработано: {i+1}/{total} | ✅: {success_count} | ❌: {error_count} | ⏭️: {skipped_count}"
-                    self.update_status(status_text)
-                    self.update_families_table()
+                    # Обновляем прогресс и статус
+                    self._update_progress_and_status(i + 1, total, success_count, error_count, skipped_count)
                     
                     # Пауза между семьями
                     if i < total - 1 and self.is_processing:
@@ -1583,7 +1612,9 @@ class MassFamilyProcessorGUI:
                     
                     # Обновляем статус
                     family['status'] = 'в процессе'
-                    self.update_families_table()
+                    # Проверяем, не остановлена ли обработка, чтобы избежать лишних обновлений UI
+                    if self.is_processing:
+                        self.update_families_table()
                     
                     # Запуск автоматизации для одной семьи
                     success = self.process_single_family_with_retry(family, family_idx+1)
@@ -1601,10 +1632,8 @@ class MassFamilyProcessorGUI:
                         retry_error_count += 1
                         self.log_message(f"❌ Семья {family_idx+1} не обработана после 2 попыток")
                     
-                    # Обновляем прогресс
-                    progress_value = (self.current_family_index + idx + 1) / total
-                    self.update_progress(progress_value)
-                    self.update_families_table()
+                    # Обновляем прогресс и статус
+                    self._update_progress_and_status(self.current_family_index + idx + 1, total, success_count, error_count, skipped_count)
                     
                     # Пауза между семьями
                     if idx < len(retry_families) - 1 and self.is_processing:
@@ -1696,8 +1725,9 @@ class MassFamilyProcessorGUI:
                     if self.driver:
                         try:
                             self.driver.quit()
-                        except:
-                            pass
+                        except Exception as e:
+                            self.log_message(f"⚠️ Ошибка при закрытии драйвера: {e}")
+                        self.driver = None
                     
                     self.auto_filler = AutoFormFillerMass(self)
                     if not self.auto_filler._setup_driver():
@@ -1714,8 +1744,27 @@ class MassFamilyProcessorGUI:
                 else:
                     # Используем существующий драйвер
                     self.auto_filler = AutoFormFillerMass(self)
-                    self.auto_filler.driver = self.driver
-                    self.auto_filler.wait = WebDriverWait(self.driver, 10)
+                    # Проверяем, что драйвер все еще активен
+                    try:
+                        # Проверяем, можно ли получить URL страницы
+                        _ = self.driver.current_url
+                        self.auto_filler.driver = self.driver
+                        self.auto_filler.wait = WebDriverWait(self.driver, 10)
+                    except:
+                        # Драйвер больше не активен, нужно создать новый
+                        self.log_message("⚠️ Драйвер больше не активен, создаем новый")
+                        if self.driver:
+                            try:
+                                self.driver.quit()
+                            except Exception as e:
+                                self.log_message(f"⚠️ Ошибка при закрытии старого драйвера: {e}")
+                        self.driver = None
+                        
+                        self.auto_filler = AutoFormFillerMass(self)
+                        if not self.auto_filler._setup_driver():
+                            self.log_message("❌ Не удалось настроить драйвер")
+                            continue
+                        self.driver = self.auto_filler.driver
                 
                 # Устанавливаем путь для скриншотов
                 if self.screenshot_var.get():
@@ -1824,8 +1873,8 @@ class MassFamilyProcessorGUI:
                     self.driver.quit()
                     self.driver = None
                     self.log_message("🔒 Драйвер закрыт")
-                except:
-                    pass
+                except Exception as e:
+                    self.log_message(f"⚠️ Ошибка при закрытии драйвера: {e}")
                 
             # Ждем завершения потока
             if self.processing_thread and self.processing_thread.is_alive():
@@ -1853,6 +1902,20 @@ class MassFamilyProcessorGUI:
                 self.save_config()
             except:
                 pass
+
+    def _update_progress_and_status(self, current_index, total_count, success_count, error_count, skipped_count):
+        """Обновление прогресса и статуса с детальной информацией"""
+        # Обновляем прогресс
+        progress_value = current_index / total_count
+        self.update_progress(progress_value)
+        
+        # Обновляем статус с детальной информацией
+        status_text = f"Обработано: {current_index}/{total_count} | ✅: {success_count} | ❌: {error_count} | ⏭️: {skipped_count}"
+        self.update_status(status_text)
+        
+        # Проверяем, не остановлена ли обработка, чтобы избежать лишних обновлений UI
+        if self.is_processing:
+            self.update_families_table()
 
 
 class AutoFormFillerMass:
@@ -1883,13 +1946,8 @@ class AutoFormFillerMass:
         """Ожидание ручного вмешательства пользователя"""
         self.log(f"🛠️ {message}")
         
-        # Проверяем, нужно ли пропускать ручную проверку
-        if self.gui.skip_manual_check:
-            self.log("⏭️ Пропуск ручной проверки по настройке")
-            return True
-        
         self.gui.manual_intervention_required = True
-        
+
         # Показываем сообщение пользователю
         messagebox.showinfo("Требуется ручное вмешательство",
                            f"{message}\n\n"
@@ -1909,26 +1967,40 @@ class AutoFormFillerMass:
             self.log("🔙 Возвращаемся на страницу поиска...")
             try:
                 self.driver.get("http://localhost:8080/aspnetkp/Common/FindInfo.aspx")
-                # Убираем задержку, т.к. WebDriverWait будет ждать загрузки элементов
+                time.sleep(0.2)  # Уменьшено с 0.5 до 0.2 секунды
             except Exception as e:
                 self.log(f"❌ Не удалось загрузить страницу поиска: {e}")
                 
                 # Запрашиваем ручное вмешательство
                 if self.wait_for_manual_intervention("Не удалось загрузить страницу поиска"):
                     self.log("▶️ Продолжаем после ручного вмешательства")
+                    # Проверяем, что страница доступна после ручного вмешательства
+                    try:
+                        WebDriverWait(self.driver, 10).until(
+                            EC.presence_of_element_located((By.ID, "ctl00_cph_ctrlFastFind_tbFind"))
+                        )
+                        self.log("✅ Страница поиска доступна после ручного вмешательства")
+                    except:
+                        self.log("❌ Страница поиска все еще недоступна после ручного вмешательства")
+                        return False
                 else:
                     return False
             
             # 2. Поиск семьи по ФИО матери
             mother_fio = family_data.get('mother_fio', '')
-            if not mother_fio:
-                self.log("❌ Не указано ФИО матери")
+            father_fio = family_data.get('father_fio', '')
+            
+            # Если нет ФИО матери, используем ФИО отца для поиска
+            search_fio = mother_fio if mother_fio else father_fio
+            
+            if not search_fio:
+                self.log("❌ Не указано ФИО матери или отца")
                 return False
                 
-            self.log(f"🔍 Поиск семьи: {mother_fio}")
+            self.log(f"🔍 Поиск семьи: {search_fio}")
             
             # Выполняем поиск
-            if not self._fast_search_mother(mother_fio):
+            if not self._fast_search_mother(search_fio):
                 self.log("❌ Не удалось найти семью")
                 
                 # Запрашиваем ручное вмешательство
@@ -1940,7 +2012,7 @@ class AutoFormFillerMass:
                 
             # 3. Анализ результатов поиска и автоматический выбор карточки
             self.log("🤖 Анализируем результаты поиска...")
-            result = self._analyze_search_results(family_number, mother_fio)
+            result = self._analyze_search_results(family_number, search_fio)
             
             if not result:
                 self.log("❌ Не удалось автоматически выбрать карточку")
@@ -1953,13 +2025,24 @@ class AutoFormFillerMass:
                     return False
                 
             # 4. ПЕРЕД ПЕРЕХОДОМ НА ДОПОЛНИТЕЛЬНУЮ ИНФОРМАЦИЮ - ПОЛУЧАЕМ ТЕЛЕФОН И АДРЕС
-            self.log("📱 Получаем телефон и адрес СРАЗУ ПОСЛЕ ПЕРЕХОДА НА КАРТОЧКУ...")
-            
-            # Получаем данные из family_data (из JSON)
-            self._get_phone_and_address_from_family_data(family_data)
-            
-            # Также пытаемся получить со страницы (если не удалось из JSON)
-            self._get_phone_and_address_from_page()
+            # Ждем, пока страница карточки полностью загрузится
+            try:
+                WebDriverWait(self.driver, 10).until(
+                    lambda driver: "CardInfo.aspx" in driver.current_url or "ПКУ" in driver.title or
+                    driver.execute_script("return document.readyState") == "complete"
+                )
+                self.log("📱 Получаем телефон и адрес СРАЗУ ПОСЛЕ ПЕРЕХОДА НА КАРТОЧКУ...")
+                
+                # Получаем данные из family_data (из JSON)
+                self._get_phone_and_address_from_family_data(family_data)
+                
+                # Также пытаемся получить со страницы (если не удалось из JSON)
+                self._get_phone_and_address_from_page()
+            except Exception as e:
+                self.log(f"⚠️ Не удалось дождаться полной загрузки карточки или получить данные: {e}")
+                # Возвращаемся на страницу поиска
+                self._return_to_search_page()
+                return False
             
             # 5. Проверка и заполнение данных
             if not self._check_additional_info_empty():
@@ -1993,13 +2076,13 @@ class AutoFormFillerMass:
                     # 10. Скриншот
                     if self.screenshot_dir:
                         self._take_screenshot(formatted_data, family_number, family_data)
-                    
+
                     # 11. Возвращаемся на страницу поиска без закрытия браузера
+                    time.sleep(0.2)
                     self._return_to_search_page()
-                    
+
                     self.log("✅ Семья обработана успешно")
                     return True
-                    
             return False
             
         except Exception as e:
@@ -2041,7 +2124,7 @@ class AutoFormFillerMass:
             if not self.phone:
                 try:
                     # Ждем появления элемента телефона
-                    phone_element = WebDriverWait(self.driver, 3).until(
+                    phone_element = WebDriverWait(self.driver, 10).until(
                         EC.presence_of_element_located((By.ID, "ctl00_cph_lblMobilPhone"))
                     )
                     phone_text = phone_element.text.strip() if phone_element else ""
@@ -2090,7 +2173,25 @@ class AutoFormFillerMass:
         try:
             self.log("🔄 Возвращаемся на страницу поиска...")
             self.driver.get("http://localhost:8080/aspnetkp/Common/FindInfo.aspx")
-            # Убрали задержку, т.к. следующее действие будет ждать элемент
+            
+            # Ждем полной загрузки страницы
+            WebDriverWait(self.driver, 10).until(
+                lambda driver: driver.execute_script("return document.readyState") == "complete"
+            )
+            
+            # Дополнительно ждем появление элемента поиска и проверяем, что он доступен для ввода
+            search_element = WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable((By.NAME, "ctl00$cph$ctrlFastFind$tbFind"))
+            )
+            
+            # Убедимся, что поле поиска пустое перед следующим использованием
+            search_element.clear()
+            
+            # Дополнительно проверяем, что страница полностью загружена и готова к поиску
+            WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.ID, "ctl00_cph_dTabsContainer"))  # Убедимся, что контейнер результатов поиска присутствует
+            )
+            
             self.log("✅ Вернулись на страницу поиска")
         except Exception as e:
             self.log(f"⚠️ Не удалось вернуться на страницу поиска: {e}")
@@ -2098,10 +2199,28 @@ class AutoFormFillerMass:
     def _analyze_search_results(self, family_number, mother_fio):
         """Анализ результатов поиска и автоматический выбор карточки"""
         try:
-            # Убираем задержку, используем ожидание элементов
-            cards = WebDriverWait(self.driver, 10).until(
-                EC.presence_of_all_elements_located((By.CSS_SELECTOR, "#ctl00_cph_dTabsContainer .pers"))
+            # Добавляем дополнительное ожидание полной загрузки страницы результатов поиска
+            WebDriverWait(self.driver, 10).until(
+                lambda driver: driver.execute_script("return document.readyState") == "complete"
             )
+            
+            # Ждем появления контейнера с результатами поиска
+            WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "#ctl00_cph_dTabsContainer"))
+            )
+            
+            # Повторяем попытку нахождения карточек с несколькими попытками
+            cards = None
+            for attempt in range(3):
+                try:
+                    cards = WebDriverWait(self.driver, 10).until(
+                        EC.presence_of_all_elements_located((By.CSS_SELECTOR, "#ctl00_cph_dTabsContainer .pers"))
+                    )
+                    break
+                except:
+                    self.log(f"⚠️ Попытка {attempt + 1} нахождения карточек не удалась, ожидание и повтор...")
+                    time.sleep(1)
+                    continue
             
             if not cards:
                 self.log("❌ Карточки не найдены")
@@ -2109,24 +2228,30 @@ class AutoFormFillerMass:
                 
             self.log(f"📊 Найдено карточек: {len(cards)}")
             
-            if len(cards) == 1:
-                self.log("✅ Найдена одна карточка, переходим...")
-                try:
-                    link = WebDriverWait(self.driver, 10).until(
-                        EC.element_to_be_clickable(cards[0].find_element(By.CSS_SELECTOR, "a[title='Переход в просмотр ПКУ']"))
-                    )
-                    link.click()
-                    return True
-                except Exception as e:
-                    self.log(f"❌ Не удалось кликнуть на ссылку: {e}")
-                    return False
+            # Убираем автоматический выбор первой карточки, если найдена только одна
+            # Теперь будем искать карточки по приоритетам: "Вышневолоцкий городской округ" -> "Вышневолоцкий" -> "Вышний Волочек" -> выбор пользователем
             
-            vyishnevolotsk_cards = []
+            # Получаем свежий список карточек для анализа
+            fresh_cards = self.driver.find_elements(By.CSS_SELECTOR, "#ctl00_cph_dTabsContainer .pers")
             
-            for i, card in enumerate(cards):
+            # Поиск по приоритетам
+            vyishnevolotsk_ao_cards = []  # "Вышневолоцкий городской округ"
+            vyishnevolotsk_cards = []     # "Вышневолоцкий"
+            vyshniy_volochek_cards = []   # "Вышний Волочек"
+            
+            for i, card in enumerate(fresh_cards):
                 try:
-                    fio_element = card.find_element(By.CSS_SELECTOR, ".fio")
-                    fio = fio_element.text if fio_element else ""
+                    # Используем более надежный способ получения текста
+                    fio = ""
+                    try:
+                        fio_element = card.find_element(By.CSS_SELECTOR, ".fio")
+                        fio = fio_element.text if fio_element else ""
+                    except:
+                        # Альтернативный способ получения ФИО
+                        try:
+                            fio = card.text.split('\n')[0] if card.text else ""
+                        except:
+                            fio = f"Карточка {i+1}"
                     
                     address = ""
                     try:
@@ -2139,45 +2264,170 @@ class AutoFormFillerMass:
                                 address = cells[1].text
                                 break
                     except:
-                        pass
+                        # Альтернативный способ получения адреса
+                        address = card.text
                     
                     self.log(f"  Карточка {i+1}: {fio}")
                     self.log(f"    Адрес: {address[:50]}..." if len(address) > 50 else f"    Адрес: {address}")
                     
-                    if address and any(term in address for term in ["Вышневолоцкий район", "Вышневолоцкий городской округ"]):
+                    # Проверяем по приоритетам
+                    address_lower = address.lower()
+                    if "вышневолоцкий городской округ" in address_lower:
+                        vyishnevolotsk_ao_cards.append({
+                            'index': i,
+                            'card': card,
+                            'fio': fio,
+                            'address': address
+                        })
+                        self.log(f"    ✅ Подходит под Вышневолоцкий городской округ")
+                    elif "вышневолоцкий" in address_lower:
                         vyishnevolotsk_cards.append({
                             'index': i,
                             'card': card,
                             'fio': fio,
                             'address': address
                         })
-                        self.log(f"    ✅ Подходит под наш район")
+                        self.log(f"    ✅ Подходит под Вышневолоцкий район")
+                    elif "вышний волочек" in address_lower:
+                        vyshniy_volochek_cards.append({
+                            'index': i,
+                            'card': card,
+                            'fio': fio,
+                            'address': address
+                        })
+                        self.log(f"    ✅ Подходит под Вышний Волочек")
+                    elif "вышневолоцкий" in address_lower:
+                        vyishnevolotsk_cards.append({
+                            'index': i,
+                            'card': card,
+                            'fio': fio,
+                            'address': address
+                        })
+                        self.log(f"    ✅ Подходит под Вышневолоцкий район (альтернативное написание)")
+                    elif "вышнего волочка" in address_lower:
+                        vyshniy_volochek_cards.append({
+                            'index': i,
+                            'card': card,
+                            'fio': fio,
+                            'address': address
+                        })
+                        self.log(f"    ✅ Подходит под Вышний Волочек (альтернативное написание)")
                         
                 except Exception as e:
                     self.log(f"⚠️ Ошибка анализа карточки {i+1}: {e}")
                     continue
             
-            if len(vyishnevolotsk_cards) == 0:
-                self.log("❌ Не найдено карточек в Вышневолоцком районе/городском округе")
-                return self._show_cards_for_selection(cards, family_number, mother_fio)
+            # Проверяем карточки по приоритетам
+            selected_cards = []
+            priority_name = ""
+            
+            if vyishnevolotsk_ao_cards:
+                selected_cards = vyishnevolotsk_ao_cards
+                priority_name = "Вышневолоцкий городской округ"
+                self.log(f"✅ Найдено {len(vyishnevolotsk_ao_cards)} карточек в {priority_name}")
+            elif vyishnevolotsk_cards:
+                selected_cards = vyishnevolotsk_cards
+                priority_name = "Вышневолоцкий район"
+                self.log(f"✅ Найдено {len(vyishnevolotsk_cards)} карточек в {priority_name}")
+            elif vyshniy_volochek_cards:
+                selected_cards = vyshniy_volochek_cards
+                priority_name = "Вышний Волочек"
+                self.log(f"✅ Найдено {len(vyshniy_volochek_cards)} карточек в {priority_name}")
+            else:
+                self.log("❌ Не найдено карточек в указанных районах (Вышневолоцкий городской округ, Вышневолоцкий район, Вышний Волочек)")
+                # Получаем свежий список карточек для передачи в выбор
+                fresh_cards_for_selection = self.driver.find_elements(By.CSS_SELECTOR, "#ctl00_cph_dTabsContainer .pers")
+                return self._show_cards_for_selection(fresh_cards_for_selection, family_number, mother_fio)
                 
-            elif len(vyishnevolotsk_cards) == 1:
-                self.log(f"✅ Найдена 1 карточка в Вышневолоцком районе/городском округе")
+            # Обработка выбранного приоритета
+            if len(selected_cards) == 1:
+                self.log(f"✅ Найдена 1 карточка в {priority_name}")
                 try:
-                    card_info = vyishnevolotsk_cards[0]
-                    link = WebDriverWait(self.driver, 10).until(
-                        EC.element_to_be_clickable(card_info['card'].find_element(By.CSS_SELECTOR, "a[title='Переход в просмотр ПКУ']"))
-                    )
-                    link.click()
-                    return True
+                    # Используем свежую карточку из selected_cards
+                    card = selected_cards[0]['card']
+                    # Ищем ссылку с атрибутом title='Переход в просмотр ПКУ' с обработкой stale элементов
+                    try:
+                        links = card.find_elements(By.CSS_SELECTOR, "a[title='Переход в просмотр ПКУ']")
+                    except Exception as e:
+                        if "stale element reference" in str(e).lower():
+                            # Получаем свежий список карточек и пробуем снова
+                            fresh_cards = self.driver.find_elements(By.CSS_SELECTOR, "#ctl00_cph_dTabsContainer .pers")
+                            if len(fresh_cards) > selected_cards[0]['index']:
+                                card = fresh_cards[selected_cards[0]['index']]
+                                links = card.find_elements(By.CSS_SELECTOR, "a[title='Переход в просмотр ПКУ']")
+                            else:
+                                self.log("❌ Не удалось получить свежий список карточек")
+                                return False
+                        else:
+                            raise e
+                    
+                    if len(links) > 0:
+                        link = links[0]
+                        # Получаем ID ссылки для использования в случае stale element reference
+                        link_id = link.get_attribute("id")
+                        
+                        if link_id:
+                            # Используем ID для получения свежего элемента перед кликом
+                            try:
+                                fresh_link = WebDriverWait(self.driver, 10).until(
+                                    EC.element_to_be_clickable((By.ID, link_id))
+                                )
+                                # Прокручиваем к элементу перед кликом
+                                self.driver.execute_script("arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});", fresh_link)
+                                time.sleep(0.5)  # Небольшая задержка для завершения прокрутки
+                                
+                                # Используем JavaScript для клика, чтобы избежать stale element reference
+                                try:
+                                    self.driver.execute_script("arguments[0].click();", fresh_link)
+                                except:
+                                    # Если JavaScript клик не работает, используем обычный клик
+                                    fresh_link.click()
+                            except:
+                                # Если не удается найти элемент по ID, используем JavaScript напрямую
+                                link_script = f"document.querySelector('a[title=\"Переход в просмотр ПКУ\"][id=\"{link_id}\"]')"
+                                try:
+                                    self.driver.execute_script(f"({link_script}).click();")
+                                except Exception as js_error:
+                                    self.log(f"❌ Не удалось кликнуть через JavaScript по ID: {js_error}")
+                                    # Попробуем универсальный селектор
+                                    try:
+                                        self.driver.execute_script("document.querySelector('a[title=\"Переход в просмотр ПКУ\"]').click();")
+                                    except Exception as universal_error:
+                                        self.log(f"❌ Не удалось кликнуть через универсальный селектор: {universal_error}")
+                                        return False
+                        else:
+                            # Если у ссылки нет ID, используем общий селектор
+                            try:
+                                # Прокручиваем к элементу перед кликом
+                                self.driver.execute_script("arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});", link)
+                                time.sleep(0.5)  # Небольшая задержка для завершения прокрутки
+                                
+                                # Используем JavaScript для клика, чтобы избежать stale element reference
+                                try:
+                                    self.driver.execute_script("arguments[0].click();", link)
+                                except:
+                                    # Если JavaScript клик не работает, используем обычный клик
+                                    link.click()
+                            except Exception as click_error:
+                                self.log(f"❌ Не удалось кликнуть на ссылку: {click_error}")
+                                return False
+                        
+                        return True
+                    else:
+                        self.log("❌ Не удалось найти ссылку для перехода к карточке")
+                        return False
                 except Exception as e:
                     self.log(f"❌ Не удалось кликнуть на ссылку: {e}")
+                    import traceback
+                    self.log(f"📋 Трассировка:\n{traceback.format_exc()}")
                     return False
                     
             else:
-                self.log(f"⚠️ Найдено {len(vyishnevolotsk_cards)} карточек в Вышневолоцком районе/городском округе")
+                self.log(f"⚠️ Найдено {len(selected_cards)} карточек в {priority_name}")
+                # Передаем свежие карточки в метод выбора
+                fresh_cards_for_selection = [info['card'] for info in selected_cards]
                 return self._show_cards_for_selection(
-                    [info['card'] for info in vyishnevolotsk_cards],
+                    fresh_cards_for_selection,
                     family_number,
                     mother_fio,
                     filtered=True
@@ -2185,6 +2435,8 @@ class AutoFormFillerMass:
                 
         except Exception as e:
             self.log(f"❌ Ошибка анализа результатов поиска: {e}")
+            import traceback
+            self.log(f"📋 Трассировка:\n{traceback.format_exc()}")
             return False
             
     def _show_cards_for_selection(self, cards, family_number, mother_fio, filtered=False):
@@ -2192,6 +2444,7 @@ class AutoFormFillerMass:
         try:
             card_info_list = []
             
+            # Получаем свежие карточки для отображения информации
             for i, card in enumerate(cards):
                 try:
                     fio_element = card.find_element(By.CSS_SELECTOR, ".fio")
@@ -2210,27 +2463,39 @@ class AutoFormFillerMass:
                     except:
                         pass
                     
+                    # Определяем приоритет района для отображения
+                    address_lower = address.lower()
+                    priority = ""
+                    if "вышневолоцкий городской округ" in address_lower:
+                        priority = " (Вышневолоцкий ГО)"
+                    elif "вышневолоцкий" in address_lower:
+                        priority = " (Вышневолоцкий)"
+                    elif "вышний волочек" in address_lower:
+                        priority = " (Вышний Волочек)"
+                    
                     card_info_list.append({
                         'index': i,
                         'fio': fio,
-                        'address': address[:100] + "..." if len(address) > 100 else address
+                        'address': address[:100] + "..." if len(address) > 100 else address,
+                        'priority': priority
                     })
                 except:
                     card_info_list.append({
                         'index': i,
                         'fio': f"Карточка {i+1}",
-                        'address': "Информация недоступна"
+                        'address': "Информация недоступна",
+                        'priority': ""
                     })
             
             dialog_text = f"Семья {family_number}: {mother_fio}\n\n"
             
             if filtered:
-                dialog_text += "Найдено несколько карточек в Вышневолоцком районе/городском округе:\n\n"
+                dialog_text += "Найдено несколько карточек в приоритетных районах (Вышневолоцкий городской округ -> Вышневолоцкий -> Вышний Волочек):\n\n"
             else:
                 dialog_text += "Найдено несколько карточек. Выберите нужную:\n\n"
             
             for i, info in enumerate(card_info_list):
-                dialog_text += f"{i+1}. {info['fio']}\n"
+                dialog_text += f"{i+1}. {info['fio']}{info.get('priority', '')}\n"
                 dialog_text += f"   Адрес: {info['address']}\n\n"
             
             dialog_text += "Введите номер карточки (1, 2, 3...):"
@@ -2249,12 +2514,72 @@ class AutoFormFillerMass:
             try:
                 choice_num = int(choice) - 1
                 if 0 <= choice_num < len(cards):
-                    selected_card = cards[choice_num]
-                    link = selected_card.find_element(By.CSS_SELECTOR, "a[title='Переход в просмотр ПКУ']")
-                    link.click()
-                    time.sleep(0.8)  # Уменьшено с 2 до 0.8 секунды
-                    self.log(f"✅ Выбрана карточка {choice_num + 1}")
-                    return True
+                    # Вместо использования старой карточки, находим свежую по индексу
+                    fresh_cards = self.driver.find_elements(By.CSS_SELECTOR, "#ctl00_cph_dTabsContainer .pers")
+                    if choice_num < len(fresh_cards):
+                        selected_card = fresh_cards[choice_num]
+                        # Ищем ссылку с атрибутом title='Переход в просмотр ПКУ'
+                        links = selected_card.find_elements(By.CSS_SELECTOR, "a[title='Переход в просмотр ПКУ']")
+                        if len(links) > 0:
+                            link = links[0]
+                            # Получаем ID ссылки для использования в случае stale element reference
+                            link_id = link.get_attribute("id")
+                            
+                            if link_id:
+                                # Используем ID для получения свежего элемента перед кликом
+                                try:
+                                    fresh_link = WebDriverWait(self.driver, 10).until(
+                                        EC.element_to_be_clickable((By.ID, link_id))
+                                    )
+                                    # Прокручиваем к элементу перед кликом
+                                    self.driver.execute_script("arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});", fresh_link)
+                                    time.sleep(0.5)  # Небольшая задержка для завершения прокрутки
+                                    
+                                    # Используем JavaScript для клика, чтобы избежать stale element reference
+                                    try:
+                                        self.driver.execute_script("arguments[0].click();", fresh_link)
+                                    except:
+                                        # Если JavaScript клик не работает, используем обычный клик
+                                        fresh_link.click()
+                                except:
+                                    # Если не удается найти элемент по ID, используем JavaScript напрямую
+                                    link_script = f"document.querySelector('a[title=\"Переход в просмотр ПКУ\"][id=\"{link_id}\"]')"
+                                    try:
+                                        self.driver.execute_script(f"({link_script}).click();")
+                                    except Exception as js_error:
+                                        self.log(f"❌ Не удалось кликнуть через JavaScript по ID: {js_error}")
+                                        # Попробуем универсальный селектор
+                                        try:
+                                            self.driver.execute_script("document.querySelector('a[title=\"Переход в просмотр ПКУ\"]').click();")
+                                        except Exception as universal_error:
+                                            self.log(f"❌ Не удалось кликнуть через универсальный селектор: {universal_error}")
+                                            return False
+                            else:
+                                # Если у ссылки нет ID, используем общий селектор
+                                try:
+                                    # Прокручиваем к элементу перед кликом
+                                    self.driver.execute_script("arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});", link)
+                                    time.sleep(0.5)  # Небольшая задержка для завершения прокрутки
+                                    
+                                    # Используем JavaScript для клика, чтобы избежать stale element reference
+                                    try:
+                                        self.driver.execute_script("arguments[0].click();", link)
+                                    except:
+                                        # Если JavaScript клик не работает, используем обычный клик
+                                        link.click()
+                                except Exception as click_error:
+                                    self.log(f"❌ Не удалось кликнуть на ссылку: {click_error}")
+                                    return False
+                            
+                            time.sleep(0.8)  # Уменьшено с 2 до 0.8 секунды
+                            self.log(f"✅ Выбрана карточка {choice_num + 1}")
+                            return True
+                        else:
+                            self.log(f"❌ Не удалось найти ссылку для карточки {choice_num + 1}")
+                            return False
+                    else:
+                        self.log(f"❌ Карточка с индексом {choice_num} не найдена в свежем списке")
+                        return False
                 else:
                     self.log(f"❌ Некорректный номер карточки: {choice}")
                     return False
@@ -2264,6 +2589,8 @@ class AutoFormFillerMass:
                 
         except Exception as e:
             self.log(f"❌ Ошибка при выборе карточки: {e}")
+            import traceback
+            self.log(f"📋 Трассировка:\n{traceback.format_exc()}")
             return False
             
     def _setup_driver(self):
@@ -2272,7 +2599,7 @@ class AutoFormFillerMass:
             self.log("🔧 Настройка драйвера...")
             
             # Импортируем chrome_driver_helper
-            from .chrome_driver_helper import setup_chrome_driver
+            from chrome_driver_helper import setup_chrome_driver
             
             # Используем улучшенный метод настройки ChromeDriver
             self.driver = setup_chrome_driver()
@@ -2413,25 +2740,71 @@ class AutoFormFillerMass:
             
     def _fast_search_mother(self, mother_fio):
         """Быстрый поиск по ФИО матери"""
-        max_attempts = 2
+        max_attempts = 3  # Увеличиваем число попыток
         for attempt in range(max_attempts):
             try:
+                # Ждем, что поле поиска будет доступно и пустое
                 search_field = WebDriverWait(self.driver, 10).until(
                     EC.element_to_be_clickable((By.NAME, "ctl00$cph$ctrlFastFind$tbFind"))
                 )
                 
+                # Получаем атрибуты элемента перед возможной устаревшей ссылкой
+                search_field_id = search_field.get_attribute("id")
+                search_field_name = search_field.get_attribute("name")
+                
+                # Очищаем поле и вводим новое значение
                 search_field.clear()
+                time.sleep(0.2)  # Небольшая задержка для завершения очистки
                 search_field.send_keys(mother_fio)
                 search_field.send_keys(Keys.ENTER)
                 
-                # Убрали задержку, т.к. следующий шаг будет ожидать результаты поиска
+                # Ждем появления результатов поиска
+                WebDriverWait(self.driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "#ctl00_cph_dTabsContainer .pers"))
+                )
                 
+                self.log(f"✅ Поиск выполнен успешно (попытка {attempt + 1})")
                 return True
                 
             except Exception as e:
                 if attempt < max_attempts - 1:
                     self.log(f"⚠️ Попытка {attempt + 1} поиска не удалась: {e}")
-                    time.sleep(0.2)
+                    # Если возникла ошибка stale element reference, пробуем использовать JavaScript
+                    if "stale element reference" in str(e).lower():
+                        try:
+                            # Используем JavaScript для ввода данных в поле поиска
+                            js_script = f"""
+                            var searchField = document.querySelector('[name="ctl00$cph$ctrlFastFind$tbFind"]');
+                            if (searchField) {{
+                                searchField.value = '{mother_fio}';
+                                searchField.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                                searchField.dispatchEvent(new KeyboardEvent('keydown', {{ key: 'Enter', bubbles: true }}));
+                                return true;
+                            }}
+                            return false;
+                            """
+                            result = self.driver.execute_script(js_script)
+                            if result:
+                                # Ждем появления результатов поиска
+                                WebDriverWait(self.driver, 10).until(
+                                    EC.presence_of_element_located((By.CSS_SELECTOR, "#ctl00_cph_dTabsContainer .pers"))
+                                )
+                                self.log(f"✅ Поиск выполнен успешно через JavaScript (попытка {attempt + 1})")
+                                return True
+                        except Exception as js_error:
+                            self.log(f"⚠️ Не удалось выполнить поиск через JavaScript: {js_error}")
+                    
+                    # Дополнительно убедимся, что мы на странице поиска
+                    try:
+                        self.driver.refresh()
+                        time.sleep(1)
+                        # Повторно дожидаемся загрузки страницы
+                        WebDriverWait(self.driver, 10).until(
+                            lambda driver: driver.execute_script("return document.readyState") == "complete"
+                        )
+                    except:
+                        pass
+                    time.sleep(0.5)
                 else:
                     self.log(f"❌ Ошибка поиска после {max_attempts} попыток: {e}")
                     return False
@@ -2443,8 +2816,17 @@ class AutoFormFillerMass:
         for attempt in range(max_attempts):
             try:
                 if not self._click_element_with_retry(By.ID, "ctl00_cph_rptAllTabs_ctl10_tdTabL", max_attempts=2):
-                    return False
-                    
+                    self.log(f"⚠️ Не удалось кликнуть вкладку дополнительной информации, попытка {attempt + 1}")
+                    if attempt < max_attempts - 1:
+                        # Возвращаемся на страницу поиска и снова ищем семью
+                        self._return_to_search_page()
+                        # Здесь потребуется повторный поиск семьи, что может быть сложно
+                        # Поэтому просто продолжаем попытки клика
+                        time.sleep(1)
+                        continue
+                    else:
+                        return False
+                        
                 # Ждем появления элемента с информацией
                 try:
                     info_element = WebDriverWait(self.driver, 5).until(
@@ -2455,11 +2837,14 @@ class AutoFormFillerMass:
                     # Если элемент не найден, проверяем наличие других элементов
                     info_text = ""
                 
-                return info_text == "Информация отсутствует" or not info_text
+                result = info_text == "Информация отсутствует" or not info_text
+                self.log(f"📊 Проверка дополнительной информации: {'пусто' if result else 'есть данные'}")
+                return result
                 
             except Exception as e:
                 if attempt < max_attempts - 1:
                     self.log(f"⚠️ Попытка {attempt + 1} проверки поля не удалась: {e}")
+                    time.sleep(0.5)
                 else:
                     self.log(f"⚠️ Ошибка проверки поля: {e}")
                     return True
@@ -2474,34 +2859,74 @@ class AutoFormFillerMass:
         """Навигация к форме дополнительной информации"""
         try:
             # Клик по вкладке "Доп. информация"
-            if not self._click_element_with_retry(By.ID, "ctl00_cph_rptAllTabs_ctl10_tdTabL"):
+            self.log("🔄 Переход на вкладку дополнительной информации...")
+            
+            # Проверяем, что мы действительно на странице карточки перед переходом к доп. информации
+            try:
+                WebDriverWait(self.driver, 10).until(
+                    lambda driver: "CardInfo.aspx" in driver.current_url or "ПКУ" in driver.title
+                )
+            except:
+                self.log("⚠️ Мы не на странице карточки семьи")
                 return False
-                
-            # Ожидаем появление кнопки редактирования
-            WebDriverWait(self.driver, 10).until(
-                EC.element_to_be_clickable((By.ID, "ctl00_cph_lbtnEditAddInfo"))
-            )
+            
+            if not self._click_element_with_retry(By.ID, "ctl00_cph_rptAllTabs_ctl10_tdTabL"):
+                self.log("❌ Не удалось кликнуть вкладку дополнительной информации")
+                return False
+            
+            # Небольшая задержка для загрузки вкладки
+            time.sleep(0.5)
+            
+            # Ожидаем появление кнопки редактирования с дополнительной проверкой
+            try:
+                edit_button = WebDriverWait(self.driver, 10).until(
+                    EC.element_to_be_clickable((By.ID, "ctl00_cph_lbtnEditAddInfo"))
+                )
+                self.log("✅ Кнопка редактирования найдена")
+            except:
+                self.log("❌ Кнопка редактирования не найдена")
+                return False
                 
             if not self._click_element_with_retry(By.ID, "ctl00_cph_lbtnEditAddInfo"):
+                self.log("❌ Не удалось кликнуть кнопку редактирования")
                 return False
-                
-            # Ожидаем появление кнопки добавления
-            WebDriverWait(self.driver, 10).until(
-                EC.element_to_be_clickable((By.ID, "ctl00_cph_ctrlDopFields_lbtnAdd"))
-            )
+            
+            # Небольшая задержка после клика по кнопке редактирования
+            time.sleep(0.5)
+            
+            # Ожидаем появление кнопки добавления с дополнительной проверкой
+            try:
+                add_button = WebDriverWait(self.driver, 10).until(
+                    EC.element_to_be_clickable((By.ID, "ctl00_cph_ctrlDopFields_lbtnAdd"))
+                )
+                self.log("✅ Кнопка добавления найдена")
+            except:
+                self.log("❌ Кнопка добавления не найдена")
+                return False
                 
             if not self._click_element_with_retry(By.ID, "ctl00_cph_ctrlDopFields_lbtnAdd"):
+                self.log("❌ Не удалось кликнуть кнопку добавления")
                 return False
-                
-            # Ждем загрузки формы
-            WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.NAME, "ctl00$cph$tbAddInfo"))
-            )
+            
+            # Небольшая задержка после клика по кнопке добавления
+            time.sleep(1)
+            
+            # Ждем загрузки формы с дополнительной проверкой
+            try:
+                form_field = WebDriverWait(self.driver, 10).until(
+                    EC.presence_of_element_located((By.NAME, "ctl00$cph$tbAddInfo"))
+                )
+                self.log("✅ Форма дополнительной информации загружена")
+            except:
+                self.log("❌ Форма дополнительной информации не загружена")
+                return False
                 
             return True
             
         except Exception as e:
             self.log(f"❌ Ошибка навигации: {e}")
+            import traceback
+            self.log(f"📋 Трассировка:\n{traceback.format_exc()}")
             return False
             
     def _format_family_data(self, family_data):
@@ -2616,15 +3041,30 @@ class AutoFormFillerMass:
             # Проверяем каждый чекбокс перед установкой
             for checkbox_id in checkbox_ids:
                 try:
-                    checkbox = WebDriverWait(self.driver, 2).until(
-                        EC.element_to_be_clickable(
-                            (By.ID, f"ctl00_cph_ctrlDopFields_AJSpr1_PopupDiv_divContent_AJ_{checkbox_id}")
-                        )
+                    checkbox_element_id = f"ctl00_cph_ctrlDopFields_AJSpr1_PopupDiv_divContent_AJ_{checkbox_id}"
+                    checkbox = WebDriverWait(self.driver, 5).until(
+                        EC.element_to_be_clickable((By.ID, checkbox_element_id))
                     )
+                    
+                    # Прокручиваем к чекбоксу
+                    self.driver.execute_script("arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});", checkbox)
+                    time.sleep(0.2)
+                    
                     # Проверяем, установлен ли чекбокс уже
                     is_selected = checkbox.is_selected()
                     if not is_selected:
-                        checkbox.click()
+                        # Попробуем кликнуть напрямую
+                        try:
+                            checkbox.click()
+                            time.sleep(0.1)  # Небольшая задержка для обновления состояния
+                        except:
+                            # Если клик не удался, используем JavaScript
+                            try:
+                                self.driver.execute_script("arguments[0].click();", checkbox)
+                            except:
+                                self.log(f"⚠️ Не удалось отметить чекбокс {checkbox_id} через клик")
+                                continue
+                        
                         # Проверяем, что чекбокс действительно установлен
                         is_selected_after = checkbox.is_selected()
                         if is_selected_after:
@@ -2655,9 +3095,20 @@ class AutoFormFillerMass:
             except Exception as e:
                 self.log(f"⚠️ Не удалось обработать чекбоксы через JavaScript: {e}")
             
-            if not self._click_element_with_retry(By.ID, "ctl00_cph_ctrlDopFields_AJSpr1_PopupDiv_ctl06_AJOk"):
+            # Клик по кнопке подтверждения чекбоксов с улучшенной обработкой
+            ok_button_id = "ctl00_cph_ctrlDopFields_AJSpr1_PopupDiv_ctl06_AJOk"
+            if not self._click_element_with_retry(By.ID, ok_button_id):
                 self.log("⚠️ Не удалось кликнуть кнопку подтверждения чекбоксов")
-                return False
+                # Попробуем альтернативный способ
+                try:
+                    ok_button = WebDriverWait(self.driver, 5).until(
+                        EC.element_to_be_clickable((By.ID, ok_button_id))
+                    )
+                    self.driver.execute_script("arguments[0].click();", ok_button)
+                    self.log("✅ Кнопка подтверждения чекбоксов нажата через JavaScript")
+                except:
+                    self.log("❌ Не удалось нажать кнопку подтверждения чекбоксов")
+                    return False
                 
             # Заполняем основное текстовое поле
             if not self._fill_textarea("ctl00$cph$tbAddInfo", add_info_text, resize=True):
@@ -2887,6 +3338,10 @@ class AutoFormFillerMass:
                 self.driver.execute_script("arguments[0].scrollIntoView(true);", field)
                 # Убрали задержку, т.к. используем ожидания
                 
+                # Получаем атрибуты элемента перед возможной устаревшей ссылкой
+                field_id = field.get_attribute("id")
+                field_name = field.get_attribute("name")
+                
                 # Очищаем поле
                 field.clear()
                 # Убрали задержку
@@ -2917,9 +3372,112 @@ class AutoFormFillerMass:
             except Exception as e:
                 if attempt < max_attempts - 1:
                     self.log(f"⚠️ Попытка {attempt + 1} заполнения поля {selector} не удалась: {e}")
+                    # Если возникла ошибка stale element reference, пробуем использовать JavaScript
+                    if "stale element reference" in str(e).lower():
+                        try:
+                            # Используем JavaScript для заполнения поля
+                            if by == By.ID:
+                                js_script = f"""
+                                var element = document.getElementById('{selector}');
+                                if (element) {{
+                                    element.value = '{text}';
+                                    element.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                                    element.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                    return true;
+                                }}
+                                return false;
+                                """
+                                result = self.driver.execute_script(js_script)
+                                if result:
+                                    self.log(f"✅ Заполнено поле через JavaScript: {selector}")
+                                    return True
+                            elif by == By.NAME:
+                                js_script = f"""
+                                var elements = document.getElementsByName('{selector}');
+                                if (elements.length > 0) {{
+                                    var element = elements[0];
+                                    element.value = '{text}';
+                                    element.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                                    element.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                    return true;
+                                }}
+                                return false;
+                                """
+                                result = self.driver.execute_script(js_script)
+                                if result:
+                                    self.log(f"✅ Заполнено поле через JavaScript: {selector}")
+                                    return True
+                            elif by == By.CSS_SELECTOR:
+                                js_script = f"""
+                                var element = document.querySelector('{selector}');
+                                if (element) {{
+                                    element.value = '{text}';
+                                    element.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                                    element.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                    return true;
+                                }}
+                                return false;
+                                """
+                                result = self.driver.execute_script(js_script)
+                                if result:
+                                    self.log(f"✅ Заполнено поле через JavaScript: {selector}")
+                                    return True
+                        except Exception as js_error:
+                            self.log(f"⚠️ Не удалось заполнить поле через JavaScript: {js_error}")
                     time.sleep(0.2)  # Уменьшили задержку с 0.5 до 0.2 секунды
                 else:
                     self.log(f"❌ Не удалось заполнить поле {selector}: {e}")
+                    # Если все попытки не удались, используем JavaScript как финальную попытку
+                    try:
+                        # Используем JavaScript для заполнения поля как последнюю меру
+                        if by == By.ID:
+                            js_script = f"""
+                            var element = document.getElementById('{selector}');
+                            if (element) {{
+                                element.value = '{text}';
+                                element.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                                element.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                return true;
+                            }}
+                            return false;
+                            """
+                            result = self.driver.execute_script(js_script)
+                            if result:
+                                self.log(f"✅ Заполнено поле через JavaScript как последняя мера: {selector}")
+                                return True
+                        elif by == By.NAME:
+                            js_script = f"""
+                            var elements = document.getElementsByName('{selector}');
+                            if (elements.length > 0) {{
+                                var element = elements[0];
+                                element.value = '{text}';
+                                element.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                                element.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                return true;
+                            }}
+                            return false;
+                            """
+                            result = self.driver.execute_script(js_script)
+                            if result:
+                                self.log(f"✅ Заполнено поле через JavaScript как последняя мера: {selector}")
+                                return True
+                        elif by == By.CSS_SELECTOR:
+                            js_script = f"""
+                            var element = document.querySelector('{selector}');
+                            if (element) {{
+                                element.value = '{text}';
+                                element.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                                element.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                return true;
+                            }}
+                            return false;
+                            """
+                            result = self.driver.execute_script(js_script)
+                            if result:
+                                self.log(f"✅ Заполнено поле через JavaScript как последняя мера: {selector}")
+                                return True
+                    except Exception as final_js_error:
+                        self.log(f"⚠️ Не удалось заполнить поле через JavaScript как последнюю меру: {final_js_error}")
         
         return False
     
@@ -2952,6 +3510,10 @@ class AutoFormFillerMass:
                 EC.element_to_be_clickable((By.ID, field_id))
             )
             
+            # Получаем атрибуты элемента перед возможной устаревшей ссылкой
+            element_id = field.get_attribute("id")
+            element_name = field.get_attribute("name")
+            
             # Прокручиваем к элементу
             self.driver.execute_script("arguments[0].scrollIntoView(true);", field)
             # Убрали задержку, т.к. используем ожидания
@@ -2977,6 +3539,45 @@ class AutoFormFillerMass:
             return True
         except Exception as e:
             self.log(f"⚠️ Ошибка заполнения даты: {e}")
+            # Если возникла ошибка stale element reference, пробуем использовать JavaScript
+            if "stale element reference" in str(e).lower():
+                try:
+                    # Используем JavaScript для заполнения поля даты
+                    js_script = f"""
+                    var dateField = document.getElementById('{field_id}');
+                    if (dateField) {{
+                        dateField.value = '{date_text}';
+                        dateField.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                        dateField.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                        return true;
+                    }}
+                    return false;
+                    """
+                    result = self.driver.execute_script(js_script)
+                    if result:
+                        self.log(f"✅ Дата заполнена через JavaScript: {date_text}")
+                        return True
+                except Exception as js_error:
+                    self.log(f"⚠️ Не удалось заполнить дату через JavaScript: {js_error}")
+                    # Попробуем альтернативный метод с использованием общего селектора
+                    try:
+                        js_script_alt = f"""
+                        var dateField = document.querySelector('#{field_id}');
+                        if (dateField) {{
+                            dateField.value = '{date_text}';
+                            dateField.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                            dateField.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                            return true;
+                        }}
+                        return false;
+                        """
+                        result_alt = self.driver.execute_script(js_script_alt)
+                        if result_alt:
+                            self.log(f"✅ Дата заполнена через альтернативный JavaScript: {date_text}")
+                            return True
+                    except Exception as alt_error:
+                        self.log(f"⚠️ Не удалось заполнить дату через альтернативный JavaScript: {alt_error}")
+            # Если все методы не сработали, возвращаем False
             return False
             
     def _final_verification(self, family_data):
@@ -3100,13 +3701,86 @@ class AutoFormFillerMass:
             
     def _fill_adpi_radio_button(self, adpi_data):
         try:
+            # Determine which radio button to select
             if adpi_data['has_adpi'] == 'д':
-                self._click_element_with_retry(By.ID, "ctl00_cph_ctrlDopFields_gv_ctl03_rbl_0")
-                self.log("✅ Выбран 'Да' для АДПИ")
+                radio_button_id = "ctl00_cph_ctrlDopFields_gv_ctl03_rbl_0"
+                self.log("🔄 Устанавливаем 'Да' для АДПИ")
             else:
-                self._click_element_with_retry(By.ID, "ctl00_cph_ctrlDopFields_gv_ctl03_rbl_1")
-                self.log("✅ Выбран 'Нет' для АДПИ")
-            return True
+                radio_button_id = "ctl00_cph_ctrlDopFields_gv_ctl03_rbl_1"
+                self.log("🔄 Устанавливаем 'Нет' для АДПИ")
+            
+            # Wait for the radio button to be present
+            try:
+                radio_button = WebDriverWait(self.driver, 10).until(
+                    EC.presence_of_element_located((By.ID, radio_button_id))
+                )
+                
+                # Get attributes before potential stale reference
+                element_id = radio_button.get_attribute("id")
+                element_name = radio_button.get_attribute("name")
+                
+                # Check if it's already selected
+                is_selected = radio_button.is_selected()
+                if is_selected:
+                    self.log("ℹ️ Радио-кнопка АДПИ уже выбрана")
+                    return True
+                
+                # Try clicking the radio button
+                success = self._click_element_with_retry(By.ID, radio_button_id)
+                if success:
+                    self.log("✅ Радио-кнопка АДПИ успешно установлена")
+                    return True
+                else:
+                    self.log("⚠️ Не удалось кликнуть радио-кнопку АДПИ через метод _click_element_with_retry")
+                    
+                    # Try alternative method using JavaScript with fresh reference
+                    try:
+                        # Use fresh reference to avoid stale element reference
+                        fresh_radio_button = WebDriverWait(self.driver, 5).until(
+                            EC.element_to_be_clickable((By.ID, element_id))
+                        )
+                        self.driver.execute_script("arguments[0].click();", fresh_radio_button)
+                        self.log("✅ Радио-кнопка АДПИ установлена через JavaScript")
+                        return True
+                    except Exception as js_error:
+                        self.log(f"⚠️ Не удалось установить радио-кнопку АДПИ через JavaScript: {js_error}")
+                        
+                        # Final attempt: click via dispatchEvent with fresh reference
+                        try:
+                            fresh_radio_button = WebDriverWait(self.driver, 5).until(
+                                EC.element_to_be_clickable((By.ID, element_id))
+                            )
+                            self.driver.execute_script("arguments[0].dispatchEvent(new MouseEvent('click', {bubbles: true}));", fresh_radio_button)
+                            self.log("✅ Радио-кнопка АДПИ установлена через MouseEvent")
+                            return True
+                        except Exception as event_error:
+                            self.log(f"❌ Не удалось установить радио-кнопку АДПИ через MouseEvent: {event_error}")
+                            # Final fallback using direct JavaScript
+                            try:
+                                js_script = f"""
+                                var radioBtn = document.getElementById('{element_id}');
+                                if (radioBtn && !radioBtn.checked) {{
+                                    radioBtn.checked = true;
+                                    radioBtn.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                    radioBtn.dispatchEvent(new Event('click', {{ bubbles: true }}));
+                                    return true;
+                                }}
+                                return false;
+                                """
+                                result = self.driver.execute_script(js_script)
+                                if result:
+                                    self.log("✅ Радио-кнопка АДПИ установлена через прямой JavaScript")
+                                    return True
+                                else:
+                                    self.log("❌ Не удалось установить радио-кнопку АДПИ через прямой JavaScript")
+                                    return False
+                            except Exception as final_error:
+                                self.log(f"❌ Окончательная ошибка установки радио-кнопки АДПИ: {final_error}")
+                                return False
+            except Exception as wait_error:
+                self.log(f"❌ Ошибка ожидания радио-кнопки АДПИ: {wait_error}")
+                return False
+                
         except Exception as e:
             self.log(f"⚠️ Ошибка заполнения АДПИ: {e}")
             return False
@@ -3114,42 +3788,303 @@ class AutoFormFillerMass:
     def _click_element_with_retry(self, by, selector, max_attempts=3):
         for attempt in range(max_attempts):
             try:
+                self.log(f"🔄 Попытка {attempt + 1} клика на элемент {selector}")
+                
+                # First, wait for element to be present
                 element = WebDriverWait(self.driver, 10).until(
+                    EC.presence_of_element_located((by, selector))
+                )
+                
+                # Wait a bit for the element to be fully rendered
+                time.sleep(0.2)
+                
+                # Check if element is clickable now
+                element = WebDriverWait(self.driver, 5).until(
                     EC.element_to_be_clickable((by, selector))
                 )
-                # Прокручиваем к элементу перед кликом
-                self.driver.execute_script("arguments[0].scrollIntoView(true);", element)
-                element.click()
-                return True
+                
+                # Scroll element into view
+                self.driver.execute_script("arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});", element)
+                
+                # Wait for any animations to complete
+                time.sleep(0.3)
+                
+                # Get element attributes before potential stale reference
+                element_id = element.get_attribute("id")
+                element_name = element.get_attribute("name")
+                
+                # Try to click the element
+                try:
+                    element.click()
+                    self.log(f"✅ Успешно кликнут элемент: {selector}")
+                    return True
+                except Exception as click_error:
+                    # If direct click fails, try different approaches
+                    try:
+                        # Try clicking via JavaScript using fresh element reference
+                        if element_id:
+                            # Use the ID to get a fresh reference to the element
+                            fresh_element = WebDriverWait(self.driver, 5).until(
+                                EC.element_to_be_clickable((By.ID, element_id))
+                            )
+                            self.driver.execute_script("arguments[0].click();", fresh_element)
+                        elif element_name:
+                            # Use the name to get a fresh reference to the element
+                            fresh_element = WebDriverWait(self.driver, 5).until(
+                                EC.element_to_be_clickable((By.NAME, element_name))
+                            )
+                            self.driver.execute_script("arguments[0].click();", fresh_element)
+                        else:
+                            # Use the original selector to get a fresh reference
+                            fresh_element = WebDriverWait(self.driver, 5).until(
+                                EC.element_to_be_clickable((by, selector))
+                            )
+                            self.driver.execute_script("arguments[0].click();", fresh_element)
+                        self.log(f"✅ Успешно кликнут элемент через JavaScript: {selector}")
+                        return True
+                    except Exception as js_error:
+                        # Try sending a click event with fresh element
+                        try:
+                            if element_id:
+                                fresh_element = WebDriverWait(self.driver, 5).until(
+                                    EC.element_to_be_clickable((By.ID, element_id))
+                                )
+                                self.driver.execute_script("arguments[0].dispatchEvent(new MouseEvent('click', {bubbles: true}));", fresh_element)
+                            elif element_name:
+                                fresh_element = WebDriverWait(self.driver, 5).until(
+                                    EC.element_to_be_clickable((By.NAME, element_name))
+                                )
+                                self.driver.execute_script("arguments[0].dispatchEvent(new MouseEvent('click', {bubbles: true}));", fresh_element)
+                            else:
+                                fresh_element = WebDriverWait(self.driver, 5).until(
+                                    EC.element_to_be_clickable((by, selector))
+                                )
+                                self.driver.execute_script("arguments[0].dispatchEvent(new MouseEvent('click', {bubbles: true}));", fresh_element)
+                            self.log(f"✅ Успешно кликнут элемент через MouseEvent: {selector}")
+                            return True
+                        except Exception as event_error:
+                            self.log(f"⚠️ Все методы клика не удались: {click_error}, {event_error}")
+                            # If all methods fail, try a more general approach
+                            try:
+                                # Execute JavaScript to click the element directly
+                                script = f"document.querySelector('{selector.replace(By.ID, '#').replace(By.NAME, '[name]').replace(By.CLASS_NAME, '.')}').click();"
+                                if by == By.ID:
+                                    script = f"document.getElementById('{selector}').click();"
+                                elif by == By.NAME:
+                                    script = f"document.querySelector('[name=\"{selector}\"]').click();"
+                                elif by == By.CLASS_NAME:
+                                    script = f"document.querySelector('.{selector}').click();"
+                                elif by == By.CSS_SELECTOR:
+                                    script = f"document.querySelector('{selector}').click();"
+                                elif by == By.XPATH:
+                                    script = f"document.evaluate('{selector}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue?.click();"
+                                
+                                self.driver.execute_script(script)
+                                self.log(f"✅ Успешно кликнут элемент через общий JavaScript: {selector}")
+                                return True
+                            except Exception as general_error:
+                                self.log(f"⚠️ Общий метод клика не сработал: {general_error}")
+                                # Last resort: try to find the element again and use a more robust approach
+                                try:
+                                    # Find the element again using its attributes
+                                    if element_id:
+                                        self.driver.execute_script(f"document.getElementById('{element_id}').click();")
+                                        self.log(f"✅ Успешно кликнут элемент через ID JavaScript: {element_id}")
+                                        return True
+                                    elif element_name:
+                                        self.driver.execute_script(f"document.querySelector('[name=\"{element_name}\"]').click();")
+                                        self.log(f"✅ Успешно кликнут элемент через Name JavaScript: {element_name}")
+                                        return True
+                                    else:
+                                        continue
+                                except Exception as last_resort_error:
+                                    self.log(f"⚠️ Последняя попытка клика не удалась: {last_resort_error}")
+                                    continue
             except Exception as e:
                 if attempt < max_attempts - 1:
-                    self.log(f"⚠️ Попытка {attempt + 1} клика на элемент {selector} не удалась")
-                    time.sleep(0.2)  # Уменьшили задержку с 0.5 до 0.2 секунды
+                    self.log(f"⚠️ Попытка {attempt + 1} клика на элемент {selector} не удалась: {str(e)}")
+                    # If we encounter a stale element reference, wait a bit more before retrying
+                    if "stale element reference" in str(e).lower():
+                        time.sleep(1)  # Wait longer when dealing with stale element references
+                    else:
+                        time.sleep(0.5)  # Wait a bit longer between attempts
                 else:
-                    self.log(f"❌ Не удалось кликнуть элемент {selector}: {e}")
+                    self.log(f"❌ Не удалось кликнуть элемент {selector} после {max_attempts} попыток: {str(e)}")
                     return False
         return False
         
     def _fill_textarea(self, field_name, text, resize=False):
         try:
+            # First, wait for the element to be present
+            field = self.wait.until(EC.presence_of_element_located((By.NAME, field_name)))
+            
+            # Wait a bit more for the element to be fully loaded
+            time.sleep(0.3)
+            
+            # Now wait for it to be clickable
             field = self.wait.until(EC.element_to_be_clickable((By.NAME, field_name)))
-            field.clear()
-            field.send_keys(text)
+            
+            # Get field attributes before potential stale reference
+            field_id = field.get_attribute("id")
+            field_name_attr = field.get_attribute("name")
+            
+            # Scroll to the element
+            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});", field)
+            time.sleep(0.3)
+            
+            # Clear the field using JavaScript to ensure it's completely cleared
+            self.driver.execute_script("arguments[0].value = '';", field)
+            
+            # Click on the field to focus it
+            field.click()
+            
+            # Fill the field using multiple methods to ensure success
+            try:
+                # Method 1: Direct send_keys
+                field.send_keys(Keys.CONTROL + "a")  # Select all
+                field.send_keys(Keys.DELETE)  # Delete selected
+                field.send_keys(text)  # Send the new text
+            except Exception as direct_error:
+                # Method 2: Using JavaScript if direct method fails
+                try:
+                    # Use fresh reference to the element to avoid stale element reference
+                    if field_id:
+                        fresh_field = WebDriverWait(self.driver, 5).until(
+                            EC.element_to_be_clickable((By.ID, field_id))
+                        )
+                        self.driver.execute_script("arguments[0].value = arguments[1];", fresh_field, text)
+                    else:
+                        fresh_field = WebDriverWait(self.driver, 5).until(
+                            EC.element_to_be_clickable((By.NAME, field_name_attr))
+                        )
+                        self.driver.execute_script("arguments[0].value = arguments[1];", fresh_field, text)
+                    # Trigger input event so the page recognizes the change
+                    self.driver.execute_script("arguments[0].dispatchEvent(new Event('input', { bubbles: true }));", fresh_field)
+                except:
+                    # If stale element reference occurs, use direct JavaScript method
+                    result = self._fill_textarea_directly_by_name(field_name, text)
+                    if result:
+                        self.log(f"✅ Текстовая область заполнена через JavaScript")
+                        if resize:
+                            script = f"var el = document.getElementsByName('{field_name}')[0]; if(el) {{ el.style.height = '352px'; el.style.width = '1151px'; }}"
+                            self.driver.execute_script(script)
+                        return True
+                    else:
+                        raise direct_error  # Re-raise the original error
+            
+            # Verify the text was set correctly
+            actual_value = field.get_attribute("value") or field.get_property("value")
+            if actual_value != text:
+                # If the value doesn't match, try JavaScript method
+                try:
+                    # Use fresh reference to the element to avoid stale element reference
+                    if field_id:
+                        fresh_field = WebDriverWait(self.driver, 5).until(
+                            EC.element_to_be_clickable((By.ID, field_id))
+                        )
+                        self.driver.execute_script("arguments[0].value = arguments[1];", fresh_field, text)
+                    else:
+                        fresh_field = WebDriverWait(self.driver, 5).until(
+                            EC.element_to_be_clickable((By.NAME, field_name_attr))
+                        )
+                        self.driver.execute_script("arguments[0].value = arguments[1];", fresh_field, text)
+                    self.driver.execute_script("arguments[0].dispatchEvent(new Event('input', { bubbles: true }));", fresh_field)
+                except:
+                    # If stale element reference occurs, use direct JavaScript method
+                    result = self._fill_textarea_directly_by_name(field_name, text)
+                    if not result:
+                        self.log("⚠️ Не удалось заполнить текстовую область")
+                        return False
+            
             if resize:
-                self.driver.execute_script("arguments[0].style.height = '352px'; arguments[0].style.width = '1151px';", field)
+                try:
+                    # Use fresh reference to the element to avoid stale element reference
+                    if field_id:
+                        fresh_field = WebDriverWait(self.driver, 5).until(
+                            EC.element_to_be_clickable((By.ID, field_id))
+                        )
+                        self.driver.execute_script("arguments[0].style.height = '352px'; arguments[0].style.width = '1151px';", fresh_field)
+                    else:
+                        fresh_field = WebDriverWait(self.driver, 5).until(
+                            EC.element_to_be_clickable((By.NAME, field_name_attr))
+                        )
+                        self.driver.execute_script("arguments[0].style.height = '352px'; arguments[0].style.width = '1151px';", fresh_field)
+                except:
+                    # If stale element reference occurs, use direct JavaScript method for resize
+                    resize_script = f"var el = document.getElementsByName('{field_name}')[0]; if(el) {{ el.style.height = '352px'; el.style.width = '1151px'; }}"
+                    self.driver.execute_script(resize_script)
+            
             self.log(f"✅ Текстовая область заполнена ({len(text)} символов)")
             return True
         except Exception as e:
             self.log(f"⚠️ Ошибка текстовой области: {e}")
+            # Try the direct JavaScript method as a fallback
+            try:
+                result = self._fill_textarea_directly_by_name(field_name, text)
+                if result:
+                    self.log(f"✅ Текстовая область заполнена через JavaScript")
+                    if resize:
+                        script = f"var el = document.getElementsByName('{field_name}')[0]; if(el) {{ el.style.height = '352px'; el.style.width = '1151px'; }}"
+                        self.driver.execute_script(script)
+                    return True
+            except Exception as js_error:
+                self.log(f"⚠️ Ошибка при заполнении текстовой области через JavaScript: {js_error}")
+                # Final fallback: use direct JavaScript with more robust error handling
+                try:
+                    # Use more robust JavaScript approach to fill the textarea
+                    escaped_text = text.replace('\\', '\\\\').replace("'", "\\'").replace('"', '\\"')
+                    js_script = f"""
+                    var elements = document.getElementsByName('{field_name}');
+                    if (elements.length > 0) {{
+                        var textarea = elements[0];
+                        textarea.value = '{escaped_text}';
+                        textarea.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                        textarea.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                        return true;
+                    }}
+                    return false;
+                    """
+                    result = self.driver.execute_script(js_script)
+                    if result:
+                        self.log(f"✅ Текстовая область заполнена через прямой JavaScript")
+                        if resize:
+                            resize_script = f"var el = document.getElementsByName('{field_name}')[0]; if(el) {{ el.style.height = '352px'; el.style.width = '1151px'; }}"
+                            self.driver.execute_script(resize_script)
+                        return True
+                except Exception as final_error:
+                    self.log(f"❌ Не удалось заполнить текстовую область даже через прямой JavaScript: {final_error}")
+            return False
+    
+    def _fill_textarea_directly_by_name(self, field_name, text):
+        """Прямое заполнение textarea по NAME через JavaScript"""
+        try:
+            # Escape backticks in the text to prevent breaking the JavaScript template literal
+            escaped_text = text.replace('`', '\\`')
+            script = f"""
+            var elements = document.getElementsByName('{field_name}');
+            if (elements.length > 0) {{
+                var textarea = elements[0];
+                textarea.value = `{escaped_text}`;
+                textarea.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                return true;
+            }}
+            return false;
+            """
+            result = self.driver.execute_script(script)
+            return result
+        except Exception as e:
+            self.log(f"⚠️ Не удалось заполнить через JavaScript по NAME: {e}")
             return False
             
     def _fill_textarea_directly(self, element_id, text):
         """Прямое заполнение textarea по ID через JavaScript"""
         try:
+            # Escape backticks in the text to prevent breaking the JavaScript template literal
+            escaped_text = text.replace('`', '\\`')
             script = f"""
             var textarea = document.getElementById('{element_id}');
             if (textarea) {{
-                textarea.value = `{text}`;
+                textarea.value = `{escaped_text}`;
                 textarea.dispatchEvent(new Event('input', {{ bubbles: true }}));
                 return true;
             }}
@@ -3174,11 +4109,12 @@ class AutoFormFillerMass:
             
     def _get_element_text(self, element_id, default=""):
         try:
-            element = WebDriverWait(self.driver, 3).until(
+            element = WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located((By.ID, element_id))
             )
             return element.text
-        except:
+        except Exception as e:
+            self.log(f"⚠️ Ошибка получения текста элемента {element_id}: {e}")
             return default
 
 
