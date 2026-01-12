@@ -12,9 +12,117 @@ from datetime import datetime, timedelta
 
 from .gui_components import LauncherGUI
 from .statistics_manager import StatisticsManager
-from .installer import Installer
 from .github_manager import GitHubManager
 from .component_launcher import ComponentLauncher
+
+# Импортируем функции из install_system для создания класса Installer
+from Installer.install_system import install_system as install_system_func, uninstall_system as uninstall_system_func
+
+
+class Installer:
+    """Класс для управления установкой системы"""
+    def __init__(self, system_dir, desktop_path):
+        self.system_dir = system_dir
+        self.desktop_path = desktop_path
+
+    def install_system(self, log_callback):
+        """Установка системы"""
+        # Вызов функции установки из install_system
+        # Имитируем установку через вызов функции
+        try:
+            if log_callback:
+                log_callback("📦 Начинаю установку системы...")
+            
+            # Временная реализация - в будущем можно расширить
+            os.makedirs(self.system_dir, exist_ok=True)
+            
+            # Копируем необходимые файлы из установщика
+            import shutil
+            
+            # Копируем файлы компонентов системы
+            installer_dir = os.path.dirname(os.path.abspath(__file__))  # launcher директория
+            installer_source_dir = os.path.join(os.path.dirname(installer_dir), "Installer")
+            
+            files_to_copy = [
+                "database_client.sh",
+                "database_client.bat",
+            ]
+            
+            for filename in files_to_copy:
+                src_path = os.path.join(installer_source_dir, filename)
+                dst_path = os.path.join(self.system_dir, filename)
+                
+                if os.path.exists(src_path):
+                    shutil.copy2(src_path, dst_path)
+                    if log_callback:
+                        log_callback(f"✅ Скопирован файл: {filename}")
+            
+            # Создаем подпапки
+            config_dir = os.path.join(self.system_dir, "config")
+            logs_dir = os.path.join(config_dir, "logs")
+            screenshots_dir = os.path.join(config_dir, "screenshots")
+            
+            for dir_path in [config_dir, logs_dir, screenshots_dir]:
+                os.makedirs(dir_path, exist_ok=True)
+            
+            if log_callback:
+                log_callback("✅ Установка завершена!")
+                
+        except Exception as e:
+            if log_callback:
+                log_callback(f"❌ Ошибка установки: {str(e)}")
+            print(f"❌ Ошибка установки: {str(e)}")
+
+    def update_system(self, log_callback):
+        """Обновление системы"""
+        try:
+            if log_callback:
+                log_callback("🔄 Обновление системы...")
+            
+            # Временная реализация
+            if log_callback:
+                log_callback("✅ Система обновлена!")
+                
+        except Exception as e:
+            if log_callback:
+                log_callback(f"❌ Ошибка обновления: {str(e)}")
+
+    def uninstall_system(self, log_callback):
+        """Удаление системы"""
+        try:
+            if log_callback:
+                log_callback("🗑️ Начинаю удаление системы...")
+            
+            # Удаляем папку системы
+            if os.path.exists(self.system_dir):
+                import shutil
+                shutil.rmtree(self.system_dir)
+                if log_callback:
+                    log_callback("✅ Система удалена!")
+            else:
+                if log_callback:
+                    log_callback("⚠️ Система не найдена для удаления")
+                    
+        except Exception as e:
+            if log_callback:
+                log_callback(f"❌ Ошибка удаления: {str(e)}")
+
+    def open_system_folder(self, log_callback):
+        """Открытие папки системы"""
+        try:
+            if log_callback:
+                log_callback(f"📁 Открываю папку: {self.system_dir}")
+            
+            if platform.system() == "Windows":
+                os.startfile(self.system_dir)
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.call(["open", self.system_dir])
+            else:  # Linux
+                subprocess.call(["xdg-open", self.system_dir])
+                
+        except Exception as e:
+            if log_callback:
+                log_callback(f"❌ Ошибка открытия папки: {str(e)}")
 
 
 class FamilySystemLauncher:

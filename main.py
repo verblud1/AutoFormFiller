@@ -7,7 +7,7 @@ Main entry point that connects all system components
 
 import os
 import sys
-from Installer.launcher import FamilySystemLauncher
+from launcher.launcher import FamilySystemLauncher
 
 
 def main():

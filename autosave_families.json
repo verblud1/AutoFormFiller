@@ -1,127 +1,389 @@
 [
   {
-    "mother_fio": "Степанова Марина Валентиновна",
-    "mother_birth": "25.09.1980",
-    "mother_work": "Школа-интернат 1",
+    "mother_fio": "Милашова Ирина Николаевна",
+    "mother_birth": "19.05.1988",
+    "mother_work": "не работает",
     "mother_disability_care": false,
-    "mother_not_working": false,
-    "father_fio": "Степанов Евгений Андреевич",
-    "father_birth": "19.05.1983",
-    "father_work": "ООО РОУТ РЕС",
+    "mother_not_working": true,
+    "father_fio": "Милашов Вячеслав Николаевич",
+    "father_birth": "01.06.1983",
+    "father_work": "ООО \"Авето\"",
     "father_not_working": false,
     "children": [
       {
-        "fio": "Степанов Александр Евгеньевич",
-        "birth": "18.08.2015",
-        "education": "школа 12"
+        "fio": "Милашова Дарья Вячеславовна",
+        "birth": "29.07.2014",
+        "education": "МБОУ СОШ №19"
       },
       {
-        "fio": "Степанов Артём Евгеньевич",
-        "birth": "22.11.2018",
-        "education": "12 СОШ"
+        "fio": "Милашова Ангелина Вячеславовна",
+        "birth": "04.09.2019",
+        "education": "МБДОУ Детский сад №20"
       },
       {
-        "fio": "Степанов Андрей Евгеньевич",
-        "birth": "16.03.2006",
-        "education": "Колледж Коломна"
+        "fio": "Дергачёв Илья Анатольевич",
+        "birth": "04.09.2008",
+        "education": "МБОУ СОШ №10"
+      },
+      {
+        "fio": "Милашова Милана Вячеславовна",
+        "birth": "29.12.2024",
+        "education": "домашний",
+        "home_education": true
       }
     ],
-    "phone_number": "79040225872",
-    "address": "ямская д 58",
+    "phone_number": "79520875623",
+    "address": "г.Вышний Волочек, ул.Максима Горького, д.16, кв.7",
     "rooms": "3",
-    "square": "60",
+    "square": "56",
     "amenities": "со всеми удобствами",
-    "ownership": "",
+    "ownership": "приобретена на мат.каптал, принадлежит всем членам семьи в равных долях, долевая",
     "adpi": "да",
-    "install_date": "01.12.2023",
-    "check_date": "01.12.2023",
+    "install_date": "17.02.2022",
+    "check_date": "10.07.2025",
     "large_family_benefit": "1900",
-    "mother_salary": "27093",
-    "father_salary": "60000",
-    "unified_percentage": "100%"
-  },
-  {
-    "mother_fio": "Смирнова Кристина Сергеевна",
-    "mother_birth": "04.08.1993",
-    "mother_work": "не работает",
-    "mother_disability_care": false,
-    "mother_not_working": true,
-    "father_fio": "Ибрагимзаде Дунями Алим оглы",
-    "father_birth": "25.07.1991",
-    "father_work": "ип",
-    "father_not_working": false,
-    "children": [
-      {
-        "fio": "Ибрагимзаде Юсуф Дунями оглы",
-        "birth": "02.12.2020",
-        "education": "детсад 20"
-      },
-      {
-        "fio": "Ибрагимзаде Амина Дунями кызы",
-        "birth": "23.05.2017",
-        "education": "лицей 15"
-      },
-      {
-        "fio": "Петрова Виолетта Руслановна",
-        "birth": "06.12.2008",
-        "education": "в другой семье"
-      }
-    ],
-    "phone_number": "79000165529",
-    "address": "Г.Вышний Волочек, ул.куйбышева, д.15 а, кв.63",
-    "rooms": "2",
-    "square": "47",
-    "amenities": "со всеми удобствами",
-    "ownership": "матери",
-    "adpi": "да",
-    "install_date": "22.07.2025",
-    "check_date": "22.07.2025",
-    "unified_benefit": "51000",
-    "mother_salary": "0",
-    "father_salary": "30000",
-    "unified_children_count": "3",
-    "unified_percentage": "100%"
-  },
-  {
-    "mother_fio": "Суслина Карина Ростиславовна",
-    "mother_birth": "26.02.1995",
-    "mother_work": "не работает",
-    "mother_disability_care": false,
-    "mother_not_working": true,
-    "father_fio": "Суслин Александр Андреевич",
-    "father_birth": "16.03.1995",
-    "father_work": "ооо май",
-    "father_not_working": false,
-    "children": [
-      {
-        "fio": "Суслина Диана Александровна",
-        "birth": "28.05.2015",
-        "education": "сош 5"
-      },
-      {
-        "fio": "Суслин Григорий Александрович",
-        "birth": "26.05.2023",
-        "education": "детсад 24"
-      },
-      {
-        "fio": "Суслина Алиса Александровна",
-        "birth": "13.02.2021",
-        "education": "детсад 24"
-      }
-    ],
-    "phone_number": "79911132027",
-    "address": "Пос. Кирова, д.8, кв.6",
-    "rooms": "3",
-    "square": "60",
-    "amenities": "со всеми удобствами",
-    "ownership": "долевая",
-    "adpi": "да",
-    "install_date": "25.01.2024",
-    "check_date": "25.01.2024",
-    "unified_benefit": "51000",
     "mother_salary": "0",
     "father_salary": "35000",
     "unified_children_count": "3",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Веселова Марина Михайловна",
+    "mother_birth": "28.07.1987",
+    "mother_work": "не работает",
+    "mother_disability_care": false,
+    "mother_not_working": true,
+    "father_fio": "Веселов Андрей Владимирович",
+    "father_birth": "23.03.1983",
+    "father_work": "ООО \"Сило-центр\"",
+    "father_not_working": false,
+    "children": [
+      {
+        "fio": "Яневич Вероника Алексеевна",
+        "birth": "28.08.2009",
+        "education": "Тверской машиностроительный колледж"
+      },
+      {
+        "fio": "Веселов Иван Андреевич",
+        "birth": "02.07.2021",
+        "education": "МБДОУ Академический детский сад"
+      },
+      {
+        "fio": "Веселов Даниил Андреевич",
+        "birth": "03.06.2015",
+        "education": "МБОУ Академическая СОШ"
+      }
+    ],
+    "phone_number": "79056095002",
+    "address": "г. Коломно, д.106,",
+    "rooms": "3",
+    "square": "70",
+    "amenities": "со всеми удобствами",
+    "ownership": "принадлежит матери Веселовой М.М.-Каширской Н.А",
+    "adpi": "нет",
+    "large_family_benefit": "1900",
+    "mother_salary": "0",
+    "father_salary": "80000",
+    "unified_children_count": "3",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Копылова Елена Александровна",
+    "mother_birth": "16.08.1977",
+    "mother_work": "ИП Кольцова",
+    "mother_disability_care": false,
+    "mother_not_working": false,
+    "father_fio": "Копылов Дмитрий Алексеевич",
+    "father_birth": "18.04.1976",
+    "father_work": "ИП Кольцова",
+    "father_not_working": false,
+    "children": [
+      {
+        "fio": "Копылова Дарина Дмитриевна",
+        "birth": "25.04.2013",
+        "education": "МБОУ Солнечная СОШ"
+      },
+      {
+        "fio": "Копылова Ирина Дмитриевна",
+        "birth": "05.08.2007",
+        "education": "Вышневолоцкий колледж"
+      },
+      {
+        "fio": "Копылов Дмитрий Дмитриевич",
+        "birth": "18.02.2022",
+        "education": "МБДОУ Солнечный Детский сад"
+      }
+    ],
+    "phone_number": "79301687049",
+    "address": "г.Вышний Волочек, п. Солнечный, ул. Центральная, д. 6, кв. 45",
+    "rooms": "2",
+    "square": "40",
+    "amenities": "со всеми удобствами",
+    "ownership": "долевая",
+    "adpi": "да",
+    "install_date": "04.01.2022",
+    "check_date": "15.01.2025",
+    "large_family_benefit": "1900",
+    "unified_percentage": "100%",
+    "other_incomes": "Общий доход семьи-50000 руб"
+  },
+  {
+    "mother_fio": "Кутейникова Александра Юрьевна",
+    "mother_birth": "15.01.1986",
+    "mother_work": "Почта России",
+    "mother_disability_care": false,
+    "mother_not_working": false,
+    "children": [
+      {
+        "fio": "Тарасов Дмитрий Максимович",
+        "birth": "16.12.2010",
+        "education": "МБОУ СОШ №10"
+      },
+      {
+        "fio": "Кораблёв Денис Михайлович",
+        "birth": "01.10.2014",
+        "education": "МБОУ Школа №4"
+      },
+      {
+        "fio": "Кораблёва Анна Михайловна",
+        "birth": "13.04.2024",
+        "education": "Дом ребенка \"Солнышко\""
+      }
+    ],
+    "phone_number": "79001128438",
+    "address": "Г.Вышний Волочек, ул.Ломоносова, д.41",
+    "rooms": "3",
+    "square": "96",
+    "amenities": "со всеми удобствами",
+    "ownership": "принадлежит Кутейниковой А.Ю",
+    "adpi": "да",
+    "install_date": "24.12.2024",
+    "check_date": "24.12.2024",
+    "large_family_benefit": "1900",
+    "mother_salary": "17000",
+    "survivor_pension": "16000",
+    "unified_children_count": "3",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Радайкина Оксана Викторовна",
+    "mother_birth": "08.04.1984",
+    "mother_work": "ФКУ ИК №5 УФСИН России по Тверской обл",
+    "mother_disability_care": false,
+    "mother_not_working": false,
+    "father_fio": "Радайкин Антон Олегович",
+    "father_birth": "14.03.1986",
+    "father_work": "ИП Радайкин А.О",
+    "father_not_working": false,
+    "children": [
+      {
+        "fio": "Радайкина Елизавета Антоновна",
+        "birth": "02.03.2016",
+        "education": "МБОУ Гимназия №2"
+      },
+      {
+        "fio": "Радайкина Мария Антоновна",
+        "birth": "15.08.2023",
+        "education": "МДОУ Детский сад №7"
+      },
+      {
+        "fio": "Радайкина Александра Антоновна",
+        "birth": "04.08.2008",
+        "education": "МБОУ Гимназия №2"
+      }
+    ],
+    "phone_number": "79190680048",
+    "address": "Ул. Швейников, д.44",
+    "rooms": "6",
+    "square": "211",
+    "amenities": "со всеми удобствами",
+    "ownership": "принадлежит Радайкиной О.В",
+    "adpi": "да",
+    "install_date": "25.01.2024",
+    "check_date": "23.12.2024",
+    "mother_salary": "70000",
+    "father_salary": "150000",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Никонова Виктория Сергеевна",
+    "mother_birth": "29.03.1994",
+    "mother_work": "ИП Никонова",
+    "mother_disability_care": false,
+    "mother_not_working": false,
+    "father_fio": "Никонов Максим Алексеевич",
+    "father_birth": "27.03.1995",
+    "father_work": "ИП Никонова",
+    "father_not_working": false,
+    "children": [
+      {
+        "fio": "Никонова Кира Максимовна",
+        "birth": "14.03.2012",
+        "education": "МБОУ СОШ №19"
+      },
+      {
+        "fio": "Никонов Иван Максимович",
+        "birth": "07.07.2016",
+        "education": "МБОУ СОШ №19"
+      },
+      {
+        "fio": "Никонова Милана Максимовна",
+        "birth": "15.06.2014",
+        "education": "МБОУ СОШ №19"
+      },
+      {
+        "fio": "Никонова Василиса Максимовна",
+        "birth": "20.10.2020",
+        "education": "домашний",
+        "home_education": true
+      },
+      {
+        "fio": "Никонова Ева Максимовна",
+        "birth": "15.12.2017",
+        "education": "МБОУ СОШ №19"
+      },
+      {
+        "fio": "Никонов Савелий Максимович",
+        "birth": "27.04.2023",
+        "education": "домашний",
+        "home_education": true
+      },
+      {
+        "fio": "Никонова Екатерина Максимовна",
+        "birth": "15.10.2024",
+        "education": "домашний",
+        "home_education": true
+      }
+    ],
+    "phone_number": "79520689373",
+    "address": "г. Вышний Волочек, ул. Весенняя",
+    "rooms": "5",
+    "square": "250.",
+    "amenities": "со всеми удобствами",
+    "ownership": "долевая",
+    "adpi": "да",
+    "install_date": "06.05.2025",
+    "check_date": "06.05.2025",
+    "large_family_benefit": "3500",
+    "father_salary": "100000",
+    "unified_children_count": "6",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Фортовская Мария Витальевна",
+    "mother_birth": "03.01.1988",
+    "mother_work": "Самозанятая-\"Бон аппетит\"",
+    "mother_disability_care": false,
+    "mother_not_working": false,
+    "children": [
+      {
+        "fio": "Кашаева Елизавета Артемовна",
+        "birth": "26.01.2016",
+        "education": ""
+      },
+      {
+        "fio": "Кашаев Даниил Артемович",
+        "birth": "10.02.2009",
+        "education": ""
+      },
+      {
+        "fio": "Кашаев Арсений Артемович",
+        "birth": "01.10.2012",
+        "education": ""
+      },
+      {
+        "fio": "Кашаев Марк Артемович",
+        "birth": "06.11.2021",
+        "education": ""
+      }
+    ],
+    "phone_number": "79043554135",
+    "address": "г. Вышний Волочек, ул. Овражная линия. д. 9, кв. 2",
+    "rooms": "3",
+    "square": "50",
+    "amenities": "со всеми удобствами",
+    "ownership": "принадлежит Фортовской М.В",
+    "adpi": "да",
+    "install_date": "09.11.2021",
+    "check_date": "15.01.2025",
+    "mother_salary": "25000",
+    "survivor_pension": "64000",
+    "unified_children_count": "4",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Рустамли Валерия Валерьевна",
+    "mother_birth": "26.11.1998",
+    "mother_work": "не работает",
+    "mother_disability_care": false,
+    "mother_not_working": true,
+    "father_fio": "Рустамли Зияди Азер Оглы",
+    "father_birth": "",
+    "father_work": "не работает",
+    "father_not_working": true,
+    "children": [
+      {
+        "fio": "Ураева Амелия Амирхановна",
+        "birth": "02.12.2016",
+        "education": "МБОУ Лицей №15"
+      },
+      {
+        "fio": "Рустамли Рустам Зиядиевич",
+        "birth": "30.04.2025",
+        "education": "домашний",
+        "home_education": true
+      },
+      {
+        "fio": "Терентьева Стефания Дмитриевна",
+        "birth": "12.01.2023",
+        "education": "МБДОУ Детский сад №24"
+      }
+    ],
+    "phone_number": "79935497658",
+    "address": "г. Вышний Волочек, ул. Большая Садовая, д.87/47,кв.42",
+    "rooms": "2",
+    "square": "49.5",
+    "amenities": "со всеми удобствами",
+    "ownership": "принадлежит Рустамли В.В",
+    "adpi": "нет",
+    "mother_salary": "0",
+    "father_salary": "0",
+    "unified_children_count": "3",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Галяс Вероника Андреевна",
+    "mother_birth": "24.01.1993",
+    "mother_work": "не работает",
+    "mother_disability_care": false,
+    "mother_not_working": true,
+    "children": [
+      {
+        "fio": "Фирсов Николай Дмитриевич",
+        "birth": "14.08.2017",
+        "education": "МБОУ СОШ №5"
+      },
+      {
+        "fio": "Фирсов Яромир Дмитриевич",
+        "birth": "12.09.2015",
+        "education": "МБОУ СОШ №5"
+      },
+      {
+        "fio": "Галяс Валерия Андреевна",
+        "birth": "12.09.2024",
+        "education": "Дом ребенка \"Солнышко\""
+      }
+    ],
+    "phone_number": "79109309230",
+    "address": "г. Вышний Волочек, ул. Партизанская, д.14,",
+    "rooms": "3",
+    "square": "78",
+    "amenities": "со всеми удобствами",
+    "ownership": "долевая",
+    "adpi": "нет",
+    "large_family_benefit": "1900",
+    "mother_salary": "0",
+    "unified_children_count": "2",
     "unified_percentage": "100%"
   }
 ]
