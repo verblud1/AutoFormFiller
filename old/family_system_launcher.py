@@ -45,7 +45,7 @@ class FamilySystemLauncher:
             "family_system_launcher.py"  # Этот файл
         ]
         
-        # В метод __init__ добавьте:
+        
         self.github_token = None
         self.github_token_file = os.path.join(self.system_dir, ".github_token") if hasattr(self, 'system_dir') else None
         self.load_github_token()

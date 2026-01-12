@@ -1,319 +1,126 @@
 [
   {
-    "mother_fio": "Лукашевич Гита Анатольевна",
-    "mother_birth": "27.09.1988",
-    "mother_work": "",
+    "mother_fio": "Степанова Марина Валентиновна",
+    "mother_birth": "25.09.1980",
+    "mother_work": "Школа-интернат 1",
     "mother_disability_care": false,
     "mother_not_working": false,
+    "father_fio": "Степанов Евгений Андреевич",
+    "father_birth": "19.05.1983",
+    "father_work": "ООО РОУТ РЕС",
+    "father_not_working": false,
     "children": [
       {
-        "fio": "Лукашевич Елисей Янович",
-        "birth": "18.02.2021",
-        "education": "МДОУ Детский сад №11"
+        "fio": "Степанов Александр Евгеньевич",
+        "birth": "18.08.2015",
+        "education": "школа 12"
       },
       {
-        "fio": "Лукашевич Рудольф Янович",
-        "birth": "20.10.2011",
-        "education": "МБОУ СОШ №12"
+        "fio": "Степанов Артём Евгеньевич",
+        "birth": "22.11.2018",
+        "education": "12 СОШ"
       },
       {
-        "fio": "Лукашевич Анастасия Яновна",
-        "birth": "19.12.2008",
-        "education": "ГБПОУ Вышневолоцкий колледж"
+        "fio": "Степанов Андрей Евгеньевич",
+        "birth": "16.03.2006",
+        "education": "Колледж Коломна"
       }
     ],
-    "phone_number": "79043517701",
-    "address": "г. Вышний Волочек, 9 Солнечная, д.12",
-    "rooms": "5",
-    "square": "120",
-    "amenities": "со всеми удобствами",
-    "ownership": "матери",
-    "adpi": "да",
-    "install_date": "06.02.2024",
-    "check_date": "06.02.2024",
-    "unified_benefit": "51000",
-    "large_family_benefit": "1900",
-    "unified_children_count": "3",
-    "unified_percentage": "100%"
-  },
-  {
-    "mother_fio": "Кашаева Лилия Ивановна",
-    "mother_birth": "08.06.1986",
-    "mother_work": "самозанятая-ногтевой сервис",
-    "mother_disability_care": false,
-    "mother_not_working": false,
-    "children": [
-      {
-        "fio": "Кашаев Михаил Геннадьевич",
-        "birth": "29.03.2009",
-        "education": "ВВК"
-      },
-      {
-        "fio": "Кашаева Ирина Юрьевна",
-        "birth": "23.02.2019",
-        "education": "МБДОУ Детский сад №14"
-      },
-      {
-        "fio": "Кашаев Александр Геннадьевич",
-        "birth": "18.09.2005",
-        "education": ""
-      },
-      {
-        "fio": "Кашаева Анастасия Геннадьевна",
-        "birth": "01.05.2014",
-        "education": "МБОУ СОШ №13"
-      }
-    ],
-    "phone_number": "79201637059",
-    "address": "г. Вышний Волочек, ул. Ямская, д.275, кв.76",
+    "phone_number": "79040225872",
+    "address": "ямская д 58",
     "rooms": "3",
-    "square": "62",
+    "square": "60",
     "amenities": "со всеми удобствами",
-    "ownership": "социальный найм",
-    "adpi": "нет",
-    "unified_percentage": "100%",
-    "other_incomes": "Общий доход семьи 70000 руб"
-  },
-  {
-    "mother_fio": "Мошинская Евгения Михайловна",
-    "mother_birth": "28.12.1985",
-    "mother_work": "",
-    "mother_disability_care": false,
-    "mother_not_working": true,
-    "father_fio": "Мошинской Дмитрий Сергеевич",
-    "father_birth": "30.10.1977",
-    "father_work": "ИП Яковлев М.В",
-    "father_not_working": false,
-    "children": [
-      {
-        "fio": "Мошинская Юлия Дмитриевна",
-        "birth": "03.02.2007",
-        "education": "ГБПОУ ВЫшневолоцкий колледж"
-      },
-      {
-        "fio": "Мошинская Анастасия Дмитриевна",
-        "birth": "14.10.2012",
-        "education": "МБОУ СОШ №19"
-      },
-      {
-        "fio": "Мошинская Дарья Дмитриевна",
-        "birth": "06.04.2018",
-        "education": "МБОУ СОШ №19"
-      }
-    ],
-    "phone_number": "79201637440",
-    "address": "г. Вышний Волочек, ул. Баумана, д. 25, кв. 62",
-    "rooms": "2",
-    "square": "44",
-    "amenities": "со всеми удобствами",
-    "ownership": "приобретена на мат.капитал, принадлежит родителям и н\\л Юлии и Анастасии",
+    "ownership": "",
     "adpi": "да",
-    "install_date": "29.12.2020",
-    "check_date": "17.11.2025",
-    "unified_benefit": "34000",
-    "large_family_benefit": "1935",
-    "unified_children_count": "2",
+    "install_date": "01.12.2023",
+    "check_date": "01.12.2023",
+    "large_family_benefit": "1900",
+    "mother_salary": "27093",
+    "father_salary": "60000",
     "unified_percentage": "100%"
   },
   {
-    "mother_fio": "Малашина Зоя Владимировна",
-    "mother_birth": "06.01.1991",
-    "mother_work": "",
-    "mother_disability_care": false,
-    "mother_not_working": true,
-    "father_fio": "Малашин Денис Сергеевич",
-    "father_birth": "20.01.1989",
-    "father_work": "РЖД",
-    "father_not_working": false,
-    "children": [
-      {
-        "fio": "Малашин Сергей Денисович",
-        "birth": "17.01.2017",
-        "education": "МБОУ СОШ №5"
-      },
-      {
-        "fio": "Малашина Виктория Денисовна",
-        "birth": "08.02.2016",
-        "education": "МБОУ СОШ №5"
-      },
-      {
-        "fio": "Малашина Софья Денисовна",
-        "birth": "06.09.2011",
-        "education": "МБОУ СОШ №5"
-      },
-      {
-        "fio": "Малашин Максим Денисович",
-        "birth": "28.06.2024",
-        "education": "домашний"
-      }
-    ],
-    "phone_number": "79206838678",
-    "address": "Вышний Волочек Карла Маркса д.79,",
-    "rooms": "4",
-    "square": "75",
-    "amenities": "со всеми удобствами",
-    "ownership": "приобретена на мат.капитал, принадлежит всем членам семьи в равных долях",
-    "adpi": "да",
-    "install_date": "28.01.2024",
-    "unified_percentage": "100%",
-    "other_incomes": "Общий доход семьи 100000 руб"
-  },
-  {
-    "mother_fio": "Зеленова Анастасия Павловна",
-    "mother_birth": "28.03.1994",
-    "mother_work": "",
-    "mother_disability_care": false,
-    "mother_not_working": true,
-    "father_fio": "Баранов Анатолий Владимирович",
-    "father_birth": "01.11.1988",
-    "father_work": "самозанятый",
-    "father_not_working": false,
-    "children": [
-      {
-        "fio": "Баранов Артём Анатольевич",
-        "birth": "06.11.2019",
-        "education": "домашний"
-      },
-      {
-        "fio": "Баранова Дарина Анатольевна",
-        "birth": "20.01.2021",
-        "education": "домашняя"
-      },
-      {
-        "fio": "Телешев Александр Александрович",
-        "birth": "28.05.2015",
-        "education": "ЧОУ Православная СОШ"
-      }
-    ],
-    "phone_number": "79201571416",
-    "address": "Г.Вышний Волочек, ул.Радищева, д.34, кв.12",
-    "rooms": "4",
-    "square": "78",
-    "amenities": "со всеми удобствами",
-    "ownership": "приобретена на мат.капитал, принадлежит матери и детям",
-    "adpi": "да",
-    "install_date": "24.12.2024",
-    "unified_percentage": "100%",
-    "other_incomes": "Общий доход семьи-150000 руб"
-  },
-  {
-    "mother_fio": "Жукова Мария Олеговна",
-    "mother_birth": "06.12.1989",
-    "mother_work": "МБДОУ Детский сад №24",
-    "mother_disability_care": false,
-    "mother_not_working": false,
-    "father_fio": "Жуков Сергей Сергеевич",
-    "father_birth": "14.01.1989",
-    "father_work": "военнослужащий, в/ч 145/118",
-    "father_not_working": false,
-    "children": [
-      {
-        "fio": "Жукова Ульяна Сергеевна",
-        "birth": "15.08.2018",
-        "education": "МБОУ Гимназия №2"
-      },
-      {
-        "fio": "Смирнова Карина Денисовна",
-        "birth": "06.08.2011",
-        "education": "МБОУ СОШ №5"
-      },
-      {
-        "fio": "Смирнов Дамир Денисович",
-        "birth": "26.04.2009",
-        "education": "Бологовский железнодорожный колледж"
-      }
-    ],
-    "phone_number": "79157434359",
-    "address": "г. Вышний Волочек, Красный Городок, д. 252, кв. 2",
-    "rooms": "2",
-    "square": "51",
-    "amenities": "со всеми удобствами",
-    "ownership": "принадлежит матери и детям Дамиру и Карине",
-    "adpi": "да",
-    "install_date": "07.04.2022",
-    "check_date": "15.01.2025",
-    "unified_percentage": "100%",
-    "other_incomes": "Общий доход семьи"
-  },
-  {
-    "mother_fio": "Михайлова Наталья Андреевна",
-    "mother_birth": "08.09.1997",
-    "mother_work": "Находится в отпуске по уходу за ребенком. До д/о работала клуб боевых искусств \"Русская Венеция\"",
-    "mother_disability_care": false,
-    "mother_not_working": false,
-    "father_fio": "Михайлов Виктор Викторович",
-    "father_birth": "12.09.1995",
-    "father_work": "самозанятый-грузоперевозки",
-    "father_not_working": false,
-    "children": [
-      {
-        "fio": "Михайлова Вероника Викторовна",
-        "birth": "01.05.2019",
-        "education": "МБДОУ Детский сад №5"
-      },
-      {
-        "fio": "Михайлов Артём Викторович",
-        "birth": "24.05.2017",
-        "education": "МБОУ СОШ №12"
-      },
-      {
-        "fio": "Михайлова Екатерина Викторовна",
-        "birth": "26.02.2025",
-        "education": "домашняя"
-      }
-    ],
-    "phone_number": "79040254012",
-    "address": "г. Вышний Волочек, ул. Стеклозаводская, д.7,",
-    "rooms": "2",
-    "square": "58",
-    "amenities": "со всеми удобствами",
-    "ownership": "принадлежит матери Михайловой Н.А",
-    "adpi": "да",
-    "install_date": "28.11.2025",
-    "mother_salary": "10000.",
-    "father_salary": "90000.",
-    "unified_children_count": "3",
-    "unified_percentage": "100%",
-    "other_incomes": "Общий доход семьи"
-  },
-  {
-    "mother_fio": "Игнатьева Мария Сергеевна",
-    "mother_birth": "12.01.1995",
+    "mother_fio": "Смирнова Кристина Сергеевна",
+    "mother_birth": "04.08.1993",
     "mother_work": "не работает",
     "mother_disability_care": false,
     "mother_not_working": true,
+    "father_fio": "Ибрагимзаде Дунями Алим оглы",
+    "father_birth": "25.07.1991",
+    "father_work": "ип",
+    "father_not_working": false,
     "children": [
       {
-        "fio": "Шалин Николай Михайлович",
-        "birth": "12.12.2013",
-        "education": "МБОУ Красномайская СОШ имени С.Ф. Ушакова"
+        "fio": "Ибрагимзаде Юсуф Дунями оглы",
+        "birth": "02.12.2020",
+        "education": "детсад 20"
       },
       {
-        "fio": "Фролов Александр Артемович",
-        "birth": "17.10.2018",
-        "education": "МБОУ Красномайская СОШ имени С.Ф. Ушакова"
+        "fio": "Ибрагимзаде Амина Дунями кызы",
+        "birth": "23.05.2017",
+        "education": "лицей 15"
       },
       {
-        "fio": "Игнатьева Анна Артемовна",
-        "birth": "02.12.2022",
-        "education": "МБДОУ Красномайский Детский сад"
+        "fio": "Петрова Виолетта Руслановна",
+        "birth": "06.12.2008",
+        "education": "в другой семье"
       }
     ],
-    "phone_number": "79961349462",
-    "address": "Вышневолоцкий район, пгт. Красномайский, ул. Кирова, д. 45, кв. 49",
-    "rooms": "3",
-    "square": "68",
+    "phone_number": "79000165529",
+    "address": "Г.Вышний Волочек, ул.куйбышева, д.15 а, кв.63",
+    "rooms": "2",
+    "square": "47",
     "amenities": "со всеми удобствами",
-    "ownership": "принадлежит матери Игнатьевой М.С. в долевой собственности с родственниками",
+    "ownership": "матери",
     "adpi": "да",
-    "install_date": "15.02.2023",
-    "check_date": "24.10.2025",
+    "install_date": "22.07.2025",
+    "check_date": "22.07.2025",
     "unified_benefit": "51000",
     "mother_salary": "0",
-    "father_salary": "0",
-    "alimony": "3000",
-    "child_disability_care": "10000",
-    "child_disability_pension": "25000",
+    "father_salary": "30000",
+    "unified_children_count": "3",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Суслина Карина Ростиславовна",
+    "mother_birth": "26.02.1995",
+    "mother_work": "не работает",
+    "mother_disability_care": false,
+    "mother_not_working": true,
+    "father_fio": "Суслин Александр Андреевич",
+    "father_birth": "16.03.1995",
+    "father_work": "ооо май",
+    "father_not_working": false,
+    "children": [
+      {
+        "fio": "Суслина Диана Александровна",
+        "birth": "28.05.2015",
+        "education": "сош 5"
+      },
+      {
+        "fio": "Суслин Григорий Александрович",
+        "birth": "26.05.2023",
+        "education": "детсад 24"
+      },
+      {
+        "fio": "Суслина Алиса Александровна",
+        "birth": "13.02.2021",
+        "education": "детсад 24"
+      }
+    ],
+    "phone_number": "79911132027",
+    "address": "Пос. Кирова, д.8, кв.6",
+    "rooms": "3",
+    "square": "60",
+    "amenities": "со всеми удобствами",
+    "ownership": "долевая",
+    "adpi": "да",
+    "install_date": "25.01.2024",
+    "check_date": "25.01.2024",
+    "unified_benefit": "51000",
+    "mother_salary": "0",
+    "father_salary": "35000",
     "unified_children_count": "3",
     "unified_percentage": "100%"
   }
