@@ -1,0 +1,237 @@
+[
+  {
+    "mother_fio": "Рамазанова Алина Валерьевна",
+    "mother_birth": "29.12.1994",
+    "mother_work": "не работает",
+    "mother_disability_care": false,
+    "mother_not_working": true,
+    "father_fio": "Рамазанов Асад Рамазанович",
+    "father_birth": "05.03.1995",
+    "father_work": "не работает",
+    "father_not_working": true,
+    "children": [
+      {
+        "fio": "Рамазанов Руслан Асадович",
+        "birth": "27.06.2023",
+        "education": "МБДОУ ДС №74"
+      },
+      {
+        "fio": "Синекопенко Юрий Вадимович",
+        "birth": "19.08.2013",
+        "education": "МБОУ СОШ №9"
+      },
+      {
+        "fio": "Синекопенко Эвелина Вадимовна",
+        "birth": "29.07.2016",
+        "education": "МБОУ СОШ №9"
+      }
+    ],
+    "phone_number": "79040294457",
+    "address": "г. Тверь, ул. Зинаиды Коноплянниковой, д.20, кв. 31",
+    "rooms": "2",
+    "square": "40",
+    "amenities": "со всеми удобствами",
+    "ownership": "временная регистрация",
+    "adpi": "да",
+    "install_date": "10.05.2025",
+    "check_date": "10.05.2025",
+    "large_family_benefit": "1900",
+    "mother_salary": "0",
+    "father_salary": "0",
+    "unified_children_count": "3",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Пыжова Ольга Анатольевна",
+    "mother_birth": "14.08.1987",
+    "mother_work": "ООО вышневолоцкий хлеб",
+    "mother_disability_care": false,
+    "mother_not_working": false,
+    "father_fio": "Пыжов Дмитрий Алексеевич",
+    "father_birth": "18.06.1981",
+    "father_work": "ООО Студия",
+    "father_not_working": false,
+    "children": [
+      {
+        "fio": "Пыжов Кирилл Дмитриевич",
+        "birth": "16.03.2011",
+        "education": "МБОУ СОШ Гимназия 2"
+      },
+      {
+        "fio": "Пыжов Степан Дмитриевич",
+        "birth": "11.03.2016",
+        "education": "МБОУ СОШ Гимназия 2"
+      },
+      {
+        "fio": "Пыжова Василиса Дмитриевна",
+        "birth": "09.10.2023",
+        "education": "МБДОУ ДС №2"
+      }
+    ],
+    "phone_number": "79201546230",
+    "address": "г. Вышний Волочек, ул. Линейная, д.2/5,",
+    "rooms": "3",
+    "square": "100",
+    "amenities": "со всеми удобствами",
+    "ownership": "личная",
+    "adpi": "да",
+    "install_date": "20.10.2020",
+    "unified_benefit": "0",
+    "large_family_benefit": "1900",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Радионова Анастасия Артемьевна",
+    "mother_birth": "26.09.1992",
+    "mother_work": "ИП Радионова А.А",
+    "mother_disability_care": false,
+    "mother_not_working": false,
+    "children": [
+      {
+        "fio": "Смирнов Иван Романович",
+        "birth": "21.03.2008",
+        "education": "ГБПОУ ВВК"
+      },
+      {
+        "fio": "Арямова Коралина Александровна",
+        "birth": "13.07.2014",
+        "education": "МБОУ СОШ №3"
+      },
+      {
+        "fio": "Радионов Тимур Артёмович",
+        "birth": "09.03.2023",
+        "education": "МБДОУ ДС № 29"
+      }
+    ],
+    "phone_number": "79040046843",
+    "address": "г. Вышний Волочек, ул. М.горького, д.14, кв. 27",
+    "rooms": "4",
+    "square": "100",
+    "amenities": "со всеми удобствами",
+    "ownership": "частная",
+    "adpi": "да",
+    "install_date": "10.12.2025",
+    "check_date": "10.12.2025",
+    "unified_benefit": "0",
+    "large_family_benefit": "1900",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Полеонова Надежда Владимировна",
+    "mother_birth": "26.05.1985",
+    "mother_work": "не работает",
+    "mother_disability_care": false,
+    "mother_not_working": true,
+    "children": [
+      {
+        "fio": "Камкин Вячеслав Алексеевич",
+        "birth": "03.01.2010",
+        "education": "МБОУ СОШ №7"
+      },
+      {
+        "fio": "Полеонова Анна Владимировна",
+        "birth": "06.12.2019",
+        "education": "МБДОУ ДС №27"
+      },
+      {
+        "fio": "Полеонов Даниил Владимирович",
+        "birth": "28.03.2025",
+        "education": "домашний",
+        "home_education": true
+      }
+    ],
+    "phone_number": "79201586411",
+    "address": "г. Вышний Волочек, ул. Казанский, д.86,кв.8",
+    "rooms": "2",
+    "square": "50",
+    "amenities": "со всеми удобствами",
+    "ownership": "частная, долевая",
+    "adpi": "нет",
+    "unified_benefit": "0",
+    "large_family_benefit": "1900",
+    "mother_salary": "0",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Питель Наталья Сергеевна",
+    "mother_birth": "16.01.1985",
+    "mother_work": "",
+    "mother_disability_care": false,
+    "mother_not_working": false,
+    "father_fio": "Питель Руслан Алексеевич",
+    "father_birth": "31.05.1979",
+    "father_work": "",
+    "father_not_working": false,
+    "children": [
+      {
+        "fio": "Питель Василиса Руслановна",
+        "birth": "11.11.2011",
+        "education": "МБОУ Гимназия №2"
+      },
+      {
+        "fio": "Питель Макар Русланович",
+        "birth": "06.12.2007",
+        "education": "Политехнический университет"
+      },
+      {
+        "fio": "Питель Захар Русланович",
+        "birth": "11.11.2011",
+        "education": "МБОУ Гимназия №2"
+      }
+    ],
+    "phone_number": "79157005345",
+    "address": "Вышневолоцкий район, пгт. Красномайский, ул. Пушкина, д. 25",
+    "rooms": "4",
+    "square": "133",
+    "amenities": "со всеми удобствами",
+    "ownership": "маткапитал, долевая",
+    "adpi": "да",
+    "install_date": "14.09.2022",
+    "check_date": "18.10.2023",
+    "unified_benefit": "0",
+    "large_family_benefit": "3500",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Петрова Татьяна Андреевна",
+    "mother_birth": "30.05.1986",
+    "mother_work": "не работает",
+    "mother_disability_care": false,
+    "mother_not_working": true,
+    "father_fio": "Петров Андрей Михайлович",
+    "father_birth": "28.04.1982",
+    "father_work": "",
+    "father_not_working": false,
+    "children": [
+      {
+        "fio": "Васильев Ратмир Мирославович",
+        "birth": "02.07.2012",
+        "education": "МБОУ СОШ Красномайская"
+      },
+      {
+        "fio": "Петров Михаил Андреевич",
+        "birth": "21.10.2016",
+        "education": "МБОУ СОШ Красномайская"
+      },
+      {
+        "fio": "Петров Александр Андреевич",
+        "birth": "18.10.2021",
+        "education": "домашний",
+        "home_education": true
+      }
+    ],
+    "phone_number": "79157439134",
+    "address": "Вышневолоцкий район, пгт. Красномайский, ул. Кирова, д. 45, кв. 14",
+    "rooms": "3",
+    "square": "130",
+    "amenities": "со всеми удобствами",
+    "ownership": "частная, долевая",
+    "adpi": "да",
+    "install_date": "23.11.2021",
+    "check_date": "15.10.2026",
+    "unified_benefit": "0",
+    "large_family_benefit": "1900",
+    "mother_salary": "0",
+    "unified_percentage": "100%"
+  }
+]

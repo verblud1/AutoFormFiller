@@ -371,6 +371,91 @@ class FamilySystemLauncher:
         self.gui.app.after(100, self.check_installation_status)
         self.gui.run()
 
+    def highlight_completed_families(self):
+        """Выделение завершенных семей в Google-таблице"""
+        try:
+            # Импортируем здесь, чтобы избежать проблем с циклическими зависимостями
+            from utils.google_sheets_handler import GoogleSheetsHandler
+            import json
+            from tkinter import filedialog, messagebox
+            from tkinter import simpledialog  # Добавляем импорт simpledialog
+            
+            # Проверяем, установлен ли Google Sheets API
+            sheets_handler = GoogleSheetsHandler()
+            if not sheets_handler.is_setup():
+                messagebox.showwarning(
+                    "Google Sheets не настроен",
+                    "Для использования этой функции необходимо настроить Google Sheets API.\n"
+                    "Пожалуйста, проверьте файл конфигурации Google Sheets."
+                )
+                return
+            
+            # Запрашиваем у пользователя путь к JSON файлу с завершенными семьями
+            completed_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "completed")
+            completed_dir = os.path.abspath(completed_dir)
+            
+            completed_file_path = filedialog.askopenfilename(
+                title="Выберите JSON файл с завершенными семьями",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+                initialdir=completed_dir if os.path.exists(completed_dir) else os.path.dirname(os.path.abspath(__file__))
+            )
+            
+            if not completed_file_path:
+                return
+                
+            # Загружаем завершенные семьи
+            with open(completed_file_path, 'r', encoding='utf-8') as f:
+                completed_families = json.load(f)
+                
+            if not isinstance(completed_families, list):
+                messagebox.showerror("Ошибка", "Файл должен содержать массив семей")
+                return
+                
+            # Запрашиваем ID таблицы Google Sheets
+            spreadsheet_id = simpledialog.askstring(
+                "ID Таблицы",
+                "Введите ID Google-таблицы (часть URL между /d/ и /edit):"
+            )
+            
+            if not spreadsheet_id:
+                return
+                
+            # Запрашиваем название листа
+            sheet_name = simpledialog.askstring(
+                "Название листа",
+                "Введите название листа (по умолчанию: 'Лист1'):",
+                initialvalue="Лист1"
+            ) or "Лист1"
+            
+            # Выделяем завершенные семьи в таблице
+            success_count = 0
+            for family in completed_families:
+                mother_fio = family.get('mother_fio', '').strip().lower()
+                father_fio = family.get('father_fio', '').strip().lower()
+                
+                if mother_fio or father_fio:
+                    # Ищем и выделяем семью в таблице
+                    if sheets_handler.highlight_family_in_sheet(spreadsheet_id, sheet_name, mother_fio, father_fio):
+                        success_count += 1
+                        
+            messagebox.showinfo(
+                "Результат",
+                f"Завершено выделение семей в Google-таблице.\n"
+                f"Успешно выделено: {success_count} из {len(completed_families)}"
+            )
+            
+        except ImportError:
+            messagebox.showerror(
+                "Ошибка импорта",
+                "Для использования этой функции необходимо установить библиотеку google-api-python-client:\n"
+                "pip install google-api-python-client google-auth"
+            )
+        except json.JSONDecodeError:
+            messagebox.showerror("Ошибка", "Некорректный формат JSON файла")
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Ошибка при выделении семей в таблице:\n{str(e)}")
+            print(f"❌ Ошибка выделения семей в таблице: {e}")
+
 
 if __name__ == "__main__":
     launcher = FamilySystemLauncher()

@@ -1,0 +1,326 @@
+[
+  {
+    "mother_fio": "Синкель Ирина Алексеевна",
+    "mother_birth": "17.12.1982",
+    "mother_work": "Кашаровский детский дом-интернат",
+    "mother_disability_care": false,
+    "mother_not_working": false,
+    "children": [
+      {
+        "fio": "Синкель Эвелина Александровна",
+        "birth": "18.08.2011",
+        "education": "МБОУ Лицей №15"
+      },
+      {
+        "fio": "Синкель Аделина Александровна",
+        "birth": "30.07.2014",
+        "education": "МБОУ СОШ №19"
+      },
+      {
+        "fio": "Синкель Эрик Александрович",
+        "birth": "07.03.2022",
+        "education": "МБДОУ Детский дом №29"
+      }
+    ],
+    "phone_number": "79206989830",
+    "address": "г. Вышний Волочек, ул. Льва Толстого, д.13",
+    "rooms": "2",
+    "square": "86",
+    "amenities": "со всеми удобствами",
+    "ownership": "долевая",
+    "adpi": "да",
+    "install_date": "01.07.2025",
+    "check_date": "01.07.2025",
+    "unified_benefit": "38250",
+    "mother_salary": "22000",
+    "alimony": "36000",
+    "unified_children_count": "3",
+    "unified_percentage": "75"
+  },
+  {
+    "mother_fio": "Салтыкова Эльвира Алексеевна",
+    "mother_birth": "29.10.1988",
+    "mother_work": "не работает",
+    "mother_disability_care": false,
+    "mother_not_working": true,
+    "father_fio": "Салтыков Дмитрий Сергеевич",
+    "father_birth": "23.09.1979",
+    "father_work": "ИП троицкий",
+    "father_not_working": false,
+    "children": [
+      {
+        "fio": "Крылова Диана Алексеевна",
+        "birth": "21.03.2007",
+        "education": ""
+      },
+      {
+        "fio": "Салтыков Максим Дмитриевич",
+        "birth": "15.04.2020",
+        "education": "десткий сад 14"
+      },
+      {
+        "fio": "Салтыкова Милана Дмитриевна",
+        "birth": "22.06.2016",
+        "education": "МБОУ СОШ №13"
+      },
+      {
+        "fio": "Салтыков Степан Дмитриевич",
+        "birth": "04.08.2025",
+        "education": ""
+      }
+    ],
+    "phone_number": "79806360415",
+    "address": "д. Дорки, д.44",
+    "rooms": "2",
+    "square": "42",
+    "amenities": "со всеми удобствами",
+    "ownership": "маткапитал, долевая",
+    "adpi": "да",
+    "install_date": "22.02.2024",
+    "check_date": "23.12.2024",
+    "unified_benefit": "50.000",
+    "large_family_benefit": "1900",
+    "mother_salary": "0",
+    "father_salary": "15.000",
+    "unified_children_count": "3",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Рыбникова Русалина Михайловна",
+    "mother_birth": "13.05.1997",
+    "mother_work": "не работает",
+    "mother_disability_care": false,
+    "mother_not_working": true,
+    "children": [
+      {
+        "fio": "Рыбников Ратмир Александрович",
+        "birth": "04.01.2017",
+        "education": "МБОУ СОШ №6"
+      },
+      {
+        "fio": "Рыбникова Регина Исматовна",
+        "birth": "06.07.2021",
+        "education": "домашний",
+        "home_education": true
+      },
+      {
+        "fio": "Рыбников Тамерлан Александрович",
+        "birth": "01.10.2024",
+        "education": "домашний",
+        "home_education": true
+      },
+      {
+        "fio": "Рыбников Захар Александрович",
+        "birth": "01.10.2024",
+        "education": "домашний",
+        "home_education": true
+      }
+    ],
+    "phone_number": "79040133277",
+    "address": "Г.Вышний Волочек, ул.Урицкого, д.163/31",
+    "rooms": "3",
+    "square": "65",
+    "amenities": "со всеми удобствами",
+    "ownership": "собственник",
+    "adpi": "да",
+    "install_date": "08.10.2024",
+    "check_date": "08.10.2024",
+    "unified_benefit": "70.000",
+    "large_family_benefit": "1900",
+    "mother_salary": "0",
+    "disability_pension": "14.000",
+    "unified_children_count": "4",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Руднева Елена Александровна",
+    "mother_birth": "01.10.1986",
+    "mother_work": "не работает",
+    "mother_disability_care": false,
+    "mother_not_working": true,
+    "father_fio": "Руднев Александр Николаевич",
+    "father_birth": "15.05.1981",
+    "father_work": "НТТС Сервис",
+    "father_not_working": false,
+    "children": [
+      {
+        "fio": "Руднев Александр Александрович",
+        "birth": "19.07.2018",
+        "education": "МБОУ СОШ №13"
+      },
+      {
+        "fio": "Могилин Иван Дмитриевич",
+        "birth": "22.02.2006",
+        "education": "МБОУ СОШ №13"
+      },
+      {
+        "fio": "Руднев Андрей Александрович",
+        "birth": "29.01.2012",
+        "education": "МБОУ СОШ №13"
+      },
+      {
+        "fio": "Руднева Есения Александровна",
+        "birth": "14.11.2013",
+        "education": "МБОУ СОШ №13"
+      },
+      {
+        "fio": "Руднев Артём Александрович",
+        "birth": "28.12.2021",
+        "education": "ДС №8"
+      }
+    ],
+    "phone_number": "79520601126",
+    "address": "г. Вышний Волочек, ул. Ямская, д. 206",
+    "rooms": "2",
+    "square": "48",
+    "amenities": "со всеми удобствами",
+    "ownership": "маткапитал, долевая",
+    "adpi": "да",
+    "install_date": "06.11.2021",
+    "check_date": "10.01.2026",
+    "unified_benefit": "33.700",
+    "large_family_benefit": "1900",
+    "mother_salary": "0",
+    "father_salary": "10.000",
+    "unified_children_count": "4",
+    "unified_percentage": "50%"
+  },
+  {
+    "mother_fio": "Рончашова Виктория Анатольевна",
+    "mother_birth": "18.09.1990",
+    "mother_work": "не работает",
+    "mother_disability_care": false,
+    "mother_not_working": true,
+    "father_fio": "Рнчашов Илья Владимирович",
+    "father_birth": "10.10.1987",
+    "father_work": "не работает",
+    "father_not_working": true,
+    "children": [
+      {
+        "fio": "Бурилова Дарья Алексеевна",
+        "birth": "27.04.2010",
+        "education": "МБОУ СОШ Академическая"
+      },
+      {
+        "fio": "Бурилова Василиса Алексеевна",
+        "birth": "22.05.2015",
+        "education": "МБОУ СОШ Академическая"
+      },
+      {
+        "fio": "Рончашова Стефания Ильинична",
+        "birth": "12.12.2021",
+        "education": "ДС Академический"
+      }
+    ],
+    "phone_number": "79201726793",
+    "address": "Вышневолоякий район, п. Академический, ул. Октябрьская, д. 5, кв. 3",
+    "rooms": "2",
+    "square": "42",
+    "amenities": "со всеми удобствами",
+    "ownership": "макткапитал, долевая",
+    "adpi": "да",
+    "install_date": "29.03.2022",
+    "check_date": "04.11.2023",
+    "unified_benefit": "0",
+    "large_family_benefit": "1900",
+    "mother_salary": "0",
+    "father_salary": "0",
+    "survivor_pension": "46.000",
+    "unified_percentage": "100%"
+  },
+  {
+    "mother_fio": "Римша Анастасия Владимировна",
+    "mother_birth": "18.06.1983",
+    "mother_work": "ООО Лучшие цены",
+    "mother_disability_care": false,
+    "mother_not_working": false,
+    "father_fio": "Римша Сергей Викторович",
+    "father_birth": "03.04.1976",
+    "father_work": "не работает",
+    "father_not_working": true,
+    "children": [
+      {
+        "fio": "Римша Алиса Сергеевна",
+        "birth": "18.05.2017",
+        "education": "МБОУ СОШ №6"
+      },
+      {
+        "fio": "Римша Матвей Сергеевич",
+        "birth": "28.04.2021",
+        "education": "МБДОУ ДС №24"
+      },
+      {
+        "fio": "Римша Милана Сергеевна",
+        "birth": "09.01.2012",
+        "education": "МБОУ СОШ №6"
+      },
+      {
+        "fio": "Римша Алина Сергеевна",
+        "birth": "18.07.2004",
+        "education": ""
+      }
+    ],
+    "phone_number": "79190545999",
+    "address": "г. Вышний Волочек, ул. Дружбы, д. 20а",
+    "rooms": "4",
+    "square": "160",
+    "amenities": "со всеми удобствами",
+    "ownership": "долевая",
+    "adpi": "да",
+    "install_date": "01.03.2023",
+    "check_date": "23.05.2025",
+    "unified_benefit": "34000",
+    "large_family_benefit": "1900",
+    "mother_salary": "35.000",
+    "father_salary": "0",
+    "unified_children_count": "4",
+    "unified_percentage": "50%"
+  },
+  {
+    "mother_fio": "Ремизова Светлана Мирославовна",
+    "mother_birth": "16.08.1986",
+    "mother_work": "МБДОУ ДС №29",
+    "mother_disability_care": false,
+    "mother_not_working": false,
+    "father_fio": "Ремизов Михаил Алексеевич",
+    "father_birth": "22.11.1988",
+    "father_work": "Вышневолоцкий Леспромхоз",
+    "father_not_working": false,
+    "children": [
+      {
+        "fio": "Ремизов Фёдор Михайлович",
+        "birth": "07.04.2014",
+        "education": "МБОУ СОШ №19"
+      },
+      {
+        "fio": "Ремизова Майя Михайловна",
+        "birth": "14.09.2019",
+        "education": "МБДОУ ДС №19"
+      },
+      {
+        "fio": "Юренева Ирина Алексеевна",
+        "birth": "02.10.2007",
+        "education": "Калашниковский колледж"
+      },
+      {
+        "fio": "Ремизова Софья Михайловна",
+        "birth": "10.04.2023",
+        "education": "домашний",
+        "home_education": true
+      }
+    ],
+    "phone_number": "79201591053",
+    "address": "г. Вышний Волочек. ул. Циолковского, д. 35",
+    "rooms": "2",
+    "square": "42",
+    "amenities": "со всеми удобствами",
+    "ownership": "личная, долевая",
+    "adpi": "да",
+    "install_date": "16.11.2021",
+    "check_date": "11.01.2026",
+    "large_family_benefit": "1900",
+    "father_salary": "75.000",
+    "unified_children_count": "4",
+    "unified_percentage": "50%"
+  }
+]

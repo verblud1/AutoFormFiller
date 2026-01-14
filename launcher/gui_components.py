@@ -114,6 +114,18 @@ class LauncherGUI:
         )
         self.btn_db.pack(fill="x", pady=10)
         
+        # Button 4: Highlight Completed Families in Google Sheets
+        self.btn_highlight = ctk.CTkButton(
+            buttons_frame,
+            text="✅ ЗАКРАСИТЬ ВЫПОЛНЕННЫЕ СЕМЬИ В ТАБЛИЦЕ",
+            command=self.launcher.highlight_completed_families,
+            height=60,
+            font=ctk.CTkFont(size=16, weight="bold"),
+            fg_color="#28A745",
+            hover_color="#218838"
+        )
+        self.btn_highlight.pack(fill="x", pady=10)
+        
         # GitHub update button
         self.btn_github = ctk.CTkButton(
             buttons_frame,

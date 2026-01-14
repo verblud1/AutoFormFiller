@@ -54,13 +54,15 @@ class JSONFamilyCreatorGUI(BaseGUI):
         self.config_dir = self.json_creator.config_dir
         self.screenshots_dir = self.json_creator.screenshots_dir
         # Инициализация директорий для файлов реестра и АДПИ
-        # Определяем путь к папке registry - она находится в Installer/
+        # Определяем путь к папке registry - используем правильную логику из старой версии
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        parent_dir = os.path.dirname(current_dir)
-        installer_dir = os.path.join(parent_dir, "Installer")
-        self.register_dir = os.path.join(installer_dir, "registry")
+        self.registry_dir = self.find_registry_directory(current_dir)
+        self.register_dir = self.registry_dir
         self.adpi_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "adpi")
-        self.adpi_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "adpi")
+        
+        # Инициализация переменных, которые могли быть пропущены
+        self.last_register_directory = None
+        self.last_adpi_directory = None
         
         # Настройка интерфейса
         self.setup_ui()
@@ -71,6 +73,29 @@ class JSONFamilyCreatorGUI(BaseGUI):
         
         # Загрузка последних файлов реестра и АДПИ
         self.load_last_files()
+    
+    def find_registry_directory(self, start_dir):
+        """Поиск папки registry относительно текущего файла"""
+        # Проверяем в текущей папке (рядом с gui.py)
+        current_dir_registry = os.path.join(start_dir, "registry")
+        if os.path.exists(current_dir_registry):
+            return current_dir_registry
+        
+        # Проверяем в родительской папке
+        parent_dir = os.path.dirname(start_dir)
+        parent_registry = os.path.join(parent_dir, "registry")
+        if os.path.exists(parent_registry):
+            return parent_registry
+        
+        # Проверяем в родительской папке родительской папки (корень проекта)
+        grandparent_dir = os.path.dirname(parent_dir)
+        grandparent_registry = os.path.join(grandparent_dir, "registry")
+        if os.path.exists(grandparent_registry):
+            return grandparent_registry
+        
+        # Если не нашли, возвращаем папку рядом с gui.py
+        # и она будет создана позже
+        return current_dir_registry
     
     def setup_ui(self):
         """Настройка пользовательского интерфейса"""
@@ -376,6 +401,7 @@ class JSONFamilyCreatorGUI(BaseGUI):
     
     def auto_detect_family_from_register(self):
         """Автоматическое определение семьи из реестра с обработкой дубликатов"""
+        # Проверяем, загружены ли данные реестра
         if not self.register_data:
             messagebox.showwarning("Предупреждение", "Сначала загрузите реестр многодетных")
             return
@@ -1297,9 +1323,8 @@ class JSONFamilyCreatorGUI(BaseGUI):
     def load_last_files(self):
         """Загрузка последних файлов реестра и АДПИ при запуске"""
         # Проверяем наличие файлов в папке registry
-        registry_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "registry")
-        if os.path.exists(registry_dir):
-            registry_files = [f for f in os.listdir(registry_dir) if f.lower().endswith(('.xls', '.xlsx', '.ods'))]
+        if os.path.exists(self.registry_dir):
+            registry_files = [f for f in os.listdir(self.registry_dir) if f.lower().endswith(('.xls', '.xlsx', '.ods'))]
             if len(registry_files) >= 2:
                 # Если есть как минимум два файла в папке registry, спрашиваем пользователя
                 from tkinter import messagebox
@@ -1311,7 +1336,7 @@ class JSONFamilyCreatorGUI(BaseGUI):
                     adpi_file = None
                     
                     for file in registry_files:
-                        file_path = os.path.join(registry_dir, file)
+                        file_path = os.path.join(self.registry_dir, file)
                         try:
                             # Пробуем определить тип файла по структуре
                             df = pd.read_excel(file_path, header=None)

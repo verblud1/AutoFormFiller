@@ -505,6 +505,46 @@ class MassFamilyProcessorGUI(BaseGUI):
         self.status_label = ctk.CTkLabel(log_frame, text="Готов к работе")
         self.status_label.pack(pady=5)
     
+    def pause_processing(self):
+        """Пауза обработки"""
+        if self.is_processing:
+            self.is_processing = False
+            self.log_message("⏸️ Обработка приостановлена")
+            self.update_status("Приостановлено")
+    
+    def stop_processing(self):
+        """Остановка обработки"""
+        try:
+            self.is_processing = False
+            self.manual_intervention_required = False
+            
+            # Останавливаем автоматизацию
+            if self.auto_filler:
+                self.auto_filler.stop_processing()
+                
+            # Закрываем драйвер
+            if self.driver:
+                try:
+                    self.driver.quit()
+                    self.driver = None
+                    self.log_message("🔒 Драйвер закрыт")
+                except Exception as e:
+                    self.log_message(f"⚠️ Ошибка при закрытии драйвера: {e}")
+                
+            # Ждем завершения потока
+            if self.processing_thread and self.processing_thread.is_alive():
+                self.processing_thread.join(timeout=5)
+                
+            # Разблокируем кнопки
+            self.start_button.configure(state="normal")
+            self.continue_button.configure(state="disabled")
+            
+            self.log_message("🛑 Обработка остановлена")
+            self.update_status("Остановлено")
+            
+        except Exception as e:
+            self.log_message(f"⚠️ Ошибка при остановке: {e}")
+    
     def continue_processing(self):
         """Продолжение обработки после ручного вмешательства"""
         self.manual_intervention_required = False
@@ -1507,6 +1547,9 @@ class MassFamilyProcessorGUI(BaseGUI):
                 self.update_status("✅ Все семьи обработаны успешно!")
             else:
                 self.update_status(f"Обработка завершена с {error_count} ошибками")
+            
+            # Вызываем функцию для обработки завершенных семей
+            self.handle_completed_families()
                 
         except Exception as e:
             self.log_message(f"❌ Критическая ошибка в основном цикле обработки: {e}")
@@ -1522,6 +1565,205 @@ class MassFamilyProcessorGUI(BaseGUI):
                     self.driver = None
                 except:
                     pass
+            
+    def handle_completed_families(self):
+        """Обработка завершенных семей - выбор, перемещение в completed и удаление из исходного файла"""
+        try:
+            # Проверяем, есть ли исходный JSON файл
+            if not self.last_json_path or not os.path.exists(self.last_json_path):
+                self.log_message("⚠️ Не найден исходный JSON файл для обработки завершенных семей")
+                return
+
+            # Получаем успешно обработанные семьи
+            completed_families = []
+            for family in self.families_list:
+                if family.get('status') == 'успешно':
+                    completed_families.append(family)
+
+            if not completed_families:
+                self.log_message("ℹ️ Нет успешно обработанных семей для перемещения")
+                return
+
+            # Создаем диалог для выбора семей для перемещения в completed
+            self.show_completed_families_dialog(completed_families)
+
+        except Exception as e:
+            self.log_message(f"❌ Ошибка при обработке завершенных семей: {e}")
+            import traceback
+            self.log_message(f"📋 Трассировка:\n{traceback.format_exc()}")
+
+    def show_completed_families_dialog(self, completed_families):
+        """Показать диалог для выбора семей для добавления в completed"""
+        try:
+            dialog = ctk.CTkToplevel(self.app)
+            dialog.title("Выбор семей для завершения")
+            dialog.geometry("800x600")
+            dialog.transient(self.app)
+            dialog.grab_set()
+
+            # Заголовок
+            ctk.CTkLabel(dialog, text="Выберите семьи для добавления в завершенные:",
+                        font=ctk.CTkFont(size=14, weight="bold")).pack(pady=10)
+
+            # Прокручиваемый фрейм для чекбоксов
+            scroll_frame = ctk.CTkScrollableFrame(dialog, height=400)
+            scroll_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+            # Создаем переменные для чекбоксов
+            family_vars = []
+            for i, family in enumerate(completed_families):
+                var = ctk.BooleanVar(value=True)  # По умолчанию все отмечены
+                family_vars.append(var)
+                
+                mother_fio = family.get('mother_fio', 'Неизвестно')
+                father_fio = family.get('father_fio', '')
+                children_count = len(family.get('children', []))
+                
+                text = f"{i+1}. {mother_fio}"
+                if father_fio:
+                    text += f" + {father_fio}"
+                text += f" ({children_count} детей)"
+                
+                checkbox = ctk.CTkCheckBox(scroll_frame, text=text, variable=var)
+                checkbox.pack(anchor="w", pady=2)
+
+            # Кнопки управления
+            button_frame = ctk.CTkFrame(dialog)
+            button_frame.pack(fill="x", padx=20, pady=10)
+
+            def select_all():
+                for var in family_vars:
+                    var.set(True)
+
+            def deselect_all():
+                for var in family_vars:
+                    var.set(False)
+
+            def process_selection():
+                try:
+                    # Получаем выбранные семьи
+                    selected_families = []
+                    for i, var in enumerate(family_vars):
+                        if var.get():
+                            selected_families.append(completed_families[i])
+
+                    if not selected_families:
+                        messagebox.showwarning("Предупреждение", "Не выбрано ни одной семьи")
+                        return
+
+                    # Обрабатываем выбранные семьи
+                    self.process_selected_completed_families(selected_families)
+                    
+                    dialog.destroy()
+                except Exception as e:
+                    messagebox.showerror("Ошибка", f"Ошибка при обработке выбора: {e}")
+
+            ctk.CTkButton(button_frame, text="Выбрать все", command=select_all, width=100).pack(side="left", padx=5)
+            ctk.CTkButton(button_frame, text="Снять все", command=deselect_all, width=100).pack(side="left", padx=5)
+            ctk.CTkButton(button_frame, text="Добавить в завершенные", command=process_selection,
+                         width=200, fg_color="green").pack(side="right", padx=5)
+            ctk.CTkButton(button_frame, text="Отмена", command=dialog.destroy,
+                         width=100, fg_color="gray").pack(side="right", padx=5)
+
+        except Exception as e:
+            self.log_message(f"❌ Ошибка при показе диалога завершенных семей: {e}")
+            messagebox.showerror("Ошибка", f"Ошибка при показе диалога: {e}")
+
+    def process_selected_completed_families(self, selected_families):
+        """Обработка выбранных семей - добавление в completed JSON и удаление из исходного"""
+        try:
+            # Создаем папку completed, если не существует
+            completed_dir = os.path.join(os.path.dirname(self.last_json_path), "completed")
+            if not os.path.exists(completed_dir):
+                os.makedirs(completed_dir)
+
+            # Формируем имя файла с сегодняшней датой
+            today_date = datetime.now().strftime("%d.%m.%Y")
+            completed_filename = f"{today_date}_completed_families.json"
+            completed_filepath = os.path.join(completed_dir, completed_filename)
+
+            # Загружаем существующие завершенные семьи, если файл существует
+            existing_completed = []
+            if os.path.exists(completed_filepath):
+                with open(completed_filepath, 'r', encoding='utf-8') as f:
+                    try:
+                        existing_completed = json.load(f)
+                        if not isinstance(existing_completed, list):
+                            existing_completed = []
+                    except json.JSONDecodeError:
+                        existing_completed = []
+
+            # Добавляем новые завершенные семьи
+            existing_completed.extend(selected_families)
+
+            # Сохраняем обновленный список завершенных семей
+            with open(completed_filepath, 'w', encoding='utf-8') as f:
+                json.dump(existing_completed, f, ensure_ascii=False, indent=2)
+
+            self.log_message(f"✅ {len(selected_families)} семей добавлено в {completed_filename}")
+
+            # Удаляем выбранные семьи из исходного JSON файла
+            self.remove_families_from_source(selected_families)
+
+        except Exception as e:
+            self.log_message(f"❌ Ошибка при обработке выбранных завершенных семей: {e}")
+            import traceback
+            self.log_message(f"📋 Трассировка:\n{traceback.format_exc()}")
+
+    def remove_families_from_source(self, families_to_remove):
+        """Удаление семей из исходного JSON файла"""
+        try:
+            # Загружаем исходный JSON
+            with open(self.last_json_path, 'r', encoding='utf-8') as f:
+                all_families = json.load(f)
+
+            # Создаем множество ФИО для быстрого поиска
+            families_to_remove_set = set()
+            for family in families_to_remove:
+                mother_fio = family.get('mother_fio', '').strip().lower()
+                father_fio = family.get('father_fio', '').strip().lower()
+                families_to_remove_set.add(mother_fio)
+                if father_fio:
+                    families_to_remove_set.add(father_fio)
+
+            # Фильтруем семьи, исключая те, что нужно удалить
+            remaining_families = []
+            removed_count = 0
+            
+            for family in all_families:
+                mother_fio = family.get('mother_fio', '').strip().lower()
+                father_fio = family.get('father_fio', '').strip().lower()
+                
+                # Проверяем, нужно ли удалять эту семью
+                should_remove = mother_fio in families_to_remove_set or father_fio in families_to_remove_set
+                
+                if not should_remove:
+                    remaining_families.append(family)
+                else:
+                    removed_count += 1
+
+            # Сохраняем обновленный JSON обратно
+            with open(self.last_json_path, 'w', encoding='utf-8') as f:
+                json.dump(remaining_families, f, ensure_ascii=False, indent=2)
+
+            self.log_message(f"🗑️ Удалено {removed_count} семей из исходного файла")
+            
+            # Обновляем внутренний список семей
+            self.families_list = remaining_families
+            self.update_families_table()
+            self.update_families_info()
+
+        except Exception as e:
+            self.log_message(f"❌ Ошибка при удалении семей из исходного файла: {e}")
+            import traceback
+            self.log_message(f"📋 Трассировка:\n{traceback.format_exc()}")
+
+    def run(self):
+        """Запуск приложения"""
+        self.app.mainloop()
+
+
+class AutoFormFillerMass:
 
     def process_single_family_with_retry(self, family_data, family_number):
         """Обработка одной семьи с повторными попытками"""
