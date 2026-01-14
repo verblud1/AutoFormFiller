@@ -183,6 +183,128 @@ class GoogleSheetsHandler:
             print(f"❌ Ошибка получения информации о таблице: {e}")
             return {}
 
+    def highlight_family_in_sheet(self, spreadsheet_id: str, sheet_name: str, mother_fio: str, father_fio: str) -> bool:
+        """
+        Находит семью по ФИО родителей и закрашивает все строки, связанные с этой семьей, зеленым цветом
+        
+        Args:
+            spreadsheet_id: ID электронной таблицы
+            sheet_name: Название листа
+            mother_fio: ФИО матери
+            father_fio: ФИО отца
+            
+        Returns:
+            Успешность операции
+        """
+        try:
+            # Получаем все значения из таблицы
+            range_name = f"{sheet_name}!A:Z"
+            result = self.service.spreadsheets().values().get(
+                spreadsheetId=spreadsheet_id,
+                range=range_name
+            ).execute()
+            
+            values = result.get('values', [])
+            if not values:
+                print("⚠️ Таблица пуста")
+                return False
+            
+            # Ищем строки, содержащие ФИО матери или отца
+            target_rows = []
+            mother_parts = mother_fio.split() if mother_fio else []
+            father_parts = father_fio.split() if father_fio else []
+            
+            # Создаем списки возможных комбинаций для поиска
+            search_terms = []
+            if mother_parts:
+                # Добавляем полное ФИО матери и его части
+                search_terms.extend([mother_fio.lower()] + [part.lower() for part in mother_parts])
+            if father_parts:
+                # Добавляем полное ФИО отца и его части
+                search_terms.extend([father_fio.lower()] + [part.lower() for part in father_parts])
+            
+            for i, row in enumerate(values):
+                # Объединяем все значения в строке для поиска
+                row_text = ' '.join(str(cell) for cell in row if cell).lower()
+                
+                # Проверяем, содержит ли строка хотя бы одну часть ФИО
+                # Требуем как минимум 2 совпадения для уверенности в нахождении правильной семьи
+                matches = 0
+                for term in search_terms:
+                    if len(term) > 2 and term in row_text:  # Игнорируем короткие слова
+                        matches += 1
+                
+                # Если нашли достаточно совпадений (как минимум 2), считаем, что нашли нужную семью
+                if matches >= 2:
+                    target_rows.append(i + 1)  # Индекс строки (начинается с 1)
+                    
+                    # Также добавляем соседние строки, которые могут принадлежать той же семье
+                    # (обычно дети и другая информация о семье находятся в соседних строках)
+                    # Проверяем строки выше и ниже текущей
+                    for offset in [-1, 1]:  # Проверяем строку выше и ниже
+                        neighbor_row_idx = i + offset
+                        if 0 <= neighbor_row_idx < len(values):
+                            neighbor_row = values[neighbor_row_idx]
+                            neighbor_row_text = ' '.join(str(cell) for cell in neighbor_row if cell).lower()
+                            
+                            # Если соседняя строка также содержит какие-либо части ФИО, добавляем её
+                            neighbor_matches = 0
+                            for term in search_terms:
+                                if len(term) > 2 and term in neighbor_row_text:
+                                    neighbor_matches += 1
+                            
+                            if neighbor_matches >= 1 and (neighbor_row_idx + 1) not in target_rows:
+                                target_rows.append(neighbor_row_idx + 1)
+            
+            if not target_rows:
+                print(f"🔍 Семья не найдена: {mother_fio or father_fio}")
+                return False
+            
+            # Закрашиваем все найденные строки зеленым цветом
+            requests = []
+            for row_idx in target_rows:
+                requests.append({
+                    "repeatCell": {
+                        "range": {
+                            "sheetId": 0,  # ID листа (по умолчанию первый)
+                            "startRowIndex": row_idx - 1,
+                            "endRowIndex": row_idx,
+                            "startColumnIndex": 0,
+                            "endColumnIndex": len(values[0]) if values and len(values[0]) > 0 else 26  # Количество столбцов в таблице
+                        },
+                        "cell": {
+                            "userEnteredFormat": {
+                                "backgroundColor": {
+                                    'red': 0.0,
+                                    'green': 1.0,
+                                    'blue': 0.0,
+                                    'alpha': 0.3  # Прозрачность
+                                }
+                            }
+                        },
+                        "fields": "userEnteredFormat.backgroundColor"
+                    }
+                })
+            
+            if requests:
+                body = {
+                    'requests': requests
+                }
+                
+                response = self.service.spreadsheets().batchUpdate(
+                    spreadsheetId=spreadsheet_id,
+                    body=body
+                ).execute()
+                
+                print(f"✅ Успешно закрашено {len(requests)} строк для семьи: {mother_fio or father_fio}")
+                return True
+            else:
+                print("⚠️ Нет строк для закрашивания")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Ошибка закрашивания семьи в таблице: {e}")
+            return False
 
 def load_completed_families_from_json(json_file_path: str) -> List[Dict]:
     """

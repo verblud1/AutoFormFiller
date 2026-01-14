@@ -168,9 +168,10 @@ class MassFamilyProcessorGUI(BaseGUI):
             today_stat, week_stat = self.get_statistics_for_period()
             # Проверяем, существует ли виджет перед обновлением
             try:
-                self.stat_label.configure(
-                    text=f"📊 Статистика: Сегодня - {today_stat} | Неделя - {week_stat}"
-                )
+                if self.stat_label.winfo_exists():
+                    self.stat_label.configure(
+                        text=f"📊 Статистика: Сегодня - {today_stat} | Неделя - {week_stat}"
+                    )
             except:
                 # Виджет может быть уничтожен, игнорируем ошибку
                 pass
@@ -756,11 +757,19 @@ class MassFamilyProcessorGUI(BaseGUI):
     def update_families_table(self):
         """Обновление таблицы семей"""
         try:
+            # Проверяем, существует ли родительский фрейм перед обновлением
+            if not self.families_scrollframe.winfo_exists():
+                return
+                
             # Сохраняем ссылки на старые виджеты перед их уничтожением
             old_widgets = list(self.families_widgets)
             self.families_widgets = []
             
             for i, family in enumerate(self.families_list):
+                # Проверяем, существует ли родительский фрейм перед созданием новых виджетов
+                if not self.families_scrollframe.winfo_exists():
+                    break
+                    
                 row_frame = ctk.CTkFrame(self.families_scrollframe)
                 row_frame.pack(fill="x", padx=5, pady=2)
                 
@@ -807,7 +816,9 @@ class MassFamilyProcessorGUI(BaseGUI):
             # Уничтожаем старые виджеты только после создания новых
             for widget in old_widgets:
                 try:
-                    widget.destroy()
+                    # Проверяем, существует ли виджет перед уничтожением
+                    if widget.winfo_exists():
+                        widget.destroy()
                 except:
                     # Игнорируем ошибки при уничтожении, если виджет уже уничтожен
                     pass
@@ -822,7 +833,8 @@ class MassFamilyProcessorGUI(BaseGUI):
             if total == 0:
                 # Проверяем, существует ли виджет перед обновлением
                 try:
-                    self.families_info.configure(text="Семей загружено: 0")
+                    if self.families_info.winfo_exists():
+                        self.families_info.configure(text="Семей загружено: 0")
                 except:
                     # Виджет может быть уничтожен, игнорируем ошибку
                     pass
@@ -854,7 +866,8 @@ class MassFamilyProcessorGUI(BaseGUI):
                 
             # Проверяем, существует ли виджет перед обновлением
             try:
-                self.families_info.configure(text=info_text)
+                if self.families_info.winfo_exists():
+                    self.families_info.configure(text=info_text)
             except:
                 # Виджет может быть уничтожен, игнорируем ошибку
                 pass
@@ -1098,8 +1111,10 @@ class MassFamilyProcessorGUI(BaseGUI):
         try:
             # Проверяем, существует ли виджет перед обновлением
             try:
-                self.progress.set(value)
-                self.app.update_idletasks()
+                # Проверяем, что виджет существует и не был уничтожен
+                if self.progress.winfo_exists():
+                    self.progress.set(value)
+                    self.app.update_idletasks()
             except:
                 # Виджет может быть уничтожен, игнорируем ошибку
                 pass
@@ -1111,8 +1126,10 @@ class MassFamilyProcessorGUI(BaseGUI):
         try:
             # Проверяем, существует ли виджет перед обновлением
             try:
-                self.status_label.configure(text=message)
-                self.app.update_idletasks()
+                # Проверяем, что виджет существует и не был уничтожен
+                if self.status_label.winfo_exists():
+                    self.status_label.configure(text=message)
+                    self.app.update_idletasks()
             except:
                 # Виджет может быть уничтожен, игнорируем ошибку
                 pass
@@ -1566,6 +1583,116 @@ class MassFamilyProcessorGUI(BaseGUI):
                 except:
                     pass
             
+    def process_single_family_with_retry(self, family_data, family_number):
+        """Обработка одной семьи с повторными попытками"""
+        max_attempts = 2
+        for attempt in range(max_attempts):
+            try:
+                self.log_message(f"🔄 Попытка {attempt + 1} обработки семьи {family_number}")
+                
+                # При повторной попытке перезапускаем драйвер
+                if attempt > 0:
+                    if self.driver:
+                        try:
+                            self.driver.quit()
+                        except Exception as e:
+                            self.log_message(f"⚠️ Ошибка при закрытии драйвера: {e}")
+                        self.driver = None
+                    
+                    self.auto_filler = AutoFormFillerMass(self)
+                    if not self.auto_filler._setup_driver():
+                        self.log_message("❌ Не удалось настроить драйвер")
+                        continue
+                    self.driver = self.auto_filler.driver
+                elif not self.driver:
+                    # Первая попытка, но драйвера нет
+                    self.auto_filler = AutoFormFillerMass(self)
+                    if not self.auto_filler._setup_driver():
+                        self.log_message("❌ Не удалось настроить драйвер")
+                        continue
+                    self.driver = self.auto_filler.driver
+                else:
+                    # Используем существующий драйвер
+                    self.auto_filler = AutoFormFillerMass(self)
+                    # Проверяем, что драйвер все еще активен
+                    try:
+                        # Проверяем, можно ли получить URL страницы
+                        _ = self.driver.current_url
+                        self.auto_filler.driver = self.driver
+                        self.auto_filler.wait = WebDriverWait(self.driver, 10)
+                    except:
+                        # Драйвер больше не активен, нужно создать новый
+                        self.log_message("⚠️ Драйвер больше не активен, создаем новый")
+                        if self.driver:
+                            try:
+                                self.driver.quit()
+                            except Exception as e:
+                                self.log_message(f"⚠️ Ошибка при закрытии старого драйвера: {e}")
+                        self.driver = None
+                        
+                        self.auto_filler = AutoFormFillerMass(self)
+                        if not self.auto_filler._setup_driver():
+                            self.log_message("❌ Не удалось настроить драйвер")
+                            continue
+                        self.driver = self.auto_filler.driver
+                
+                # Устанавливаем путь для скриншотов
+                if self.screenshot_var.get():
+                    screenshot_dir = self.screenshot_dir.get().strip()
+                    if not screenshot_dir:
+                        screenshot_dir = self.screenshots_dir
+                        
+                    if not os.path.exists(screenshot_dir):
+                        try:
+                            os.makedirs(screenshot_dir)
+                            self.log_message(f"📁 Создана папка для скриншотов: {screenshot_dir}")
+                        except Exception as e:
+                            self.log_message(f"⚠️ Не удалось создать папку для скриншотов: {e}")
+                            screenshot_dir = None
+                            
+                    self.auto_filler.screenshot_dir = screenshot_dir
+                    
+                # Запускаем автоматизацию
+                success = self.auto_filler.process_family(family_data, family_number)
+                
+                if success:
+                    return True
+                else:
+                    self.log_message(f"❌ Попытка {attempt + 1} не удалась")
+                    if attempt < max_attempts - 1:
+                        self.log_message("🔄 Возвращаемся на страницу поиска для повторной попытки...")
+                        # Возвращаемся на страницу поиска
+                        try:
+                            self.driver.get("http://localhost:8080/aspnetkp/Common/FindInfo.aspx")
+                            time.sleep(0.2)
+                        except:
+                            pass
+                
+            except Exception as e:
+                self.log_message(f"❌ Ошибка в process_single_family (попытка {attempt + 1}): {str(e)}")
+                import traceback
+                self.log_message(f"📋 Трассировка:\n{traceback.format_exc()}")
+                if attempt < max_attempts - 1:
+                    self.log_message("🔄 Пробуем еще раз...")
+                    time.sleep(1)
+        
+        self.log_message(f"❌ Обработка семьи {family_number} не удалась после {max_attempts} попыток")
+        return False
+    
+    def _update_progress_and_status(self, current_index, total_count, success_count, error_count, skipped_count):
+        """Обновление прогресса и статуса с детальной информацией"""
+        # Обновляем прогресс
+        progress_value = current_index / total_count
+        self.update_progress(progress_value)
+        
+        # Обновляем статус с детальной информацией
+        status_text = f"Обработано: {current_index}/{total_count} | ✅: {success_count} | ❌: {error_count} | ⏭️: {skipped_count}"
+        self.update_status(status_text)
+        
+        # Проверяем, не остановлена ли обработка, чтобы избежать лишних обновлений UI
+        if self.is_processing:
+            self.update_families_table()
+
     def handle_completed_families(self):
         """Обработка завершенных семей - выбор, перемещение в completed и удаление из исходного файла"""
         try:
@@ -1758,6 +1885,26 @@ class MassFamilyProcessorGUI(BaseGUI):
             import traceback
             self.log_message(f"📋 Трассировка:\n{traceback.format_exc()}")
 
+    def log_message(self, message):
+        """Логирование сообщений в текстовое поле"""
+        try:
+            timestamp = datetime.now().strftime("[%H:%M:%S]")
+            log_entry = f"{timestamp} {message}\n"
+            
+            # Проверяем, существует ли виджет перед обновлением
+            if hasattr(self, 'log_text') and self.log_text.winfo_exists():
+                # Временно разрешаем редактирование
+                self.log_text.config(state="normal")
+                # Добавляем сообщение
+                self.log_text.insert("end", log_entry)
+                # Прокручиваем к последней строке
+                self.log_text.see("end")
+                # Возвращаем в состояние "только для чтения"
+                self.log_text.config(state="disabled")
+        except:
+            # Если не удается обновить GUI, выводим в консоль
+            print(f"[LOG] {message}")
+    
     def run(self):
         """Запуск приложения"""
         self.app.mainloop()
@@ -1770,7 +1917,7 @@ class AutoFormFillerMass:
         max_attempts = 2
         for attempt in range(max_attempts):
             try:
-                self.log_message(f"🔄 Попытка {attempt + 1} обработки семьи {family_number}")
+                self.gui.log_message(f"🔄 Попытка {attempt + 1} обработки семьи {family_number}")
                 
                 # При повторной попытке перезапускаем драйвер
                 if attempt > 0:
@@ -1778,19 +1925,19 @@ class AutoFormFillerMass:
                         try:
                             self.driver.quit()
                         except Exception as e:
-                            self.log_message(f"⚠️ Ошибка при закрытии драйвера: {e}")
+                            self.gui.log_message(f"⚠️ Ошибка при закрытии драйвера: {e}")
                         self.driver = None
                     
                     self.auto_filler = AutoFormFillerMass(self)
                     if not self.auto_filler._setup_driver():
-                        self.log_message("❌ Не удалось настроить драйвер")
+                        self.gui.log_message("❌ Не удалось настроить драйвер")
                         continue
                     self.driver = self.auto_filler.driver
                 elif not self.driver:
                     # Первая попытка, но драйвера нет
                     self.auto_filler = AutoFormFillerMass(self)
                     if not self.auto_filler._setup_driver():
-                        self.log_message("❌ Не удалось настроить драйвер")
+                        self.gui.log_message("❌ Не удалось настроить драйвер")
                         continue
                     self.driver = self.auto_filler.driver
                 else:
@@ -1804,17 +1951,17 @@ class AutoFormFillerMass:
                         self.auto_filler.wait = WebDriverWait(self.driver, 10)
                     except:
                         # Драйвер больше не активен, нужно создать новый
-                        self.log_message("⚠️ Драйвер больше не активен, создаем новый")
+                        self.gui.log_message("⚠️ Драйвер больше не активен, создаем новый")
                         if self.driver:
                             try:
                                 self.driver.quit()
                             except Exception as e:
-                                self.log_message(f"⚠️ Ошибка при закрытии старого драйвера: {e}")
+                                self.gui.log_message(f"⚠️ Ошибка при закрытии старого драйвера: {e}")
                         self.driver = None
                         
                         self.auto_filler = AutoFormFillerMass(self)
                         if not self.auto_filler._setup_driver():
-                            self.log_message("❌ Не удалось настроить драйвер")
+                            self.gui.log_message("❌ Не удалось настроить драйвер")
                             continue
                         self.driver = self.auto_filler.driver
                 
@@ -1827,9 +1974,9 @@ class AutoFormFillerMass:
                     if not os.path.exists(screenshot_dir):
                         try:
                             os.makedirs(screenshot_dir)
-                            self.log_message(f"📁 Создана папка для скриншотов: {screenshot_dir}")
+                            self.gui.log_message(f"📁 Создана папка для скриншотов: {screenshot_dir}")
                         except Exception as e:
-                            self.log_message(f"⚠️ Не удалось создать папку для скриншотов: {e}")
+                            self.gui.log_message(f"⚠️ Не удалось создать папку для скриншотов: {e}")
                             screenshot_dir = None
                             
                     self.auto_filler.screenshot_dir = screenshot_dir
@@ -1840,9 +1987,9 @@ class AutoFormFillerMass:
                 if success:
                     return True
                 else:
-                    self.log_message(f"❌ Попытка {attempt + 1} не удалась")
+                    self.gui.log_message(f"❌ Попытка {attempt + 1} не удалась")
                     if attempt < max_attempts - 1:
-                        self.log_message("🔄 Возвращаемся на страницу поиска для повторной попытки...")
+                        self.gui.log_message("🔄 Возвращаемся на страницу поиска для повторной попытки...")
                         # Возвращаемся на страницу поиска
                         try:
                             self.driver.get("http://localhost:8080/aspnetkp/Common/FindInfo.aspx")
@@ -1851,14 +1998,14 @@ class AutoFormFillerMass:
                             pass
                 
             except Exception as e:
-                self.log_message(f"❌ Ошибка в process_single_family (попытка {attempt + 1}): {str(e)}")
+                self.gui.log_message(f"❌ Ошибка в process_single_family (попытка {attempt + 1}): {str(e)}")
                 import traceback
-                self.log_message(f"📋 Трассировка:\n{traceback.format_exc()}")
+                self.gui.log_message(f"📋 Трассировка:\n{traceback.format_exc()}")
                 if attempt < max_attempts - 1:
-                    self.log_message("🔄 Пробуем еще раз...")
+                    self.gui.log_message("🔄 Пробуем еще раз...")
                     time.sleep(1)
         
-        self.log_message(f"❌ Обработка семьи {family_number} не удалась после {max_attempts} попыток")
+        self.gui.log_message(f"❌ Обработка семьи {family_number} не удалась после {max_attempts} попыток")
         return False
     
     def pause_processing(self):
@@ -1905,15 +2052,15 @@ class AutoFormFillerMass:
         """Обновление прогресса и статуса с детальной информацией"""
         # Обновляем прогресс
         progress_value = current_index / total_count
-        self.update_progress(progress_value)
+        self.gui.update_progress(progress_value)
         
         # Обновляем статус с детальной информацией
         status_text = f"Обработано: {current_index}/{total_count} | ✅: {success_count} | ❌: {error_count} | ⏭️: {skipped_count}"
-        self.update_status(status_text)
+        self.gui.update_status(status_text)
         
         # Проверяем, не остановлена ли обработка, чтобы избежать лишних обновлений UI
-        if self.is_processing:
-            self.update_families_table()
+        if self.gui.is_processing:
+            self.gui.update_families_table()
 
     def run(self):
         """Запуск приложения"""

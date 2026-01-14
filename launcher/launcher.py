@@ -380,15 +380,21 @@ class FamilySystemLauncher:
             from tkinter import filedialog, messagebox
             from tkinter import simpledialog  # Добавляем импорт simpledialog
             
-            # Проверяем, установлен ли Google Sheets API
-            sheets_handler = GoogleSheetsHandler()
-            if not sheets_handler.is_setup():
-                messagebox.showwarning(
-                    "Google Sheets не настроен",
-                    "Для использования этой функции необходимо настроить Google Sheets API.\n"
-                    "Пожалуйста, проверьте файл конфигурации Google Sheets."
+            # Определяем путь к файлу учетных данных
+            credentials_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                          "hale-sentry-478217-a7-e2f18fda44d4.json")
+            
+            # Проверяем, существует ли файл учетных данных
+            if not os.path.exists(credentials_path):
+                messagebox.showerror(
+                    "Ошибка",
+                    f"Файл учетных данных не найден: {credentials_path}\n"
+                    "Пожалуйста, убедитесь, что файл учетных данных Google API находится в корне проекта."
                 )
                 return
+            
+            # Инициализируем Google Sheets Handler с путем к учетным данным
+            sheets_handler = GoogleSheetsHandler(credentials_path)
             
             # Запрашиваем у пользователя путь к JSON файлу с завершенными семьями
             completed_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "completed")
@@ -414,24 +420,25 @@ class FamilySystemLauncher:
             # Запрашиваем ID таблицы Google Sheets
             spreadsheet_id = simpledialog.askstring(
                 "ID Таблицы",
-                "Введите ID Google-таблицы (часть URL между /d/ и /edit):"
+                "Введите ID Google-таблицы (часть URL между /d/ и /edit):",
+                initialvalue=""  # Пустое значение по умолчанию
             )
             
             if not spreadsheet_id:
                 return
                 
-            # Запрашиваем название листа
+            # Запрашиваем название листа, по умолчанию "АСП_Многодетные"
             sheet_name = simpledialog.askstring(
                 "Название листа",
-                "Введите название листа (по умолчанию: 'Лист1'):",
-                initialvalue="Лист1"
-            ) or "Лист1"
+                "Введите название листа (по умолчанию: 'АСП_Многодетные'):",
+                initialvalue="АСП_Многодетные"
+            ) or "АСП_Многодетные"
             
             # Выделяем завершенные семьи в таблице
             success_count = 0
             for family in completed_families:
-                mother_fio = family.get('mother_fio', '').strip().lower()
-                father_fio = family.get('father_fio', '').strip().lower()
+                mother_fio = family.get('mother_fio', '').strip()
+                father_fio = family.get('father_fio', '').strip()
                 
                 if mother_fio or father_fio:
                     # Ищем и выделяем семью в таблице
@@ -455,7 +462,6 @@ class FamilySystemLauncher:
         except Exception as e:
             messagebox.showerror("Ошибка", f"Ошибка при выделении семей в таблице:\n{str(e)}")
             print(f"❌ Ошибка выделения семей в таблице: {e}")
-
 
 if __name__ == "__main__":
     launcher = FamilySystemLauncher()
