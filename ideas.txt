@@ -1,3 +1,11 @@
+1REAUDJZCLqu7Vn_UcIGiVG9CqPWpNnGrD-luCIrDz2c
+Список граждан (Лист 1)
+
+
+
+
+
+
 MassFamilyProcessorGUI:
 1)критическая ошибка: дата установки адпи иногда не устанавливается(чекбокс убирается) вот html <tr>
 									<td class="StandartXL"><input id="ctl00_cph_ctrlDopFields_AJSpr1_PopupDiv_divContent_AJ_15" type="checkbox" name="ctl00$cph$ctrlDopFields$AJSpr1$PopupDiv$divContent$AJ_15" onclick="javascript:setTimeout('__doPostBack(\'ctl00$cph$ctrlDopFields$AJSpr1$PopupDiv$divContent$AJ_15\',\'\')', 0)"><label for="ctl00_cph_ctrlDopFields_AJSpr1_PopupDiv_divContent_AJ_15">15</label></td><td class="StandartXL">&nbsp;Дата установки АДПИ</td>
@@ -257,6 +265,12 @@ json_family_creator.py:
 
 GOOGLE SHEETS ИНТЕГРАЦИЯ 
 исправить автоподгрузку реестра многодетных и адпи
+
+
+перепроверить все зеленые и желтые автоматически в базе
+
+нужно чтоыб с комплитед семьями создавалась папка за неделю
+нужно чтобы из всех файлов completed_families за неделю доставались фио и делался txt последовательный список со всеми готовыми семьями за неделю по фио
 
 желтые исправить на зеленые
 

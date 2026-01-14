@@ -11,6 +11,29 @@ from typing import List, Dict, Optional
 import urllib.parse
 import sys
 
+try:
+    try:
+        try:
+            from .config_manager import get_default_config_manager, ConfigManager
+        except ImportError:
+            # Если импорт не удался, возможно, скрипт запускается напрямую
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+            from config_manager import get_default_config_manager, ConfigManager
+    except ImportError:
+        # Если импорт не удался, возможно, скрипт запускается напрямую
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+        from config_manager import get_default_config_manager, ConfigManager
+except ImportError:
+    # Если импорт не удался, возможно, скрипт запускается напрямую
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from config_manager import get_default_config_manager, ConfigManager
+
 
 class GoogleSheetsHandler:
     def __init__(self, credentials_file: str):
@@ -461,16 +484,19 @@ class GoogleSheetsHandler:
         # Проверяем различные цвета в зависимости от параметра
         if target_color == "green":
             # Зеленый: высокое значение green, низкие red и blue
-            return green > 0.7 and red < 0.3 and blue < 0.3
+            # Также проверяем, что это не белый цвет (где все компоненты близки к 1.0)
+            return green > 0.5 and red < 0.6 and blue < 0.6 and not (red > 0.9 and green > 0.9 and blue > 0.9)
         elif target_color == "yellow":
             # Желтый: высокие red и green, низкое blue
-            return red > 0.7 and green > 0.7 and blue < 0.3
+            # Также проверяем, что это не белый цвет
+            return red > 0.7 and green > 0.7 and blue < 0.5 and not (red > 0.9 and green > 0.9 and blue > 0.9)
         elif target_color == "red":
             # Красный: высокое значение red, низкие green и blue
-            return red > 0.7 and green < 0.3 and blue < 0.3
+            return red > 0.7 and green < 0.5 and blue < 0.5
         elif target_color == "any":
             # Любые отличные от стандартного белого цвета
-            return not (abs(red - 1.0) < 0.01 and abs(green - 1.0) < 0.01 and abs(blue - 1.0) < 0.01)
+            # Белый цвет обычно имеет значения близкие к 1.0 для всех компонентов
+            return not (red > 0.95 and green > 0.95 and blue > 0.95)
         else:
             return False
  
@@ -1075,6 +1101,326 @@ def interactive_check_existing_colors_and_highlight(credentials_file: str, sprea
             # Нет семей с цветом, просто закрашиваем те, что без цвета
             if families_without_colors:
                 success = handler.highlight_completed_families(spreadsheet_id, sheet_name, families_without_colors)
+                
+                if success:
+                    print(f"✅ Закрашено {len(families_without_colors)} семей")
+                    update_families_color_status(json_file_path, families_without_colors, True)
+                
+                return success
+            else:
+                print("✅ Нет семей для закрашивания")
+                return True
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Ошибка интерактивной проверки существующих цветов и закрашивания: {e}")
+        return False
+
+
+def get_sheet_name_with_auto_save(original_sheet_name: str = "АСП_Многодетные", config_manager: ConfigManager = None) -> str:
+    """
+    Получение названия листа с автоматическим сохранением при необходимости
+    
+    Args:
+        original_sheet_name: Оригинальное название листа
+        config_manager: Экземпляр менеджера конфигурации
+        
+    Returns:
+        Название листа
+    """
+    if config_manager is None:
+        config_manager = get_default_config_manager()
+    
+    # Попробовать получить название листа из конфигурации
+    sheet_name = config_manager.get_sheet_name(original_sheet_name)
+    
+    if sheet_name != original_sheet_name:
+        print(f"✅ Найдено сохраненное название листа для '{original_sheet_name}': {sheet_name}")
+        return sheet_name
+    else:
+        # Запросить у пользователя название листа
+        print(f"ℹ️ Название листа для '{original_sheet_name}' не найдено в конфигурации")
+        new_sheet_name = input(f"Пожалуйста, введите название листа для '{original_sheet_name}' (или нажмите Enter для '{original_sheet_name}'): ").strip()
+        
+        # Если пользователь ничего не ввел, используем оригинальное название
+        if not new_sheet_name:
+            new_sheet_name = original_sheet_name
+        
+        # Сохранить название листа в конфигурации
+        config_manager.set_sheet_name(original_sheet_name, new_sheet_name)
+        print(f"✅ Название листа для '{original_sheet_name}' сохранено в конфигурации: {new_sheet_name}")
+        
+        return new_sheet_name
+
+
+def get_spreadsheet_id_with_auto_save(sheet_name: str = "АСП_Многодетные", config_manager: ConfigManager = None) -> str:
+    """
+    Получение ID таблицы с автоматическим сохранением при необходимости
+    
+    Args:
+        sheet_name: Название листа
+        config_manager: Экземпляр менеджера конфигурации
+        
+    Returns:
+        ID электронной таблицы
+    """
+    if config_manager is None:
+        config_manager = get_default_config_manager()
+    
+    # Попробовать получить ID из конфигурации
+    spreadsheet_id = config_manager.get_spreadsheet_id(sheet_name)
+    
+    if spreadsheet_id:
+        print(f"✅ Найден сохраненный ID таблицы для '{sheet_name}': {spreadsheet_id}")
+        return spreadsheet_id
+    else:
+        # Запросить у пользователя ID таблицы
+        print(f"ℹ️ ID таблицы для '{sheet_name}' не найден в конфигурации")
+        spreadsheet_id = input(f"Пожалуйста, введите ID таблицы для '{sheet_name}': ").strip()
+        
+        # Сохранить ID в конфигурации
+        config_manager.set_spreadsheet_id(sheet_name, spreadsheet_id)
+        print(f"✅ ID таблицы для '{sheet_name}' сохранен в конфигурации: {spreadsheet_id}")
+        
+        return spreadsheet_id
+
+
+def get_both_ids_with_confirmation(original_sheet_name: str = "АСП_Многодетные", config_manager: ConfigManager = None) -> tuple:
+    """
+    Получение ID таблицы и названия листа с возможностью проверки и корректировки пользователем
+    
+    Args:
+        original_sheet_name: Оригинальное название листа
+        config_manager: Экземпляр менеджера конфигурации
+        
+    Returns:
+        Кортеж (spreadsheet_id, actual_sheet_name)
+    """
+    if config_manager is None:
+        config_manager = get_default_config_manager()
+    
+    # Получить сохраненные значения
+    spreadsheet_id = config_manager.get_spreadsheet_id(original_sheet_name)
+    saved_sheet_name = config_manager.get_sheet_name(original_sheet_name)
+    
+    # Если значения не найдены, получить их с помощью отдельных функций
+    if not spreadsheet_id:
+        spreadsheet_id = get_spreadsheet_id_with_auto_save(original_sheet_name, config_manager)
+    
+    if saved_sheet_name == original_sheet_name:
+        saved_sheet_name = get_sheet_name_with_auto_save(original_sheet_name, config_manager)
+    
+    # Показать пользователю текущие значения и спросить, нужно ли их изменить
+    print(f"\n📋 Текущие данные:")
+    print(f"   ID таблицы: {spreadsheet_id}")
+    print(f"   Название листа: {saved_sheet_name}")
+    
+    confirm = input("\nℹ️ Использовать эти данные? (y/n): ").strip().lower()
+    
+    if confirm in ['y', 'yes', 'да', 'д']:
+        print("✅ Данные подтверждены пользователем")
+        return spreadsheet_id, saved_sheet_name
+    else:
+        # Пользователь хочет изменить данные
+        new_spreadsheet_id = input(f"Введите новый ID таблицы (текущий: {spreadsheet_id}): ").strip()
+        if not new_spreadsheet_id:
+            new_spreadsheet_id = spreadsheet_id  # Оставить текущее значение
+        
+        new_sheet_name = input(f"Введите новое название листа (текущий: {saved_sheet_name}): ").strip()
+        if not new_sheet_name:
+            new_sheet_name = saved_sheet_name  # Оставить текущее значение
+        
+        # Сохранить новые значения
+        config_manager.set_spreadsheet_id(original_sheet_name, new_spreadsheet_id)
+        config_manager.set_sheet_name(original_sheet_name, new_sheet_name)
+        
+        print(f"✅ Новые данные сохранены:")
+        print(f"   ID таблицы: {new_spreadsheet_id}")
+        print(f"   Название листа: {new_sheet_name}")
+        
+        return new_spreadsheet_id, new_sheet_name
+
+
+def interactive_check_existing_colors_and_highlight_with_auto_config(credentials_file: str, json_file_path: str, sheet_name: str = "АСП_Многодетные") -> bool:
+    """
+    Интерактивная проверка существующих цветов в таблице и закрашивание семей в Google Sheets зеленым цветом
+    с автоматическим использованием сохраненного ID таблицы и названия листа с подтверждением пользователя
+    
+    Args:
+        credentials_file: Путь к файлу учетных данных Google
+        json_file_path: Путь к JSON файлу с выполненными семьями
+        sheet_name: Название листа в таблице
+        
+    Returns:
+        Успешность операции
+    """
+    try:
+        # Использовать менеджер конфигурации для получения ID таблицы и названия листа с подтверждением
+        config_manager = get_default_config_manager()
+        spreadsheet_id, actual_sheet_name = get_both_ids_with_confirmation(sheet_name, config_manager)
+        
+        # Инициализация обработчика
+        handler = GoogleSheetsHandler(credentials_file)
+        
+        # Загрузка выполненных семей из JSON
+        completed_families = load_completed_families_from_json(json_file_path)
+        
+        if not completed_families:
+            print("⚠️ Нет выполненных семей для закрашивания")
+            return False
+        
+        # Отфильтровываем семьи, которые уже были отмечены как окрашенные
+        uncolored_families = []
+        pre_colored_families = []
+        
+        for family in completed_families:
+            if family.get('isColored', False):
+                pre_colored_families.append(family)
+            else:
+                uncolored_families.append(family)
+        
+        print(f"📊 Найдено {len(completed_families)} всего семей")
+        print(f"📊 Уже помеченных как окрашенные: {len(pre_colored_families)}")
+        print(f"📊 Осталось проверить и окрасить: {len(uncolored_families)}")
+        
+        # Поиск семей в таблице
+        all_found_families = handler.find_families_in_sheet(
+            spreadsheet_id,
+            actual_sheet_name,  # Используем подтвержденное название листа
+            uncolored_families
+        )
+        
+        if not all_found_families:
+            print("⚠️ Ни одна из невыполненных семей не найдена в таблице")
+            return False
+        
+        # Проверяем цвета для найденных семей
+        families_with_colors = []
+        families_without_colors = []
+        
+        for found_family in all_found_families:
+            row_idx = found_family['coordinates'][0]
+            col_idx = found_family['coordinates'][1]
+            
+            # Получаем цвет ячейки
+            color_data = handler.get_cell_background_color(
+                spreadsheet_id,
+                actual_sheet_name,  # Используем подтвержденное название листа
+                row_idx,
+                col_idx
+            )
+            
+            # Проверяем, есть ли зеленый или желтый цвет в ячейке
+            has_green = handler.check_cell_has_specific_color(color_data, "green")
+            has_yellow = handler.check_cell_has_specific_color(color_data, "yellow")
+            
+            if has_green or has_yellow:
+                families_with_colors.append(found_family)
+            else:
+                families_without_colors.append(found_family)
+        
+        print(f"📊 Найдено {len(families_with_colors)} семей уже с цветом")
+        print(f"📊 Нужно окрасить {len(families_without_colors)} семей")
+        
+        if families_with_colors:
+            family_names = [f['family'].get('mother_fio', f['family'].get('father_fio', 'Unknown')) for f in families_with_colors]
+            print(f"📝 Семьи с уже установленными цветами: {', '.join(family_names)}")
+            
+            # Запрашиваем у пользователя действие
+            print("\n❓ Проверьте вручную следующие семьи в реестре:", ', '.join(family_names))
+            choice = input("Отметить принудительно? (да/нет/выбрать): ").strip().lower()
+            
+            if choice == 'да':
+                # Отмечаем все эти семьи принудительно
+                success = handler.highlight_completed_families(spreadsheet_id, actual_sheet_name, families_with_colors)
+                
+                if success:
+                    print(f"✅ Принудительно закрашено {len(families_with_colors)} семей")
+                    # Обновляем статус окрашивания в JSON файле
+                    update_families_color_status(json_file_path, families_with_colors, True)
+                    
+                    # Также закрашиваем оставшиеся семьи
+                    if families_without_colors:
+                        additional_success = handler.highlight_completed_families(spreadsheet_id, actual_sheet_name, families_without_colors)
+                        if additional_success:
+                            print(f"✅ Закрашено дополнительно {len(families_without_colors)} семей")
+                            update_families_color_status(json_file_path, families_without_colors, True)
+                        return additional_success
+                    return success
+                    
+            elif choice == 'нет':
+                # Для семей с цветами устанавливаем isColored = False, для остальных окрашиваем
+                for found_family in families_with_colors:
+                    update_single_family_color_status(json_file_path, found_family['family'], False)
+                
+                # Закрашиваем только семьи без цвета
+                if families_without_colors:
+                    success = handler.highlight_completed_families(spreadsheet_id, actual_sheet_name, families_without_colors)
+                    
+                    if success:
+                        print(f"✅ Закрашено {len(families_without_colors)} семей")
+                        update_families_color_status(json_file_path, families_without_colors, True)
+                    
+                    return success
+                else:
+                    print("✅ Нет семей для закрашивания")
+                    return True
+                    
+            elif choice == 'выбрать':
+                # Предлагаем пользователю выбрать конкретные семьи
+                print("\nВыберите семьи для принудительного окрашивания:")
+                for i, family in enumerate(families_with_colors):
+                    name = family['family'].get('mother_fio', family['family'].get('father_fio', 'Unknown'))
+                    print(f"{i+1}. {name}")
+                
+                try:
+                    selected_indices = input("Введите номера семей через запятую (например: 1,3,5): ")
+                    selected_indices = [int(x.strip()) - 1 for x in selected_indices.split(',')]
+                    
+                    selected_families = []
+                    unselected_families = []
+                    
+                    for i, family in enumerate(families_with_colors):
+                        if i in selected_indices:
+                            selected_families.append(family)
+                        else:
+                            unselected_families.append(family)
+                    
+                    # Устанавливаем статус для нeвыбранных семей
+                    for family in unselected_families:
+                        update_single_family_color_status(json_file_path, family['family'], False)
+                    
+                    # Окрашиваем выбранные семьи
+                    if selected_families:
+                        success = handler.highlight_completed_families(spreadsheet_id, actual_sheet_name, selected_families)
+                        
+                        if success:
+                            print(f"✅ Закрашено {len(selected_families)} выбранных семей")
+                            update_families_color_status(json_file_path, selected_families, True)
+                    
+                    # Окрашиваем семьи без цвета
+                    if families_without_colors:
+                        additional_success = handler.highlight_completed_families(spreadsheet_id, actual_sheet_name, families_without_colors)
+                        if additional_success:
+                            print(f"✅ Закрашено {len(families_without_colors)} семей без цвета")
+                            update_families_color_status(json_file_path, families_without_colors, True)
+                        
+                        # Возвращаем общий успех
+                        return success if selected_families else additional_success
+                    else:
+                        return True
+                        
+                except ValueError:
+                    print("❌ Неверный формат ввода")
+                    return False
+            else:
+                print("❌ Неверный выбор")
+                return False
+        else:
+            # Нет семей с цветом, просто закрашиваем те, что без цвета
+            if families_without_colors:
+                success = handler.highlight_completed_families(spreadsheet_id, actual_sheet_name, families_without_colors)
                 
                 if success:
                     print(f"✅ Закрашено {len(families_without_colors)} семей")
