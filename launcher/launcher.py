@@ -451,15 +451,20 @@ class FamilySystemLauncher:
                 f"Успешно выделено: {success_count} из {len(completed_families)}"
             )
             
-        except ImportError:
+        except ImportError as e:
+            # Импортируем messagebox здесь, чтобы избежать ошибки UnboundLocalError
+            from tkinter import messagebox
             messagebox.showerror(
                 "Ошибка импорта",
-                "Для использования этой функции необходимо установить библиотеку google-api-python-client:\n"
-                "pip install google-api-python-client google-auth"
+                f"Для использования этой функции необходимо установить библиотеку google-api-python-client:\n"
+                "pip install google-api-python-client google-auth\n\n"
+                f"Дополнительная информация об ошибке: {str(e)}"
             )
         except json.JSONDecodeError:
+            from tkinter import messagebox
             messagebox.showerror("Ошибка", "Некорректный формат JSON файла")
         except Exception as e:
+            from tkinter import messagebox
             messagebox.showerror("Ошибка", f"Ошибка при выделении семей в таблице:\n{str(e)}")
             print(f"❌ Ошибка выделения семей в таблице: {e}")
 
