@@ -23,10 +23,10 @@ try:
             from config_manager import get_default_config_manager, ConfigManager
     except ImportError:
         # Если импорт не удался, возможно, скрипт запускается напрямую
-        import sys
-        import os
-        sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-        from config_manager import get_default_config_manager, ConfigManager
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+            from config_manager import get_default_config_manager, ConfigManager
 except ImportError:
     # Если импорт не удался, возможно, скрипт запускается напрямую
     import sys
@@ -734,22 +734,14 @@ def load_completed_families_from_json(json_file_path: str) -> List[Dict]:
         else:
             families = [data] if isinstance(data, dict) else []
         
-        # Фильтруем только семьи со статусом "успешно" и которые не были помечены как закрашенные
+        # Фильтруем только семьи со статусом "успешно"
         successful_families = []
-        painted_families = []
         for family in families:
-            # Проверяем статус "успешно"
             if family.get('status') == 'успешно':
-                # Проверяем, было ли семье присвоено поле isPainted (новое поле) или isColored (старое поле)
-                if family.get('isPainted', family.get('isColored', False)):
-                    painted_families.append(family)
-                else:
-                    successful_families.append(family)
+                successful_families.append(family)
         
         print(f"✅ Загружено {len(families)} выполненных семей из {json_file_path}")
-        print(f"✅ Из них со статусом 'успешно': {len(successful_families) + len(painted_families)}")
-        print(f"✅ Уже закрашенных: {len(painted_families)}")
-        print(f"✅ Осталось закрасить: {len(successful_families)}")
+        print(f"✅ Из них со статусом 'успешно': {len(successful_families)}")
         return successful_families
     except Exception as e:
         print(f"❌ Ошибка загрузки выполненных семей из JSON: {e}")
@@ -781,7 +773,7 @@ def highlight_completed_families_in_google_sheets(credentials_file: str, spreads
             print("⚠️ Нет выполненных семей для закрашивания")
             return False
         
-        # Отфильтровываем семьи, которые уже были отмечены как закрашенные
+        # Отфильтровываем семьи, которые уже были отмечены как окрашенные
         unpainted_families = []
         painted_families = []
         
@@ -808,7 +800,7 @@ def highlight_completed_families_in_google_sheets(credentials_file: str, spreads
         )
         
         if not found_families:
-            print("⚠️ Ни одна из невыполненных семей не найдена в таблице")
+            print("⚠️ Ни одна из незакрашенных семей не найдена в таблице")
             return False
         
         # Закрашивание найденных семей
@@ -925,7 +917,7 @@ def check_existing_colors_and_highlight(credentials_file: str, spreadsheet_id: s
         )
         
         if not all_found_families:
-            print("⚠️ Ни одна из невыполненных семей не найдена в таблице")
+            print("⚠️ Ни одна из незакрашенных семей не найдена в таблице")
             # Обновляем статус всех ненайденных семей как закрашенных
             update_families_paint_status(json_file_path, [], True)
             return False
@@ -959,7 +951,7 @@ def check_existing_colors_and_highlight(credentials_file: str, spreadsheet_id: s
                 families_without_colors.append(found_family)
         
         print(f"📊 Найдено {len(families_with_colors)} семей уже с цветом")
-        print(f"📊 Нужно окрасить {len(families_without_colors)} семей")
+        print(f"📊 Нужно закрасить {len(families_without_colors)} семей")
         
         if families_with_colors:
             family_names = [f['family'].get('mother_fio', f['family'].get('father_fio', 'Unknown')) for f in families_with_colors]
@@ -1076,7 +1068,7 @@ def interactive_check_existing_colors_and_highlight(credentials_file: str, sprea
         )
         
         if not all_found_families:
-            print("⚠️ Ни одна из невыполненных семей не найдена в таблице")
+            print("⚠️ Ни одна из незакрашенных семей не найдена в таблице")
             return False
         
         # Проверяем цвета для найденных семей
@@ -1105,7 +1097,7 @@ def interactive_check_existing_colors_and_highlight(credentials_file: str, sprea
                 families_without_colors.append(found_family)
         
         print(f"📊 Найдено {len(families_with_colors)} семей уже с цветом")
-        print(f"📊 Нужно окрасить {len(families_without_colors)} семей")
+        print(f"📊 Нужно закрасить {len(families_without_colors)} семей")
         
         if families_with_colors:
             family_names = [f['family'].get('mother_fio', f['family'].get('father_fio', 'Unknown')) for f in families_with_colors]
@@ -1153,7 +1145,7 @@ def interactive_check_existing_colors_and_highlight(credentials_file: str, sprea
                     
             elif choice == 'выбрать':
                 # Предлагаем пользователю выбрать конкретные семьи
-                print("\nВыберите семьи для принудительного окрашивания:")
+                print("\nВыберите семьи для принудительного закрашивания:")
                 for i, family in enumerate(families_with_colors):
                     name = family['family'].get('mother_fio', family['family'].get('father_fio', 'Unknown'))
                     print(f"{i+1}. {name}")
@@ -1175,7 +1167,7 @@ def interactive_check_existing_colors_and_highlight(credentials_file: str, sprea
                     for family in unselected_families:
                         update_single_family_paint_status(json_file_path, family['family'], False)
                     
-                    # Окрашиваем выбранные семьи
+                    # Закрашиваем выбранные семьи
                     if selected_families:
                         success = handler.highlight_completed_families(spreadsheet_id, sheet_name, selected_families)
                         
@@ -1183,7 +1175,7 @@ def interactive_check_existing_colors_and_highlight(credentials_file: str, sprea
                             print(f"✅ Закрашено {len(selected_families)} выбранных семей")
                             update_families_paint_status(json_file_path, selected_families, True)
                     
-                    # Окрашиваем семьи без цвета
+                    # Закрашиваем семьи без цвета
                     if families_without_colors:
                         additional_success = handler.highlight_completed_families(spreadsheet_id, sheet_name, families_without_colors)
                         if additional_success:
@@ -1397,7 +1389,7 @@ def interactive_check_existing_colors_and_highlight_with_auto_config(credentials
         )
         
         if not all_found_families:
-            print("⚠️ Ни одна из невыполненных семей не найдена в таблице")
+            print("⚠️ Ни одна из незакрашенных семей не найдена в таблице")
             return False
         
         # Проверяем цвета для найденных семей
@@ -1426,7 +1418,7 @@ def interactive_check_existing_colors_and_highlight_with_auto_config(credentials
                 families_without_colors.append(found_family)
         
         print(f"📊 Найдено {len(families_with_colors)} семей уже с цветом")
-        print(f"📊 Нужно окрасить {len(families_without_colors)} семей")
+        print(f"📊 Нужно закрасить {len(families_without_colors)} семей")
         
         if families_with_colors:
             family_names = [f['family'].get('mother_fio', f['family'].get('father_fio', 'Unknown')) for f in families_with_colors]
@@ -1474,7 +1466,7 @@ def interactive_check_existing_colors_and_highlight_with_auto_config(credentials
                     
             elif choice == 'выбрать':
                 # Предлагаем пользователю выбрать конкретные семьи
-                print("\nВыберите семьи для принудительного окрашивания:")
+                print("\nВыберите семьи для принудительного закрашивания:")
                 for i, family in enumerate(families_with_colors):
                     name = family['family'].get('mother_fio', family['family'].get('father_fio', 'Unknown'))
                     print(f"{i+1}. {name}")
@@ -1496,7 +1488,7 @@ def interactive_check_existing_colors_and_highlight_with_auto_config(credentials
                     for family in unselected_families:
                         update_single_family_paint_status(json_file_path, family['family'], False)
                     
-                    # Окрашиваем выбранные семьи
+                    # Закрашиваем выбранные семьи
                     if selected_families:
                         success = handler.highlight_completed_families(spreadsheet_id, actual_sheet_name, selected_families)
                         
@@ -1504,7 +1496,7 @@ def interactive_check_existing_colors_and_highlight_with_auto_config(credentials
                             print(f"✅ Закрашено {len(selected_families)} выбранных семей")
                             update_families_paint_status(json_file_path, selected_families, True)
                     
-                    # Окрашиваем семьи без цвета
+                    # Закрашиваем семьи без цвета
                     if families_without_colors:
                         additional_success = handler.highlight_completed_families(spreadsheet_id, actual_sheet_name, families_without_colors)
                         if additional_success:

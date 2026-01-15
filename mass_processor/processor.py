@@ -174,11 +174,24 @@ class AutoFormFillerMass:
             # 9. Сохранение
             if self._final_verification(family_data):
                 if self._save_and_exit():
-                    # 10. Скриншот
+                    # 10. Динамическое ожидание загрузки страницы после сохранения
+                    self.log("⏳ Ожидаем загрузку страницы после сохранения...")
+                    
+                    # Ждем, пока страница не перейдет в состояние "complete"
+                    WebDriverWait(self.driver, 10).until(
+                        lambda driver: driver.execute_script("return document.readyState") == "complete"
+                    )
+                    
+                    # Также ждем появление элементов, характерных для страницы поиска
+                    WebDriverWait(self.driver, 10).until(
+                        EC.presence_of_element_located((By.ID, "ctl00_cph_ctrlFastFind_tbFind"))
+                    )
+                    
+                    # 11. Скриншот (делаем скриншот после динамического ожидания загрузки страницы)
                     if self.screenshot_dir:
                         self._take_screenshot(formatted_data, family_number, family_data)
 
-                    # 11. Возвращаемся на страницу поиска без закрытия браузера
+                    # 12. Возвращаемся на страницу поиска без закрытия браузера
                     time.sleep(0.2)
                     self._return_to_search_page()
 

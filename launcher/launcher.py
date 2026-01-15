@@ -18,6 +18,9 @@ from .component_launcher import ComponentLauncher
 # Импортируем функции из install_system для создания класса Installer
 from Installer.install_system import install_system as install_system_func, uninstall_system as uninstall_system_func
 
+# Импортируем функцию экспорта матерей
+from utils.mothers_exporter import select_and_export_mothers
+
 
 class Installer:
     """Класс для управления установкой системы"""
@@ -411,12 +414,32 @@ class FamilySystemLauncher:
                 
             # Загружаем завершенные семьи
             with open(completed_file_path, 'r', encoding='utf-8') as f:
-                completed_families = json.load(f)
+                all_families = json.load(f)
                 
-            if not isinstance(completed_families, list):
+            if not isinstance(all_families, list):
                 messagebox.showerror("Ошибка", "Файл должен содержать массив семей")
                 return
                 
+            # Фильтруем только семьи со статусом "успешно" и которые еще не были отмечены как закрашенные
+            uncolored_families = []
+            painted_families = []
+            for family in all_families:
+                # Проверяем статус "успешно"
+                status = family.get('status', '').strip()
+                if status.lower() == 'успешно':
+                    # Проверяем, было ли семье присвоено поле isPainted (новое поле) или isColored (старое поле)
+                    if family.get('isPainted', family.get('isColored', False)):
+                        painted_families.append(family)
+                    else:
+                        uncolored_families.append(family)
+            
+            print(f"✅ Загружено {len(all_families)} семей из {completed_file_path}")
+            print(f"✅ Из них со статусом 'успешно': {len(painted_families) + len(uncolored_families)}")
+            print(f"✅ Уже закрашенных: {len(painted_families)}")
+            print(f"✅ Осталось закрасить: {len(uncolored_families)}")
+            
+            # Используем только незакрашенные семьи со статусом "успешно"
+            completed_families = uncolored_families
             # Запрашиваем ID таблицы Google Sheets
             spreadsheet_id = simpledialog.askstring(
                 "ID Таблицы",
@@ -433,9 +456,11 @@ class FamilySystemLauncher:
                 "Введите название листа (по умолчанию: 'АСП_Многодетные'):",
                 initialvalue="АСП_Многодетные"
             ) or "АСП_Многодетные"
-            
             # Выделяем завершенные семьи в таблице
             success_count = 0
+            total_processed = 0
+            successful_families = []  # Список успешно закрашенных семей
+            
             for family in completed_families:
                 mother_fio = family.get('mother_fio', '').strip()
                 father_fio = family.get('father_fio', '').strip()
@@ -444,11 +469,25 @@ class FamilySystemLauncher:
                     # Ищем и выделяем семью в таблице
                     if sheets_handler.highlight_family_in_sheet(spreadsheet_id, sheet_name, mother_fio, father_fio):
                         success_count += 1
-                        
+                        successful_families.append(family)  # Добавляем только успешно закрашенные семьи
+                    total_processed += 1
+            
+            # Обновляем статус закрашивания только для успешно закрашенных семей
+            if success_count > 0:
+                from utils.google_sheets_handler import update_families_paint_status
+                # Обновляем статус закрашивания только для успешно закрашенных семей
+                # Создаем список семей с правильной структурой для обновления статуса
+                families_for_update = []
+                for family in successful_families:
+                    families_for_update.append({'family': family})
+                
+                update_families_paint_status(completed_file_path, families_for_update, True)
+                
             messagebox.showinfo(
                 "Результат",
                 f"Завершено выделение семей в Google-таблице.\n"
-                f"Успешно выделено: {success_count} из {len(completed_families)}"
+                f"Обработано семей со статусом 'успешно' и не закрашенных ранее: {success_count} из {len(completed_families)}\n"
+                f"Всего обработано: {total_processed}"
             )
             
         except ImportError as e:
@@ -467,6 +506,16 @@ class FamilySystemLauncher:
             from tkinter import messagebox
             messagebox.showerror("Ошибка", f"Ошибка при выделении семей в таблице:\n{str(e)}")
             print(f"❌ Ошибка выделения семей в таблице: {e}")
+
+    def export_mothers_to_txt(self):
+        """Экспорт ФИО матерей в текстовый файл"""
+        try:
+            # Вызываем функцию экспорта матерей
+            select_and_export_mothers()
+        except Exception as e:
+            from tkinter import messagebox
+            messagebox.showerror("Ошибка", f"Ошибка при экспорте матерей в текстовый файл:\n{str(e)}")
+            print(f"❌ Ошибка экспорта матерей в текстовый файл: {e}")
 
 if __name__ == "__main__":
     launcher = FamilySystemLauncher()

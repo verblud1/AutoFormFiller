@@ -257,6 +257,23 @@ class MassFamilyProcessorGUI(BaseGUI):
         
         self.app.after(100, self.check_last_json)
         
+    def on_closing(self):
+        """Обработчик закрытия приложения"""
+        try:
+            # Останавливаем обработку перед закрытием
+            if self.is_processing:
+                self.stop_processing()
+            
+            # Уничтожаем окно
+            self.app.destroy()
+        except Exception as e:
+            print(f"Ошибка при закрытии приложения: {e}")
+            # Просто завершаем работу, если возникла ошибка
+            self.app.quit()
+        
+        # Завершаем работу программы
+        sys.exit(0)
+        
         # Добавляем поддержку прокрутки колесиком мыши для всех вкладок
         self.setup_mouse_wheel_binding()
         
@@ -491,10 +508,13 @@ class MassFamilyProcessorGUI(BaseGUI):
                      command=self.stop_processing, width=150, fg_color="red")
         self.stop_button.pack(side="left", padx=5)
         
-        self.continue_button = ctk.CTkButton(buttons_frame, text="▶️ Продолжить", 
+        self.continue_button = ctk.CTkButton(buttons_frame, text="▶️ Продолжить",
                      command=self.continue_processing, width=150, fg_color="green")
         self.continue_button.pack(side="left", padx=5)
         self.continue_button.configure(state="disabled")
+        
+        # Привязываем обработчик закрытия окна для корректной остановки
+        self.app.protocol("WM_DELETE_WINDOW", self.on_closing)
         
         ctk.CTkButton(buttons_frame, text="📋 Очистить логи", 
                      command=self.clear_logs, width=150).pack(side="left", padx=5)
@@ -512,6 +532,10 @@ class MassFamilyProcessorGUI(BaseGUI):
             self.is_processing = False
             self.log_message("⏸️ Обработка приостановлена")
             self.update_status("Приостановлено")
+            
+            # Обновляем состояние кнопок
+            self.pause_button.configure(state="disabled")
+            self.continue_button.configure(state="normal")
     
     def stop_processing(self):
         """Остановка обработки"""
@@ -538,6 +562,7 @@ class MassFamilyProcessorGUI(BaseGUI):
                 
             # Разблокируем кнопки
             self.start_button.configure(state="normal")
+            self.pause_button.configure(state="disabled")  # Также отключаем кнопку паузы
             self.continue_button.configure(state="disabled")
             
             self.log_message("🛑 Обработка остановлена")
@@ -552,6 +577,14 @@ class MassFamilyProcessorGUI(BaseGUI):
         self.continue_button.configure(state="disabled")
         self.pause_button.configure(state="normal")
         self.log_message("▶️ Продолжаем обработку после ручного вмешательства")
+        
+        # Если обработка была приостановлена, возобновляем её
+        if not self.is_processing:
+            self.is_processing = True
+        
+        # Также сбрасываем флаг ожидания ручного вмешательства в GUI
+        if hasattr(self, 'manual_intervention_required'):
+            self.manual_intervention_required = False
     
     def load_json(self, file_path=None):
         """Загрузка семей из JSON файла"""
@@ -1419,6 +1452,14 @@ class MassFamilyProcessorGUI(BaseGUI):
                             break
                             
                         self.log_message("▶️ Продолжаем обработку после ручного вмешательства")
+                        
+                        # Убедимся, что кнопки находятся в правильном состоянии после продолжения
+                        self.continue_button.configure(state="disabled")
+                        self.pause_button.configure(state="normal")
+                        
+                        # Убедимся, что кнопки находятся в правильном состоянии после продолжения
+                        self.continue_button.configure(state="disabled")
+                        self.pause_button.configure(state="normal")
                     
                     # Запуск автоматизации для одной семьи
                     success = self.process_single_family_with_retry(family, i+1)
@@ -1533,6 +1574,7 @@ class MassFamilyProcessorGUI(BaseGUI):
             # Завершение обработки
             self.is_processing = False
             self.start_button.configure(state="normal")
+            self.pause_button.configure(state="disabled")  # Также отключаем кнопку паузы
             self.continue_button.configure(state="disabled")
             
             # Закрываем драйвер после обработки всех семей
@@ -1543,6 +1585,11 @@ class MassFamilyProcessorGUI(BaseGUI):
                     self.log_message("🔒 Драйвер закрыт")
                 except:
                     pass
+                
+            # Убедимся, что кнопки находятся в правильном состоянии при завершении
+            self.start_button.configure(state="normal")
+            self.pause_button.configure(state="disabled")
+            self.continue_button.configure(state="disabled")
             
             # Обновляем статистику
             if success_count > 0:
@@ -1573,6 +1620,7 @@ class MassFamilyProcessorGUI(BaseGUI):
             self.update_status("Ошибка обработки")
             self.is_processing = False
             self.start_button.configure(state="normal")
+            self.pause_button.configure(state="disabled")
             self.continue_button.configure(state="disabled")
             
             # Закрываем драйвер при ошибке
@@ -1804,10 +1852,21 @@ class MassFamilyProcessorGUI(BaseGUI):
             if not os.path.exists(completed_dir):
                 os.makedirs(completed_dir)
 
+            # Получаем текущую неделю в формате YYYY-Www (год-номер недели)
+            current_date = datetime.now()
+            year, week_num = current_date.isocalendar()[:2]  # Получаем год и номер недели
+            week_folder_name = f"{year}-W{week_num:02d}"  # Формат: 2026-W03
+            week_dir = os.path.join(completed_dir, week_folder_name)
+            
+            # Создаем подпапку для текущей недели, если не существует
+            if not os.path.exists(week_dir):
+                os.makedirs(week_dir)
+                self.log_message(f"📁 Создана недельная папка: {week_folder_name}")
+
             # Формируем имя файла с сегодняшней датой
-            today_date = datetime.now().strftime("%d.%m.%Y")
+            today_date = current_date.strftime("%d.%m.%Y")
             completed_filename = f"{today_date}_completed_families.json"
-            completed_filepath = os.path.join(completed_dir, completed_filename)
+            completed_filepath = os.path.join(week_dir, completed_filename)
 
             # Загружаем существующие завершенные семьи, если файл существует
             existing_completed = []
@@ -1831,6 +1890,10 @@ class MassFamilyProcessorGUI(BaseGUI):
 
             # Удаляем выбранные семьи из исходного JSON файла
             self.remove_families_from_source(selected_families)
+            
+            # Добавляем поле isPainted = true для всех перемещенных семей
+            for family in selected_families:
+                family['isPainted'] = True
 
         except Exception as e:
             self.log_message(f"❌ Ошибка при обработке выбранных завершенных семей: {e}")
@@ -1864,7 +1927,10 @@ class MassFamilyProcessorGUI(BaseGUI):
                 # Проверяем, нужно ли удалять эту семью
                 should_remove = mother_fio in families_to_remove_set or father_fio in families_to_remove_set
                 
-                if not should_remove:
+                # Также проверяем, что семья не была помечена как закрашенная (isPainted), чтобы избежать случайного удаления
+                is_painted = family.get('isPainted', family.get('isColored', False))
+                
+                if not should_remove or is_painted:
                     remaining_families.append(family)
                 else:
                     removed_count += 1
@@ -2108,6 +2174,8 @@ class AutoFormFillerMass:
             time.sleep(0.5)
         
         return not self.should_stop
+        
+    # Удаляем дублирующий метод, так как он уже существует в другом виде
     
     def process_family(self, family_data, family_number):
         """Обработка одной семьи"""
@@ -2222,11 +2290,24 @@ class AutoFormFillerMass:
             # 9. Сохранение
             if self._final_verification(family_data):
                 if self._save_and_exit():
-                    # 10. Скриншот
+                    # 10. Динамическое ожидание загрузки страницы после сохранения
+                    self.log("⏳ Ожидаем загрузку страницы после сохранения...")
+                    
+                    # Ждем, пока страница не перейдет в состояние "complete"
+                    WebDriverWait(self.driver, 10).until(
+                        lambda driver: driver.execute_script("return document.readyState") == "complete"
+                    )
+                    
+                    # Также ждем появления элементов, характерных для страницы поиска
+                    WebDriverWait(self.driver, 10).until(
+                        EC.presence_of_element_located((By.ID, "ctl00_cph_ctrlFastFind_tbFind"))
+                    )
+                    
+                    # 11. Скриншот (делаем скриншот после динамического ожидания загрузки страницы)
                     if self.screenshot_dir:
                         self._take_screenshot(formatted_data, family_number, family_data)
 
-                    # 11. Возвращаемся на страницу поиска без закрытия браузера
+                    # 12. Возвращаемся на страницу поиска без закрытия браузера
                     time.sleep(0.2)
                     self._return_to_search_page()
 
@@ -3750,7 +3831,6 @@ class AutoFormFillerMass:
             )
             save_button.click()
             
-            # Убрали задержку, т.к. следующее действие будет ожидать элемент
             self.log("✅ Данные сохранены")
             return True
             
