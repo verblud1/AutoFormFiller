@@ -1,4 +1,8 @@
-hale-sentry-478217-a7-e2f18fda44d4.json
+# Файлы учетных данных
+*.json
+*.key
+*.p12
+*.pem
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
