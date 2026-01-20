@@ -1,8 +1,11 @@
+old/
+
 # Файлы учетных данных
 *.json
 *.key
 *.p12
 *.pem
+*.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

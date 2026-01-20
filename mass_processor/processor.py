@@ -17,6 +17,8 @@ import pandas as pd
 from utils.data_processing import clean_string, clean_fio, clean_date, clean_phone, clean_address, clean_numeric_field, parse_date
 from utils.validation import validate_family_data
 from utils.excel_utils import load_register_file, load_adpi_file, parse_adpi_date, parse_single_date, normalize_fio, is_fio_similar
+import tkinter.messagebox as messagebox
+import customtkinter as ctk
 
 
 class AutoFormFillerMass:
