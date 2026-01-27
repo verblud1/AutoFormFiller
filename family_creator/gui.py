@@ -241,6 +241,8 @@ class JSONFamilyCreatorGUI(BaseGUI):
             register_files.sort(key=lambda x: os.path.getmtime(os.path.join(self.register_dir, x)), reverse=True)
             last_register = os.path.join(self.register_dir, register_files[0])
             self.load_register_file(last_register, auto_load=True)
+            # Синхронизируем данные с процессором
+            self.processor.register_data = self.register_data
         else:
             messagebox.showwarning("Внимание", "Нет сохраненных файлов реестра")
     
@@ -251,6 +253,8 @@ class JSONFamilyCreatorGUI(BaseGUI):
             adpi_files.sort(key=lambda x: os.path.getmtime(os.path.join(self.adpi_dir, x)), reverse=True)
             last_adpi = os.path.join(self.adpi_dir, adpi_files[0])
             self.load_adpi_xlsx(last_adpi, auto_load=True)
+            # Синхронизируем данные с процессором
+            self.processor.adpi_data = self.adpi_data
         else:
             messagebox.showwarning("Внимание", "Нет сохраненных файлов АДПИ")
     
@@ -273,6 +277,9 @@ class JSONFamilyCreatorGUI(BaseGUI):
             self.json_creator.save_config()
             
             self.register_data = load_register_file(file_path)
+            
+            # Синхронизируем данные с процессором
+            self.processor.register_data = self.register_data
             
             self.register_status_label.configure(
                 text=f"Загружено семей: {len(self.register_data)} из файла: {os.path.basename(file_path)}"
@@ -353,7 +360,18 @@ class JSONFamilyCreatorGUI(BaseGUI):
             self.json_creator.last_adpi_directory = self.last_adpi_directory
             self.json_creator.save_config()
             
-            self.adpi_data = load_adpi_file(file_path)
+            loaded_adpi_data = load_adpi_file(file_path)
+            if loaded_adpi_data is not None:
+                self.adpi_data = loaded_adpi_data
+                # Синхронизируем данные с процессором
+                self.processor.adpi_data = self.adpi_data
+            else:
+                self.adpi_data = {}
+                self.processor.adpi_data = {}
+                if not auto_load:
+                    messagebox.showerror("Ошибка", "Не удалось загрузить данные АДПИ из файла")
+                return
+            
             
             self.adpi_status_label.configure(
                 text=f"Загружено записей: {len(self.adpi_data)} из файла: {os.path.basename(file_path)}"
@@ -367,6 +385,9 @@ class JSONFamilyCreatorGUI(BaseGUI):
             print(f"Ошибка загрузки файла АДПИ: {error_details}")
             if not auto_load:
                 messagebox.showerror("Ошибка", f"Не удалось загрузить файл АДПИ: {str(e)}")
+            # В любом случае сбрасываем данные, чтобы избежать использования старых
+            self.adpi_data = {}
+            self.processor.adpi_data = {}
     
     def update_adpi_info(self):
         """Обновление информации о загруженных данных АДПИ"""
@@ -1271,8 +1292,8 @@ class JSONFamilyCreatorGUI(BaseGUI):
                     loaded_families = json.load(f)
                 if isinstance(loaded_families, list) and loaded_families:
                     loaded_families = [clean_family_data(family) for family in loaded_families]
-                    self.families = loaded_families
-                    self.json_creator.families = loaded_families
+                    self.families[:] = loaded_families
+                    self.json_creator.families[:] = loaded_families
                     self.update_families_info()
                     messagebox.showinfo("Автозагрузка", 
                                       f"Загружено {len(self.families)} семей из автосохранения")
@@ -1305,8 +1326,8 @@ class JSONFamilyCreatorGUI(BaseGUI):
                 messagebox.showerror("Ошибка", "JSON файл должен содержать массив семей")
                 return False
             loaded_families = [clean_family_data(family) for family in loaded_families]
-            self.families = loaded_families
-            self.json_creator.families = loaded_families
+            self.families[:] = loaded_families
+            self.json_creator.families[:] = loaded_families
             self.current_file_path = file_path
             self.update_families_info()
             messagebox.showinfo("Успех", f"Загружено {len(self.families)} семей из файла")
@@ -1358,8 +1379,12 @@ class JSONFamilyCreatorGUI(BaseGUI):
                     
                     if register_file:
                         self.load_register_file(register_file, auto_load=True)
+                        # После загрузки файла реестра синхронизируем данные с процессором
+                        self.processor.register_data = self.register_data
                     if adpi_file:
                         self.load_adpi_xlsx(adpi_file, auto_load=True)
+                        # После загрузки файла АДПИ синхронизируем данные с процессором
+                        self.processor.adpi_data = self.adpi_data
         
         # Ищем последний файл реестра
         register_files = [f for f in os.listdir(self.register_dir) if f.lower().endswith(('.xls', '.xlsx'))]
@@ -1368,6 +1393,8 @@ class JSONFamilyCreatorGUI(BaseGUI):
             register_files.sort(key=lambda x: os.path.getmtime(os.path.join(self.register_dir, x)), reverse=True)
             last_register = os.path.join(self.register_dir, register_files[0])
             self.load_register_file(last_register, auto_load=True)
+            # Синхронизируем данные с процессором
+            self.processor.register_data = self.register_data
         
         # Ищем последний файл АДПИ
         adpi_files = [f for f in os.listdir(self.adpi_dir) if f.lower().endswith(('.xls', '.xlsx', '.ods'))]
@@ -1375,6 +1402,8 @@ class JSONFamilyCreatorGUI(BaseGUI):
             adpi_files.sort(key=lambda x: os.path.getmtime(os.path.join(self.adpi_dir, x)), reverse=True)
             last_adpi = os.path.join(self.adpi_dir, adpi_files[0])
             self.load_adpi_xlsx(last_adpi, auto_load=True)
+            # Синхронизируем данные с процессором
+            self.processor.adpi_data = self.adpi_data
     
     def preview_current_family(self):
         """Предпросмотр текущей семьи в формате JSON"""
@@ -1409,7 +1438,6 @@ class JSONFamilyCreatorGUI(BaseGUI):
                 if messagebox.askyesno("Подтверждение", 
                                       f"Семья с матерью {family_data.get('mother_fio')} уже есть в списке.\nЗаменить?"):
                     self.families[i] = family_data
-                    self.json_creator.families[i] = family_data
                     messagebox.showinfo("Успех", "Семья обновлена в списке")
                     self.update_families_info()
                     self.json_creator.autosave_families()
@@ -1418,7 +1446,6 @@ class JSONFamilyCreatorGUI(BaseGUI):
                     return
         
         self.families.append(family_data)
-        self.json_creator.families.append(family_data)
         messagebox.showinfo("Успех", f"Семья добавлена в список. Всего семей: {len(self.families)}")
         
         self.clear_form_for_new_family()
@@ -1454,7 +1481,6 @@ class JSONFamilyCreatorGUI(BaseGUI):
                                      f"Мать: {mother_name}\n"
                                      f"Всего семей в списке: {len(self.families)}"):
                     deleted_family = self.families.pop(family_num - 1)
-                    self.json_creator.families.pop(family_num - 1)
                     
                     if self.current_family_index >= len(self.families):
                         self.current_family_index = max(0, len(self.families) - 1)
@@ -1590,7 +1616,7 @@ class JSONFamilyCreatorGUI(BaseGUI):
             title="Сохранить JSON файл",
             defaultextension=".json",
             filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
-            initial_dir=initial_dir
+            initialdir=initial_dir
         )
         if not file_path:
             return
@@ -1615,7 +1641,7 @@ class JSONFamilyCreatorGUI(BaseGUI):
         # Используем метод из JSONFamilyCreator
         success = self.json_creator.load_from_json(file_path)
         if success:
-            self.families = self.json_creator.families
+            self.families[:] = self.json_creator.families
             self.current_file_path = self.json_creator.current_file_path
             self.update_families_info()
             
@@ -1950,7 +1976,7 @@ class JSONFamilyCreatorGUI(BaseGUI):
             return
         if messagebox.askyesno("Подтверждение", f"Удалить все {len(self.families)} семей из списка?"):
             self.json_creator.clear_families()
-            self.families = self.json_creator.families
+            self.families[:] = self.json_creator.families
             self.current_family_index = 0
             self.update_families_info()
     

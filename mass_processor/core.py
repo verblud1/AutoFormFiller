@@ -585,6 +585,11 @@ class MassFamilyProcessorGUI(BaseGUI):
         # Также сбрасываем флаг ожидания ручного вмешательства в GUI
         if hasattr(self, 'manual_intervention_required'):
             self.manual_intervention_required = False
+        
+        # Обновляем состояние кнопок в интерфейсе
+        self.start_button.configure(state="disabled")
+        self.pause_button.configure(state="normal")
+        self.stop_button.configure(state="normal")
     
     def load_json(self, file_path=None):
         """Загрузка семей из JSON файла"""
@@ -1447,6 +1452,11 @@ class MassFamilyProcessorGUI(BaseGUI):
                         
                         while self.manual_intervention_required and self.is_processing:
                             time.sleep(0.5)
+                        
+                        # После завершения ожидания убедимся, что состояние кнопок корректно
+                        if not self.manual_intervention_required and self.is_processing:
+                            self.continue_button.configure(state="disabled")
+                            self.pause_button.configure(state="normal")
                         
                         if not self.is_processing:
                             break

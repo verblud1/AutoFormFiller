@@ -169,6 +169,19 @@ autosave_families.json
 family_creator_config.json
 mass_processor_config.json
 processing_statistics.json
+app_config.json
+
+# Autosave and temporary files
+*autosave*
+autosave/
+
+# Completed job files
+files for fill queue/completed/*
+
+# Exported files
+*.txt
+*.csv
+*.xlsx
 
 # Logs
 *.log

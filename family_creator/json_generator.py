@@ -102,7 +102,17 @@ class JSONFamilyCreator:
             return False
         
         try:
-            self.last_json_directory = os.path.dirname(file_path)
+            # Проверяем, что file_path является допустимым путем
+            if not file_path or not isinstance(file_path, str):
+                print("❌ Указан недопустимый путь к файлу")
+                return False
+            
+            directory = os.path.dirname(file_path)
+            if directory and not os.path.isdir(directory):
+                print(f"❌ Указанный каталог не существует: {directory}")
+                return False
+                
+            self.last_json_directory = directory
             self.save_config()
             
             cleaned_families = [clean_family_data(family) for family in self.families]
@@ -145,7 +155,7 @@ class JSONFamilyCreator:
                 self.families.extend(loaded_families)
                 print(f"Семьи добавлены. Теперь {len(self.families)} семей")
             else:
-                self.families = loaded_families
+                self.families[:] = loaded_families
                 print(f"Загружено {len(self.families)} семей")
             
             self.current_file_path = file_path
@@ -206,7 +216,7 @@ class JSONFamilyCreator:
     
     def clear_families(self):
         """Очистка списка семей"""
-        self.families = []
+        self.families[:] = []
         self.current_family_index = 0
         print("Список семей очищен")
         self.autosave_families()

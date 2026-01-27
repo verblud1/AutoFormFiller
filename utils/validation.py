@@ -146,6 +146,7 @@ def validate_family_data(family_data):
         errors.append("Пособие по многодетности должно быть числом")
     
     phone = family_data.get('phone_number', '').strip()
+    from utils.data_processing import clean_phone
     phone = clean_phone(phone)
     if phone and not validate_phone(phone):
         errors.append("Неверный формат телефона. Должен быть в формате 7XXXXXXXXXX")

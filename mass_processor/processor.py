@@ -51,6 +51,120 @@ class AutoFormFillerMass:
         self.log(f"🛠️ {message}")
         
         self.gui.manual_intervention_required = True
+        
+        # Обновляем состояние кнопок в GUI
+        try:
+            if hasattr(self.gui, 'continue_button'):
+                self.gui.continue_button.configure(state="normal", fg_color="green", hover_color="darkgreen")
+                # Устанавливаем фокус на кнопку "Продолжить", чтобы она была видимо активной
+                self.gui.continue_button.focus_set()
+            if hasattr(self.gui, 'pause_button'):
+                self.gui.pause_button.configure(state="disabled", fg_color="gray", hover_color="gray")
+            if hasattr(self.gui, 'stop_button'):
+                self.gui.stop_button.configure(state="normal")
+        except Exception as e:
+            self.log(f"⚠️ Ошибка обновления состояния кнопок: {e}")
+        
+        # Показываем сообщение пользователю
+        messagebox.showinfo("Требуется ручное вмешательство",
+                           f"{message}\n\n"
+                           "Пожалуйста, перейдите на нужную страницу в браузере и нажмите 'Продолжить' в программе.")
+        
+        # Ждем, пока пользователь не нажмет "Продолжить"
+        while self.gui.manual_intervention_required and not self.should_stop:
+            time.sleep(0.5)
+        
+        return not self.should_stop
+        
+    def _continue_manual_intervention(self):
+        """Продолжение после ручного вмешательства"""
+        self.gui.manual_intervention_required = False
+        
+        # Обновляем состояние кнопок после ручного вмешательства
+        try:
+            if hasattr(self.gui, 'continue_button'):
+                self.gui.continue_button.configure(state="disabled", fg_color="gray", hover_color="gray")
+            if hasattr(self.gui, 'pause_button'):
+                self.gui.pause_button.configure(state="normal", fg_color="blue", hover_color="darkblue")
+            if hasattr(self.gui, 'start_button'):
+                self.gui.start_button.configure(state="disabled")
+            if hasattr(self.gui, 'stop_button'):
+                self.gui.stop_button.configure(state="normal")
+        except Exception as e:
+            self.log(f"⚠️ Ошибка обновления состояния кнопок после ручного вмешательства: {e}")
+        
+        self.gui.log_message("▶️ Продолжаем после ручного вмешательства")
+        
+        # Если обработка была приостановлена, возобновляем её
+        if not self.gui.is_processing:
+            self.gui.is_processing = True
+        
+        # Также сбрасываем флаг ожидания ручного вмешательства в GUI
+        if hasattr(self, 'manual_intervention_required'):
+            self.manual_intervention_required = False
+        
+    def _continue_manual_intervention(self):
+        """Продолжение после ручного вмешательства"""
+        self.gui.manual_intervention_required = False
+        
+        # Обновляем состояние кнопок после ручного вмешательства
+        try:
+            if hasattr(self.gui, 'continue_button'):
+                self.gui.continue_button.configure(state="disabled", fg_color="gray", hover_color="gray")
+            if hasattr(self.gui, 'pause_button'):
+                self.gui.pause_button.configure(state="normal", fg_color="blue", hover_color="darkblue")
+            if hasattr(self.gui, 'start_button'):
+                self.gui.start_button.configure(state="disabled")
+            if hasattr(self.gui, 'stop_button'):
+                self.gui.stop_button.configure(state="normal")
+        except Exception as e:
+            self.log(f"⚠️ Ошибка обновления состояния кнопок после ручного вмешательства: {e}")
+        
+        self.gui.log_message("▶️ Продолжаем после ручного вмешательства")
+        
+        # Если обработка была приостановлена, возобновляем её
+        if not self.gui.is_processing:
+            self.gui.is_processing = True
+        
+        # Также сбрасываем флаг ожидания ручного вмешательства в GUI
+        if hasattr(self.gui, 'manual_intervention_required'):
+            self.gui.manual_intervention_required = False
+        
+        # Обновляем состояние кнопок в интерфейсе
+        if hasattr(self.gui, 'start_button'):
+            self.gui.start_button.configure(state="disabled")
+        if hasattr(self.gui, 'pause_button'):
+            self.gui.pause_button.configure(state="normal")
+        if hasattr(self.gui, 'stop_button'):
+            self.gui.stop_button.configure(state="normal")
+        
+        # Обновляем состояние кнопок в интерфейсе
+        self.start_button.configure(state="disabled")
+        self.pause_button.configure(state="normal")
+        self.stop_button.configure(state="normal")
+        
+    def _continue_manual_intervention(self):
+        """Продолжение после ручного вмешательства"""
+        self.gui.manual_intervention_required = False
+        
+        # Обновляем состояние кнопок после ручного вмешательства
+        try:
+            if hasattr(self.gui, 'continue_button'):
+                self.gui.continue_button.configure(state="disabled", fg_color="gray", hover_color="gray")
+            if hasattr(self.gui, 'pause_button'):
+                self.gui.pause_button.configure(state="normal", fg_color="blue", hover_color="darkblue")
+            if hasattr(self.gui, 'start_button'):
+                self.gui.start_button.configure(state="disabled")
+            if hasattr(self.gui, 'stop_button'):
+                self.gui.stop_button.configure(state="normal")
+        except Exception as e:
+            self.log(f"⚠️ Ошибка обновления состояния кнопок после ручного вмешательства: {e}")
+        
+        self.gui.log_message("▶️ Продолжаем после ручного вмешательства")
+        
+        # Если обработка была приостановлена, возобновляем её
+        if not self.gui.is_processing:
+            self.gui.is_processing = True
 
         # Показываем сообщение пользователю
         messagebox.showinfo("Требуется ручное вмешательство",
@@ -77,6 +191,15 @@ class AutoFormFillerMass:
                 # Запрашиваем ручное вмешательство
                 if self.wait_for_manual_intervention("Не удалось загрузить страницу поиска"):
                     self.log("▶️ Продолжаем после ручного вмешательства")
+                    # После ручного вмешательства обновляем состояние кнопок
+                    try:
+                        if hasattr(self.gui, 'continue_button'):
+                            self.gui.continue_button.configure(state="disabled")
+                        if hasattr(self.gui, 'pause_button'):
+                            self.gui.pause_button.configure(state="normal")
+                    except Exception as e:
+                        self.log(f"⚠️ Ошибка обновления состояния кнопок после ручного вмешательства при возврате на страницу поиска: {e}")
+                    
                     # Проверяем, что страница доступна после ручного вмешательства
                     try:
                         WebDriverWait(self.driver, 10).until(
@@ -109,6 +232,14 @@ class AutoFormFillerMass:
                 # Запрашиваем ручное вмешательство
                 if self.wait_for_manual_intervention(f"Не удалось найти семью: {mother_fio}"):
                     self.log("▶️ Продолжаем после ручного вмешательства")
+                    # После ручного вмешательства обновляем состояние кнопок
+                    try:
+                        if hasattr(self.gui, 'continue_button'):
+                            self.gui.continue_button.configure(state="disabled")
+                        if hasattr(self.gui, 'pause_button'):
+                            self.gui.pause_button.configure(state="normal")
+                    except Exception as e:
+                        self.log(f"⚠️ Ошибка обновления состояния кнопок после ручного вмешательства при поиске: {e}")
                     # Предполагаем, что пользователь уже на нужной странице
                 else:
                     return False
@@ -123,6 +254,14 @@ class AutoFormFillerMass:
                 # Запрашиваем ручное вмешательство
                 if self.wait_for_manual_intervention("Не удалось автоматически выбрать карточку"):
                     self.log("▶️ Продолжаем после ручного вмешательства")
+                    # После ручного вмешательства обновляем состояние кнопок
+                    try:
+                        if hasattr(self.gui, 'continue_button'):
+                            self.gui.continue_button.configure(state="disabled")
+                        if hasattr(self.gui, 'pause_button'):
+                            self.gui.pause_button.configure(state="normal")
+                    except Exception as e:
+                        self.log(f"⚠️ Ошибка обновления состояния кнопок после ручного вмешательства при выборе карточки: {e}")
                     # Предполагаем, что пользователь уже на нужной карточке
                 else:
                     return False
@@ -161,6 +300,14 @@ class AutoFormFillerMass:
                 # Запрашиваем ручное вмешательство при ошибке навигации
                 if self.wait_for_manual_intervention("Не удалось перейти на вкладку доп. информации"):
                     self.log("▶️ Продолжаем после ручного вмешательства")
+                    # После ручного вмешательства обновляем состояние кнопок
+                    try:
+                        if hasattr(self.gui, 'continue_button'):
+                            self.gui.continue_button.configure(state="disabled")
+                        if hasattr(self.gui, 'pause_button'):
+                            self.gui.pause_button.configure(state="normal")
+                    except Exception as e:
+                        self.log(f"⚠️ Ошибка обновления состояния кнопок после ручного вмешательства: {e}")
                     # Предполагаем, что пользователь уже на нужной форме
                 else:
                     return False
