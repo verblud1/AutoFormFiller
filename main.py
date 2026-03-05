@@ -12,7 +12,7 @@ from launcher.launcher import FamilySystemLauncher
 
 def main():
     """Main entry point for the application"""
-    print("🚀 Запуск Системы работы с семьями...")
+    print("Запуск Системы работы с семьями...")
     
     # Create and run the launcher
     launcher = FamilySystemLauncher()

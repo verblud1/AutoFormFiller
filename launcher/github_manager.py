@@ -16,9 +16,10 @@ import customtkinter as ctk
 
 
 class GitHubManager:
-    def __init__(self, system_dir, log_callback=None):
+    def __init__(self, system_dir, log_callback=None, progress_callback=None):
         self.system_dir = system_dir
         self.log_callback = log_callback
+        self.progress_callback = progress_callback
         self.github_token = None
         self.github_token_file = os.path.join(self.system_dir, ".github_token") if self.system_dir else None
         self.load_github_token()
@@ -114,6 +115,10 @@ class GitHubManager:
             if self.log_callback:
                 self.log_callback(f"📡 Connecting to repository: {repo_owner}/{repo_name}")
             
+            # Show progress bar
+            if self.progress_callback:
+                self.progress_callback(True, 0, "Connecting to GitHub...")
+            
             # Create session with token if available
             session = requests.Session()
             if self.github_token:
@@ -122,30 +127,85 @@ class GitHubManager:
             # Repository URL
             repo_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents"
             
-            # List of files to update (excluding configs)
-            files_to_update = [
-                "database_client.sh",
-                "family_system_launcher.py"
+            # Get all files from repository
+            if self.log_callback:
+                self.log_callback("🔄 Fetching repository file list...")
+            
+            if self.progress_callback:
+                self.progress_callback(True, 5, "Fetching repository file list...")
+            
+            response = session.get(repo_url, params={"ref": branch}, timeout=10)
+            
+            if response.status_code == 403 and "rate limit" in response.text.lower():
+                if self.log_callback:
+                    self.log_callback("⚠️ GitHub rate limit reached. Try later or use token.")
+                if self.progress_callback:
+                    self.progress_callback(False, 0, "Rate limit reached")
+                return
+            
+            if response.status_code != 200:
+                if self.log_callback:
+                    self.log_callback(f"❌ Failed to fetch repository contents: {response.status_code}")
+                if self.progress_callback:
+                    self.progress_callback(False, 0, "Failed to fetch repository")
+                return
+            
+            contents = response.json()
+            
+            # Files to skip (configs, data, logs, etc.)
+            skip_patterns = [
+                '.git', '__pycache__', '.pyc', '.log', '.tmp', '.backup',
+                'config/', 'logs/', 'screenshots/', 'files for fill queue/',
+                'Installer/', 'documentation/', 'examples/', 'color_sorter/',
+                'autoprint.py', 'autosave_families.json'
             ]
             
             updated_files = 0
             skipped_files = 0
             error_files = 0
+            total_files = len([item for item in contents if item['type'] == 'file'])
             
-            for filename in files_to_update:
+            if self.log_callback:
+                self.log_callback(f"📊 Found {total_files} files in repository")
+            
+            if self.progress_callback:
+                self.progress_callback(True, 10, f"Found {total_files} files to process")
+            
+            # Process all files
+            processed_files = 0
+            for item in contents:
+                if item['type'] != 'file':
+                    continue
+                    
+                filename = item['path']
+                
+                # Skip unwanted files
+                if any(pattern in filename for pattern in skip_patterns):
+                    if self.log_callback:
+                        self.log_callback(f"⏭️ Skipped: {filename}")
+                    processed_files += 1
+                    if self.progress_callback and total_files > 0:
+                        progress = 10 + (processed_files / total_files) * 80
+                        self.progress_callback(True, progress, f"Skipped: {filename}")
+                    continue
+                
                 try:
+                    if self.log_callback:
+                        self.log_callback(f"🔄 Processing: {filename}")
+                    
+                    if self.progress_callback:
+                        processed_files += 1
+                        if total_files > 0:
+                            progress = 10 + (processed_files / total_files) * 80
+                            self.progress_callback(True, progress, f"Processing: {filename}")
+                    
                     # Get file info from GitHub
                     file_url = f"{repo_url}/{filename}?ref={branch}"
                     response = session.get(file_url, timeout=10)
                     
-                    if response.status_code == 403 and "rate limit" in response.text.lower():
-                        if self.log_callback:
-                            self.log_callback("⚠️ GitHub rate limit reached. Try later or use token.")
-                        break
-                    
                     if response.status_code != 200:
                         if self.log_callback:
-                            self.log_callback(f"⚠️ File {filename} not found on GitHub")
+                            self.log_callback(f"⚠️ Skipped {filename}: not found")
                         continue
                     
                     file_info = response.json()
@@ -159,26 +219,34 @@ class GitHubManager:
                     # Local file path
                     local_path = os.path.join(self.system_dir, filename)
                     
-                    # Check if local file exists
+                    # Create directory if needed
+                    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+                    
+                    # Check if local file exists and compare content hash
+                    need_update = True
                     if os.path.exists(local_path):
-                        # Read local file and compute hash
                         with open(local_path, 'r', encoding='utf-8') as f:
                             local_content = f.read()
                         
-                        # Compare hashes
+                        # Compute hash of local content
                         local_hash = hashlib.sha1(local_content.encode()).hexdigest()
                         
                         if local_hash == sha_github:
                             if self.log_callback:
-                                self.log_callback(f"✓ {filename} is already up to date")
+                                self.log_callback(f"✓ {filename} is up to date")
                             skipped_files += 1
-                            continue
+                            need_update = False
+                    
+                    if not need_update:
+                        continue
                     
                     # Create backup if file exists
                     if os.path.exists(local_path):
                         backup_path = local_path + ".backup"
                         import shutil
                         shutil.copy2(local_path, backup_path)
+                        if self.log_callback:
+                            self.log_callback(f"📦 Backed up: {filename}")
                     
                     # Save new file
                     with open(local_path, 'w', encoding='utf-8') as f:
@@ -194,102 +262,37 @@ class GitHubManager:
                     
                     # Small delay between requests
                     import time
-                    time.sleep(0.5)
+                    time.sleep(0.3)
                     
                 except Exception as e:
                     if self.log_callback:
                         self.log_callback(f"❌ Error updating {filename}: {str(e)}")
                     error_files += 1
             
-            # Update modules from GitHub as well
-            try:
-                import requests
-                import zipfile
-                import io
-                
-                # Get the latest repository content
-                repo_content_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents"
-                response = session.get(repo_content_url, params={"ref": branch})
-                
-                if response.status_code == 200:
-                    contents = response.json()
-                    
-                    # Find and download module directories
-                    for item in contents:
-                        if item['type'] == 'dir' and item['name'] in ['family_creator', 'mass_processor']:
-                            module_name = item['name']
-                            self.log_callback(f"🔄 Updating module: {module_name}")
-                            
-                            # Download the entire directory as a zip
-                            module_url = f"https://github.com/{repo_owner}/{repo_name}/archive/{branch}.zip"
-                            
-                            zip_response = session.get(module_url)
-                            if zip_response.status_code == 200:
-                                # Extract the specific module from the zip
-                                with zipfile.ZipFile(io.BytesIO(zip_response.content)) as zip_file:
-                                    # Find the correct folder path in the zip (it includes the repo name and branch)
-                                    zip_contents = zip_file.namelist()
-                                    
-                                    # Extract only the specific module directory
-                                    module_prefix = f"{repo_name}-{branch}/{module_name}/"
-                                    
-                                    # Create a temporary directory for extraction
-                                    temp_extract_dir = os.path.join(self.system_dir, f"temp_{module_name}")
-                                    
-                                    # Extract the specific module
-                                    for file_path in zip_contents:
-                                        if file_path.startswith(module_prefix):
-                                            # Calculate the destination path
-                                            dest_path = file_path.replace(module_prefix, "")
-                                            if dest_path:  # Skip the directory itself
-                                                full_dest_path = os.path.join(temp_extract_dir, dest_path)
-                                                
-                                                # Create directory if needed
-                                                os.makedirs(os.path.dirname(full_dest_path), exist_ok=True)
-                                                
-                                                # Extract file
-                                                with zip_file.open(file_path) as source, open(full_dest_path, 'wb') as target:
-                                                    target.write(source.read())
-                                    
-                                    # Remove old module if it exists
-                                    old_module_path = os.path.join(self.system_dir, module_name)
-                                    if os.path.exists(old_module_path):
-                                        import shutil
-                                        shutil.rmtree(old_module_path)
-                                    
-                                    # Move extracted module to final location
-                                    final_module_path = os.path.join(self.system_dir, module_name)
-                                    import shutil
-                                    shutil.move(temp_extract_dir, final_module_path)
-                                    
-                                    self.log_callback(f"✅ Updated module: {module_name}")
-                                    updated_files += 1
-                            else:
-                                self.log_callback(f"❌ Failed to download module: {module_name}")
-                                error_files += 1
-            except Exception as e:
-                if self.log_callback:
-                    self.log_callback(f"❌ Error updating modules: {str(e)}")
-                error_files += 1
-            
             # Update README if available
+            if self.log_callback:
+                self.log_callback("🔄 Updating README...")
             self.update_readme_from_github(session, repo_url, branch)
             
             # Final report
-            if updated_files > 0:
-                if self.log_callback:
-                    self.log_callback(f"\n✨ Update completed!")
-                    self.log_callback(f"📊 Updated files: {updated_files}")
-                    self.log_callback(f"📊 Skipped (up to date): {skipped_files}")
-                    if error_files > 0:
-                        self.log_callback(f"⚠️ With errors: {error_files}")
-            else:
-                if self.log_callback:
-                    self.log_callback("ℹ️ All files are already up to date. No updates required.")
+            if self.log_callback:
+                self.log_callback("\n" + "="*50)
+                self.log_callback("✨ UPDATE COMPLETED!")
+                self.log_callback("="*50)
+                self.log_callback(f"📊 Updated: {updated_files}")
+                self.log_callback(f"✓ Up to date: {skipped_files}")
+                if error_files > 0:
+                    self.log_callback(f"⚠️ Errors: {error_files}")
+                self.log_callback("="*50)
+                
+            if self.progress_callback:
+                self.progress_callback(False, 100, "Update completed!")
                 
         except Exception as e:
             if self.log_callback:
                 self.log_callback(f"❌ Update error: {str(e)}")
+            if self.progress_callback:
+                self.progress_callback(False, 0, f"Error: {str(e)}")
 
     def update_readme_from_github(self, session, repo_url, branch):
         """Update README file if there are changes"""

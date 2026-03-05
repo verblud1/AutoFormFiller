@@ -3,6 +3,7 @@
 """
 GUI Components for Family System Launcher
 Contains all UI-related classes and methods
+Портативный режим - без кнопок установки/удаления
 """
 
 import customtkinter as ctk
@@ -15,14 +16,20 @@ class LauncherGUI:
     def __init__(self, launcher_instance):
         self.launcher = launcher_instance
         self.app = ctk.CTk()
-        self.app.title("🚀 Система работы с семьями")
+        self.app.title("Система работы с семьями")
         self.app.geometry("800x600")
         self.app.resizable(False, False)
+        
+        # Track after() callbacks to cancel them on close
+        self.after_ids = []
         
         # Center window
         self.center_window()
         
         self.setup_ui()
+        
+        # Handle window close event
+        self.app.protocol("WM_DELETE_WINDOW", self.on_closing)
     
     def center_window(self):
         """Centers the window on screen"""
@@ -44,14 +51,14 @@ class LauncherGUI:
         title_frame.pack(pady=(0, 20))
         
         ctk.CTkLabel(
-            title_frame, 
-            text="🚀 СИСТЕМА РАБОТЫ С СЕМЬЯМИ",
+            title_frame,
+            text="СИСТЕМА РАБОТЫ С СЕМЬЯМИ",
             font=ctk.CTkFont(size=24, weight="bold")
         ).pack()
         
         ctk.CTkLabel(
             title_frame,
-            text="Единая точка входа для всех компонентов системы",
+            text="Портативный режим | Автоматическое заполнение форм",
             font=ctk.CTkFont(size=14)
         ).pack()
         
@@ -74,6 +81,33 @@ class LauncherGUI:
         )
         self.stat_label.pack(pady=5)
         
+        # Progress bar for updates
+        self.progress_frame = ctk.CTkFrame(info_frame, fg_color="transparent")
+        self.progress_frame.pack(fill="x", padx=10, pady=5)
+        
+        self.progress_label = ctk.CTkLabel(
+            self.progress_frame,
+            text="",
+            font=ctk.CTkFont(size=11)
+        )
+        self.progress_label.pack(anchor="w", pady=(0, 3))
+        
+        self.progress_bar = ctk.CTkProgressBar(
+            self.progress_frame,
+            width=300,
+            mode='determinate'
+        )
+        self.progress_bar.pack(fill="x", pady=3)
+        self.progress_bar.set(0)
+        
+        self.progress_details = ctk.CTkLabel(
+            self.progress_frame,
+            text="",
+            font=ctk.CTkFont(size=10),
+            text_color="gray"
+        )
+        self.progress_details.pack(anchor="w", pady=(3, 0))
+        
         # Buttons frame
         buttons_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         buttons_frame.pack(fill="both", expand=True, padx=10, pady=10)
@@ -81,7 +115,7 @@ class LauncherGUI:
         # Button 1: JSON Creator
         self.btn_json = ctk.CTkButton(
             buttons_frame,
-            text="📝 ВНЕСТИ СЕМЬИ В JSON",
+            text="ВНЕСТИ СЕМЬИ В JSON",
             command=self.launcher.launch_json_creator,
             height=60,
             font=ctk.CTkFont(size=16, weight="bold"),
@@ -93,7 +127,7 @@ class LauncherGUI:
         # Button 2: Mass Processor
         self.btn_mass = ctk.CTkButton(
             buttons_frame,
-            text="⚙️ ЗАПОЛНИТЬ В БАЗУ",
+            text="ЗАПОЛНИТЬ В БАЗУ",
             command=self.launcher.launch_mass_processor,
             height=60,
             font=ctk.CTkFont(size=16, weight="bold"),
@@ -105,7 +139,7 @@ class LauncherGUI:
         # Button 3: Database
         self.btn_db = ctk.CTkButton(
             buttons_frame,
-            text="🗄️ ЗАПУСТИТЬ БАЗУ ДАННЫХ",
+            text="ЗАПУСТИТЬ БАЗУ ДАННЫХ",
             command=self.launcher.launch_database,
             height=60,
             font=ctk.CTkFont(size=16, weight="bold"),
@@ -114,22 +148,10 @@ class LauncherGUI:
         )
         self.btn_db.pack(fill="x", pady=10)
         
-        # Button 4: Highlight Completed Families in Google Sheets
-        self.btn_highlight = ctk.CTkButton(
-            buttons_frame,
-            text="✅ ЗАКРАСИТЬ ВЫПОЛНЕННЫЕ СЕМЬИ В ТАБЛИЦЕ",
-            command=self.launcher.highlight_completed_families,
-            height=60,
-            font=ctk.CTkFont(size=16, weight="bold"),
-            fg_color="#28A745",
-            hover_color="#218838"
-        )
-        self.btn_highlight.pack(fill="x", pady=10)
-        
-        # Button 5: Export Mothers FIO to TXT
+        # Button 4: Export Mothers FIO to TXT
         self.btn_export_mothers = ctk.CTkButton(
             buttons_frame,
-            text="📄 СОЗДАТЬ TXT С МАТЕРАМИ",
+            text="СОЗДАТЬ TXT С МАТЕРАМИ",
             command=self.launcher.export_mothers_to_txt,
             height=60,
             font=ctk.CTkFont(size=16, weight="bold"),
@@ -141,7 +163,7 @@ class LauncherGUI:
         # GitHub update button
         self.btn_github = ctk.CTkButton(
             buttons_frame,
-            text="🔄 ОБНОВИТЬ ЧЕРЕЗ GITHUB",
+            text="ОБНОВИТЬ ЧЕРЕЗ GITHUB",
             command=self.launcher.update_from_github,
             height=50,
             font=ctk.CTkFont(size=14, weight="bold"),
@@ -150,49 +172,19 @@ class LauncherGUI:
         )
         self.btn_github.pack(fill="x", pady=10)
         
-        # Bottom management panel
+        # Bottom management panel - only open folder button
         bottom_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         bottom_frame.pack(fill="x", padx=10, pady=(20, 0))
         
-        # System management buttons
+        # Only show "Open System Folder" button
         manage_frame = ctk.CTkFrame(bottom_frame, fg_color="transparent")
         manage_frame.pack(fill="x", pady=5)
         
-        self.btn_install = ctk.CTkButton(
-            manage_frame,
-            text="📦 УСТАНОВИТЬ СИСТЕМУ",
-            command=self.launcher.install_system,
-            width=180,
-            fg_color="#28A745",
-            hover_color="#218838"
-        )
-        self.btn_install.pack(side="left", padx=5)
-        
-        self.btn_update = ctk.CTkButton(
-            manage_frame,
-            text="🔄 ОБНОВИТЬ",
-            command=self.launcher.update_system,
-            width=120,
-            fg_color="#17A2B8",
-            hover_color="#138496"
-        )
-        self.btn_update.pack(side="left", padx=5)
-        
-        self.btn_uninstall = ctk.CTkButton(
-            manage_frame,
-            text="🗑️ УДАЛИТЬ",
-            command=self.launcher.uninstall_system,
-            width=120,
-            fg_color="#DC3545",
-            hover_color="#C82333"
-        )
-        self.btn_uninstall.pack(side="left", padx=5)
-        
         self.btn_open_folder = ctk.CTkButton(
             manage_frame,
-            text="📁 ПАПКА СИСТЕМЫ",
+            text="ОТКРЫТЬ ПАПКУ СИСТЕМЫ",
             command=self.launcher.open_system_folder,
-            width=140,
+            width=200,
             fg_color="#6C757D",
             hover_color="#5A6268"
         )
@@ -204,7 +196,7 @@ class LauncherGUI:
         
         ctk.CTkLabel(
             log_frame,
-            text="📋 Лог действий:",
+            text="Лог действий:",
             font=ctk.CTkFont(weight="bold")
         ).pack(anchor="w", padx=10, pady=(10, 5))
         
@@ -252,3 +244,54 @@ class LauncherGUI:
     def run(self):
         """Run the GUI application"""
         self.app.mainloop()
+    
+    def on_closing(self):
+        """Handle window closing - cancel all after() callbacks"""
+        # Cancel all scheduled after() callbacks
+        for after_id in self.after_ids:
+            try:
+                self.app.after_cancel(after_id)
+            except:
+                pass
+        self.after_ids.clear()
+        
+        # Destroy the window
+        self.app.destroy()
+    
+    def schedule_periodic_update(self, callback, interval_ms):
+        """Schedule periodic callback and track its ID"""
+        def wrapped_callback():
+            callback()
+            # Reschedule if app is still running
+            if self.app.winfo_exists():
+                new_id = self.app.after(interval_ms, wrapped_callback)
+                self.after_ids.append(new_id)
+        
+        first_id = self.app.after(interval_ms, wrapped_callback)
+        self.after_ids.append(first_id)
+    
+    def set_progress_visible(self, visible=True):
+        """Show or hide progress bar"""
+        if visible:
+            self.progress_frame.pack(fill="x", padx=10, pady=5)
+        else:
+            self.progress_frame.pack_forget()
+    
+    def update_progress(self, current, total, details=""):
+        """Update progress bar"""
+        if total > 0:
+            progress = current / total
+            self.progress_bar.set(progress)
+            self.progress_label.configure(text=f"Прогресс: {current}/{total} ({int(progress*100)}%)")
+        else:
+            self.progress_bar.set(0)
+            self.progress_label.configure(text="")
+        
+        if details:
+            self.progress_details.configure(text=details)
+    
+    def reset_progress(self):
+        """Reset progress bar"""
+        self.progress_bar.set(0)
+        self.progress_label.configure(text="")
+        self.progress_details.configure(text="")

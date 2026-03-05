@@ -3,11 +3,11 @@
 """
 ЕДИНАЯ ТОЧКА ВХОДА - СИСТЕМА РАБОТЫ С СЕМЬЯМИ
 Main launcher that integrates all components
+Портативный режим - без установки
 """
 
 import os
 import sys
-import platform
 from datetime import datetime, timedelta
 
 from .gui_components import LauncherGUI
@@ -15,140 +15,29 @@ from .statistics_manager import StatisticsManager
 from .github_manager import GitHubManager
 from .component_launcher import ComponentLauncher
 
-# Импортируем функции из install_system для создания класса Installer
-from Installer.install_system import install_system as install_system_func, uninstall_system as uninstall_system_func
-
 # Импортируем функцию экспорта матерей
 from utils.mothers_exporter import select_and_export_mothers
 
 
-class Installer:
-    """Класс для управления установкой системы"""
-    def __init__(self, system_dir, desktop_path):
-        self.system_dir = system_dir
-        self.desktop_path = desktop_path
-
-    def install_system(self, log_callback):
-        """Установка системы"""
-        # Вызов функции установки из install_system
-        # Имитируем установку через вызов функции
-        try:
-            if log_callback:
-                log_callback("📦 Начинаю установку системы...")
-            
-            # Временная реализация - в будущем можно расширить
-            os.makedirs(self.system_dir, exist_ok=True)
-            
-            # Копируем необходимые файлы из установщика
-            import shutil
-            
-            # Копируем файлы компонентов системы
-            installer_dir = os.path.dirname(os.path.abspath(__file__))  # launcher директория
-            installer_source_dir = os.path.join(os.path.dirname(installer_dir), "Installer")
-            
-            files_to_copy = [
-                "database_client.sh",
-                "database_client.bat",
-            ]
-            
-            for filename in files_to_copy:
-                src_path = os.path.join(installer_source_dir, filename)
-                dst_path = os.path.join(self.system_dir, filename)
-                
-                if os.path.exists(src_path):
-                    shutil.copy2(src_path, dst_path)
-                    if log_callback:
-                        log_callback(f"✅ Скопирован файл: {filename}")
-            
-            # Создаем подпапки
-            config_dir = os.path.join(self.system_dir, "config")
-            logs_dir = os.path.join(config_dir, "logs")
-            screenshots_dir = os.path.join(config_dir, "screenshots")
-            
-            for dir_path in [config_dir, logs_dir, screenshots_dir]:
-                os.makedirs(dir_path, exist_ok=True)
-            
-            if log_callback:
-                log_callback("✅ Установка завершена!")
-                
-        except Exception as e:
-            if log_callback:
-                log_callback(f"❌ Ошибка установки: {str(e)}")
-            print(f"❌ Ошибка установки: {str(e)}")
-
-    def update_system(self, log_callback):
-        """Обновление системы"""
-        try:
-            if log_callback:
-                log_callback("🔄 Обновление системы...")
-            
-            # Временная реализация
-            if log_callback:
-                log_callback("✅ Система обновлена!")
-                
-        except Exception as e:
-            if log_callback:
-                log_callback(f"❌ Ошибка обновления: {str(e)}")
-
-    def uninstall_system(self, log_callback):
-        """Удаление системы"""
-        try:
-            if log_callback:
-                log_callback("🗑️ Начинаю удаление системы...")
-            
-            # Удаляем папку системы
-            if os.path.exists(self.system_dir):
-                import shutil
-                shutil.rmtree(self.system_dir)
-                if log_callback:
-                    log_callback("✅ Система удалена!")
-            else:
-                if log_callback:
-                    log_callback("⚠️ Система не найдена для удаления")
-                    
-        except Exception as e:
-            if log_callback:
-                log_callback(f"❌ Ошибка удаления: {str(e)}")
-
-    def open_system_folder(self, log_callback):
-        """Открытие папки системы"""
-        try:
-            if log_callback:
-                log_callback(f"📁 Открываю папку: {self.system_dir}")
-            
-            if platform.system() == "Windows":
-                os.startfile(self.system_dir)
-            elif platform.system() == "Darwin":  # macOS
-                subprocess.call(["open", self.system_dir])
-            else:  # Linux
-                subprocess.call(["xdg-open", self.system_dir])
-                
-        except Exception as e:
-            if log_callback:
-                log_callback(f"❌ Ошибка открытия папки: {str(e)}")
-
-
 class FamilySystemLauncher:
     def __init__(self):
-        # Initialize paths
-        self.home_dir = os.path.expanduser("~")
-        self.desktop_path = self.get_desktop_path()
-        self.system_dir = os.path.join(self.desktop_path, "FamilySystem")
+        # Initialize paths - portable mode uses application directory
+        self.app_dir = os.path.dirname(os.path.abspath(__file__))
+        self.system_dir = self.app_dir  # In portable mode, system dir is the app directory
         
         # Setup config directory
         self.setup_config_directory()
         
         # Initialize components
-        self.installer = Installer(self.system_dir, self.desktop_path)
         self.statistics_manager = StatisticsManager(self.config_dir)
-        self.github_manager = GitHubManager(self.system_dir, self.log_message)
+        self.github_manager = GitHubManager(self.system_dir, self.log_message, self.update_progress_callback)
         self.component_launcher = ComponentLauncher(self.system_dir, self.log_message)
         
         # Initialize GUI
         self.gui = LauncherGUI(self)
         
-        # Check installation status
-        self.is_installed = os.path.exists(self.system_dir)
+        # In portable mode, system is always "installed"
+        self.is_installed = True
         
         # Set callbacks for GUI
         self.gui.log_callback = self.log_message
@@ -156,8 +45,8 @@ class FamilySystemLauncher:
         # Update statistics display after initialization
         self.gui.app.after(200, self.update_statistics_display)
         
-        # Periodic statistics update (every 30 seconds)
-        self.gui.app.after(30000, self.periodic_statistics_update)
+        # Periodic statistics update (every 30 seconds) - using tracked scheduling
+        self.gui.schedule_periodic_update(self.update_statistics_display, 30000)
 
     def setup_config_directory(self):
         """Create configuration folder"""
@@ -169,91 +58,41 @@ class FamilySystemLauncher:
             # Create config folder if it doesn't exist
             if not os.path.exists(self.config_dir):
                 os.makedirs(self.config_dir)
-                print(f"✅ Created config directory: {self.config_dir}")
+                print(f"[OK] Created config directory: {self.config_dir}")
             
             # Create logs subfolder
             self.logs_dir = os.path.join(self.config_dir, "logs")
             if not os.path.exists(self.logs_dir):
                 os.makedirs(self.logs_dir)
-                print(f"✅ Created logs directory: {self.logs_dir}")
+                print(f"[OK] Created logs directory: {self.logs_dir}")
                 
             # Create screenshots subfolder
             self.screenshots_dir = os.path.join(self.config_dir, "screenshots")
             if not os.path.exists(self.screenshots_dir):
                 os.makedirs(self.screenshots_dir)
-                print(f"✅ Created screenshots directory: {self.screenshots_dir}")
+                print(f"[OK] Created screenshots directory: {self.screenshots_dir}")
                 
         except Exception as e:
-            print(f"❌ Error creating config directory: {e}")
+            print(f"[ERROR] Error creating config directory: {e}")
             # If we can't create config folder, use current directory
             self.config_dir = os.path.dirname(os.path.abspath(__file__))
             self.logs_dir = self.config_dir
             self.screenshots_dir = self.config_dir
 
-    def get_desktop_path(self):
-        """Determine desktop path for different OS"""
-        home_dir = os.path.expanduser("~")
-        system = platform.system()
-        
-        if system == "Windows":
-            desktop = os.path.join(home_dir, "Desktop")
-        elif system in ["Linux", "RedOS"]:
-            # Try different options for Linux
-            possible_paths = [
-                os.path.join(home_dir, "Рабочий стол"),
-                os.path.join(home_dir, "Desktop"),
-                os.path.join(home_dir, "desktop"),
-                os.path.join(home_dir, "Стол")
-            ]
-            
-            desktop = home_dir + "/Desktop"  # Default
-            
-            for path in possible_paths:
-                if os.path.exists(path):
-                    desktop = path
-                    break
-            else:
-                # If folder doesn't exist, create it
-                desktop = os.path.join(home_dir, "Desktop")
-                os.makedirs(desktop, exist_ok=True)
-        else:
-            desktop = os.path.join(home_dir, "Desktop")
-        
-        return desktop
-    
     def check_installation_status(self):
-        """Check installation status and update interface"""
-        self.is_installed = os.path.exists(self.system_dir)
+        """Check installation status in portable mode (always installed)"""
+        self.is_installed = True
         
-        if self.is_installed:
-            self.gui.update_status_label(
-                f"✅ Система установлена в: {self.system_dir}",
-                "green"
-            )
-            self.gui.btn_install.configure(state="disabled", text="✅ УСТАНОВЛЕНА")
-            self.gui.btn_update.configure(state="normal")
-            self.gui.btn_uninstall.configure(state="normal")
-            self.gui.btn_open_folder.configure(state="normal")
-            
-            # Check availability of components
-            self.check_components()
-            
-            # Update statistics
-            self.update_statistics_display()
-        else:
-            self.gui.update_status_label(
-                "❌ Система не установлена. Нажмите 'Установить систему'",
-                "red"
-            )
-            self.gui.btn_install.configure(state="normal", text="📦 УСТАНОВИТЬ СИСТЕМУ")
-            self.gui.btn_update.configure(state="disabled")
-            self.gui.btn_uninstall.configure(state="disabled")
-            self.gui.btn_open_folder.configure(state="disabled")
-            
-            # Disable main buttons
-            self.gui.btn_json.configure(state="disabled")
-            self.gui.btn_mass.configure(state="disabled")
-            self.gui.btn_db.configure(state="disabled")
+        self.gui.update_status_label(
+            f"✅ Портативный режим: {self.app_dir}",
+            "green"
+        )
+        
+        # Check availability of components
+        self.check_components()
+        
+        # Update statistics
+        self.update_statistics_display()
     
     def check_components(self):
         """Check for system components"""
@@ -267,7 +106,7 @@ class FamilySystemLauncher:
                 missing.append(module)
         
         # Check OS-specific files
-        if platform.system() == "Windows":
+        if sys.platform == "win32":
             windows_files = ["database_client.bat"]
             for file in windows_files:
                 file_path = os.path.join(self.system_dir, file)
@@ -281,12 +120,12 @@ class FamilySystemLauncher:
                     missing.append(file)
         
         if missing:
-            self.log_message(f"⚠️ Отсутствуют компоненты: {', '.join(missing)}")
+            self.log_message(f"[WARN] Отсутствуют компоненты: {', '.join(missing)}")
             # Allow using components even if database files are missing
             self.gui.btn_json.configure(state="normal")
             self.gui.btn_mass.configure(state="normal")
             # Enable database button only if file exists
-            if platform.system() == "Windows":
+            if sys.platform == "win32":
                 if os.path.exists(os.path.join(self.system_dir, "database_client.bat")):
                     self.gui.btn_db.configure(state="normal")
                 else:
@@ -300,26 +139,7 @@ class FamilySystemLauncher:
             self.gui.btn_json.configure(state="normal")
             self.gui.btn_mass.configure(state="normal")
             self.gui.btn_db.configure(state="normal")
-            self.log_message("✅ Все компоненты системы доступны")
-    
-    def install_system(self):
-        """Install the system"""
-        self.installer.install_system(self.log_message)
-        self.check_installation_status()
-    
-    def update_system(self):
-        """Update the system"""
-        self.installer.update_system(self.log_message)
-        self.check_components()
-    
-    def uninstall_system(self):
-        """Uninstall the system"""
-        self.installer.uninstall_system(self.log_message)
-        self.check_installation_status()
-    
-    def open_system_folder(self):
-        """Open system folder"""
-        self.installer.open_system_folder(self.log_message)
+            self.log_message("[OK] Все компоненты системы доступны")
     
     def launch_json_creator(self):
         """Launch JSON creator"""
@@ -333,6 +153,10 @@ class FamilySystemLauncher:
         """Launch database client"""
         self.component_launcher.launch_database()
     
+    def open_system_folder(self):
+        """Open system folder"""
+        self.component_launcher.open_system_folder()
+    
     def update_from_github(self):
         """Update from GitHub"""
         self.github_manager.update_from_github()
@@ -343,7 +167,7 @@ class FamilySystemLauncher:
             # Update statistics
             self.statistics_manager.update_statistics(count)
         except Exception as e:
-            print(f"⚠️ Error updating statistics: {e}")
+            print(f"[WARN] Error updating statistics: {e}")
     
     def get_statistics_for_period(self):
         """Get statistics for the period"""
@@ -354,158 +178,31 @@ class FamilySystemLauncher:
         self.gui.update_statistics_display()
     
     def periodic_statistics_update(self):
-        """Periodic statistics update"""
+        """Periodic statistics update (now handled by schedule_periodic_update)"""
         try:
-            # Update statistics
+            # Update statistics only - scheduling is handled by schedule_periodic_update
             self.update_statistics_display()
-            
-            # Schedule next update
-            self.gui.app.after(30000, self.periodic_statistics_update)
         except Exception as e:
-            print(f"⚠️ Error in periodic statistics update: {e}")
+            print(f"[WARN] Error in periodic statistics update: {e}")
     
     def log_message(self, message):
         """Log message"""
         self.gui.log_message(message)
     
+    def update_progress_callback(self, visible, progress, details=""):
+        """Callback for GitHub update progress"""
+        try:
+            if visible:
+                self.gui.set_progress_visible(True)
+            self.gui.update_progress(progress, 100, details)
+        except Exception as e:
+            print(f"[WARN] Progress update error: {e}")
+    
     def run(self):
         """Run the application"""
-        # Check installation status after startup
-        self.gui.app.after(100, self.check_installation_status)
+        # In portable mode, check components immediately
+        self.check_installation_status()
         self.gui.run()
-
-    def highlight_completed_families(self):
-        """Выделение завершенных семей в Google-таблице"""
-        try:
-            # Импортируем здесь, чтобы избежать проблем с циклическими зависимостями
-            from utils.google_sheets_handler import GoogleSheetsHandler
-            import json
-            from tkinter import filedialog, messagebox
-            from tkinter import simpledialog  # Добавляем импорт simpledialog
-            
-            # Определяем путь к файлу учетных данных
-            credentials_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                                          "hale-sentry-478217-a7-e2f18fda44d4.json")
-            
-            # Проверяем, существует ли файл учетных данных
-            if not os.path.exists(credentials_path):
-                messagebox.showerror(
-                    "Ошибка",
-                    f"Файл учетных данных не найден: {credentials_path}\n"
-                    "Пожалуйста, убедитесь, что файл учетных данных Google API находится в корне проекта."
-                )
-                return
-            
-            # Инициализируем Google Sheets Handler с путем к учетным данным
-            sheets_handler = GoogleSheetsHandler(credentials_path)
-            
-            # Запрашиваем у пользователя путь к JSON файлу с завершенными семьями
-            completed_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "completed")
-            completed_dir = os.path.abspath(completed_dir)
-            
-            completed_file_path = filedialog.askopenfilename(
-                title="Выберите JSON файл с завершенными семьями",
-                filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
-                initialdir=completed_dir if os.path.exists(completed_dir) else os.path.dirname(os.path.abspath(__file__))
-            )
-            
-            if not completed_file_path:
-                return
-                
-            # Загружаем завершенные семьи
-            with open(completed_file_path, 'r', encoding='utf-8') as f:
-                all_families = json.load(f)
-                
-            if not isinstance(all_families, list):
-                messagebox.showerror("Ошибка", "Файл должен содержать массив семей")
-                return
-                
-            # Фильтруем только семьи со статусом "успешно" и которые еще не были отмечены как закрашенные
-            uncolored_families = []
-            painted_families = []
-            for family in all_families:
-                # Проверяем статус "успешно"
-                status = family.get('status', '').strip()
-                if status.lower() == 'успешно':
-                    # Проверяем, было ли семье присвоено поле isPainted (новое поле) или isColored (старое поле)
-                    if family.get('isPainted', family.get('isColored', False)):
-                        painted_families.append(family)
-                    else:
-                        uncolored_families.append(family)
-            
-            print(f"✅ Загружено {len(all_families)} семей из {completed_file_path}")
-            print(f"✅ Из них со статусом 'успешно': {len(painted_families) + len(uncolored_families)}")
-            print(f"✅ Уже закрашенных: {len(painted_families)}")
-            print(f"✅ Осталось закрасить: {len(uncolored_families)}")
-            
-            # Используем только незакрашенные семьи со статусом "успешно"
-            completed_families = uncolored_families
-            # Запрашиваем ID таблицы Google Sheets
-            spreadsheet_id = simpledialog.askstring(
-                "ID Таблицы",
-                "Введите ID Google-таблицы (часть URL между /d/ и /edit):",
-                initialvalue=""  # Пустое значение по умолчанию
-            )
-            
-            if not spreadsheet_id:
-                return
-                
-            # Запрашиваем название листа, по умолчанию "АСП_Многодетные"
-            sheet_name = simpledialog.askstring(
-                "Название листа",
-                "Введите название листа (по умолчанию: 'АСП_Многодетные'):",
-                initialvalue="АСП_Многодетные"
-            ) or "АСП_Многодетные"
-            # Выделяем завершенные семьи в таблице
-            success_count = 0
-            total_processed = 0
-            successful_families = []  # Список успешно закрашенных семей
-            
-            for family in completed_families:
-                mother_fio = family.get('mother_fio', '').strip()
-                father_fio = family.get('father_fio', '').strip()
-                
-                if mother_fio or father_fio:
-                    # Ищем и выделяем семью в таблице
-                    if sheets_handler.highlight_family_in_sheet(spreadsheet_id, sheet_name, mother_fio, father_fio):
-                        success_count += 1
-                        successful_families.append(family)  # Добавляем только успешно закрашенные семьи
-                    total_processed += 1
-            
-            # Обновляем статус закрашивания только для успешно закрашенных семей
-            if success_count > 0:
-                from utils.google_sheets_handler import update_families_paint_status
-                # Обновляем статус закрашивания только для успешно закрашенных семей
-                # Создаем список семей с правильной структурой для обновления статуса
-                families_for_update = []
-                for family in successful_families:
-                    families_for_update.append({'family': family})
-                
-                update_families_paint_status(completed_file_path, families_for_update, True)
-                
-            messagebox.showinfo(
-                "Результат",
-                f"Завершено выделение семей в Google-таблице.\n"
-                f"Обработано семей со статусом 'успешно' и не закрашенных ранее: {success_count} из {len(completed_families)}\n"
-                f"Всего обработано: {total_processed}"
-            )
-            
-        except ImportError as e:
-            # Импортируем messagebox здесь, чтобы избежать ошибки UnboundLocalError
-            from tkinter import messagebox
-            messagebox.showerror(
-                "Ошибка импорта",
-                f"Для использования этой функции необходимо установить библиотеку google-api-python-client:\n"
-                "pip install google-api-python-client google-auth\n\n"
-                f"Дополнительная информация об ошибке: {str(e)}"
-            )
-        except json.JSONDecodeError:
-            from tkinter import messagebox
-            messagebox.showerror("Ошибка", "Некорректный формат JSON файла")
-        except Exception as e:
-            from tkinter import messagebox
-            messagebox.showerror("Ошибка", f"Ошибка при выделении семей в таблице:\n{str(e)}")
-            print(f"❌ Ошибка выделения семей в таблице: {e}")
 
     def export_mothers_to_txt(self):
         """Экспорт ФИО матерей в текстовый файл"""

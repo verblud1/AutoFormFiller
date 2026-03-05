@@ -3,6 +3,7 @@
 """
 Component Launcher for Family System Launcher
 Handles launching of different system components
+Портативный режим - использует текущую директорию
 """
 
 import os
@@ -13,15 +14,15 @@ from tkinter import messagebox
 
 
 class ComponentLauncher:
-    def __init__(self, system_dir, log_callback=None):
-        self.system_dir = system_dir
+    def __init__(self, app_dir, log_callback=None):
+        self.app_dir = app_dir
         self.log_callback = log_callback
 
     def launch_json_creator(self):
         """Launch JSON creator"""
         try:
             if self.log_callback:
-                self.log_callback("🚀 Запускаю Создатель JSON...")
+                self.log_callback("Запускаю Создатель JSON...")
             
             # Run the family_creator module
             if platform.system() == "Windows":
@@ -31,19 +32,18 @@ class ComponentLauncher:
                 subprocess.Popen([sys.executable, "-m", "family_creator.main"])
             
             if self.log_callback:
-                self.log_callback("✅ Создатель JSON запущен")
+                self.log_callback("Создатель JSON запущен")
             
         except Exception as e:
             if self.log_callback:
-                self.log_callback(f"❌ Ошибка запуска: {str(e)}")
+                self.log_callback(f"Ошибка запуска: {str(e)}")
             messagebox.showerror("Ошибка", f"Не удалось запустить Создатель JSON:\n{str(e)}")
 
     def launch_mass_processor(self):
         """Launch mass processor"""
         try:
-            # Instead of running an external script, we'll run the mass_processor module
             if self.log_callback:
-                self.log_callback("🚀 Запускаю Массовый обработчик...")
+                self.log_callback("Запускаю Массовый обработчик...")
             
             # Run the mass_processor module
             if platform.system() == "Windows":
@@ -53,30 +53,30 @@ class ComponentLauncher:
                 subprocess.Popen([sys.executable, "-m", "mass_processor.main"])
             
             if self.log_callback:
-                self.log_callback("✅ Массовый обработчик запущен")
+                self.log_callback("Массовый обработчик запущен")
             
         except Exception as e:
             if self.log_callback:
-                self.log_callback(f"❌ Ошибка запуска: {str(e)}")
+                self.log_callback(f"Ошибка запуска: {str(e)}")
             messagebox.showerror("Ошибка", f"Не удалось запустить Массовый обработчик:\n{str(e)}")
 
     def launch_database(self):
         """Launch database client"""
         try:
             if platform.system() == "Windows":
-                script_path = os.path.join(self.system_dir, "database_client.bat")
+                script_path = os.path.join(self.app_dir, "database_client.bat")
                 if not os.path.exists(script_path):
                     # Create bat file for Windows
                     self.create_windows_bat_file()
             else:  # Linux/RedOS
-                script_path = os.path.join(self.system_dir, "database_client.sh")
+                script_path = os.path.join(self.app_dir, "database_client.sh")
             
             if not os.path.exists(script_path):
                 messagebox.showerror("Ошибка", "Файл клиента базы данных не найден!")
                 return
             
             if self.log_callback:
-                self.log_callback("🚀 Запускаю клиент базы данных...")
+                self.log_callback("Запускаю клиент базы данных...")
             
             if platform.system() == "Windows":
                 subprocess.Popen([script_path], shell=True)
@@ -84,16 +84,16 @@ class ComponentLauncher:
                 subprocess.Popen(["bash", script_path])
             
             if self.log_callback:
-                self.log_callback("✅ Клиент базы данных запущен")
+                self.log_callback("Клиент базы данных запущен")
             
         except Exception as e:
             if self.log_callback:
-                self.log_callback(f"❌ Ошибка запуска: {str(e)}")
+                self.log_callback(f"Ошибка запуска: {str(e)}")
             messagebox.showerror("Ошибка", f"Не удалось запустить клиент базы данных:\n{str(e)}")
     
     def create_windows_bat_file(self):
         """Create bat file for Windows database client"""
-        bat_path = os.path.join(self.system_dir, "database_client.bat")
+        bat_path = os.path.join(self.app_dir, "database_client.bat")
         
         with open(bat_path, 'w', encoding='cp1251') as f:
             f.write("""@echo off
@@ -191,4 +191,19 @@ pause
 """)
         
         if self.log_callback:
-            self.log_callback("📄 Created full-featured Windows bat file")
+            self.log_callback("Создан bat-файл для Windows")
+
+    def open_system_folder(self):
+        """Open system folder (app directory)"""
+        try:
+            import platform
+            if platform.system() == "Windows":
+                os.startfile(self.app_dir)
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.call(["open", self.app_dir])
+            else:  # Linux
+                subprocess.call(["xdg-open", self.app_dir])
+        except Exception as e:
+            if self.log_callback:
+                self.log_callback(f"Ошибка открытия папки: {str(e)}")
+            messagebox.showerror("Ошибка", f"Не удалось открыть папку системы:\n{str(e)}")
