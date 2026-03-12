@@ -148,18 +148,6 @@ class LauncherGUI:
         )
         self.btn_db.pack(fill="x", pady=10)
         
-        # Button 4: Export Mothers FIO to TXT
-        self.btn_export_mothers = ctk.CTkButton(
-            buttons_frame,
-            text="СОЗДАТЬ TXT С МАТЕРАМИ",
-            command=self.launcher.export_mothers_to_txt,
-            height=60,
-            font=ctk.CTkFont(size=16, weight="bold"),
-            fg_color="#FF6B6B",
-            hover_color="#FF5252"
-        )
-        self.btn_export_mothers.pack(fill="x", pady=10)
-        
         # GitHub update button
         self.btn_github = ctk.CTkButton(
             buttons_frame,

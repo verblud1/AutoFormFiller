@@ -1,5 +1,6 @@
 """GUI компоненты для генератора JSON файлов"""
 
+import sys
 import customtkinter as ctk
 from tkinter import messagebox, scrolledtext, filedialog
 import threading
@@ -14,6 +15,17 @@ import numpy as np
 from dateutil import parser
 import subprocess
 import platform
+import time
+
+try:
+    from selenium import webdriver
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.webdriver.common.keys import Keys
+    SELENIUM_AVAILABLE = True
+except ImportError:
+    SELENIUM_AVAILABLE = False
 from utils.data_processing import clean_string, clean_fio, clean_address, clean_date, clean_phone, clean_numeric_field, clean_family_data
 from utils.file_utils import setup_config_directory
 from utils.validation import validate_family_data
@@ -53,26 +65,100 @@ class JSONFamilyCreatorGUI(BaseGUI):
         self.config = self.json_creator.config
         self.config_dir = self.json_creator.config_dir
         self.screenshots_dir = self.json_creator.screenshots_dir
+        
         # Инициализация директорий для файлов реестра и АДПИ
-        # Определяем путь к папке registry - используем правильную логику из старой версии
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.registry_dir = self.find_registry_directory(current_dir)
+        # Получаем базовый путь проекта (учитываем PyInstaller)
+        self.base_project_dir = self.get_base_project_dir()
+        
+        # Определяем путь к папке registry
+        self.registry_dir = os.path.join(self.base_project_dir, "registry")
         self.register_dir = self.registry_dir
-        self.adpi_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "adpi")
+        
+        # Определяем путь к папке adpi
+        self.adpi_dir = os.path.join(self.base_project_dir, "adpi")
+        
+        # Создаем папки если их нет
+        os.makedirs(self.registry_dir, exist_ok=True)
+        os.makedirs(self.adpi_dir, exist_ok=True)
         
         # Инициализация переменных, которые могли быть пропущены
-        self.last_register_directory = None
-        self.last_adpi_directory = None
+        if not self.last_register_directory:
+            self.last_register_directory = self.registry_dir
+        if not self.last_adpi_directory:
+            self.last_adpi_directory = self.adpi_dir
+        
+        # Флаги загрузки файлов при старте
+        self.register_loaded_at_startup = False
+        self.adpi_loaded_at_startup = False
+        
+        # Флаги для отслеживания загрузки реестра и АДПИ
+        self.register_loaded = False
+        self.adpi_loaded = False
+        self.families_input_shown = False
         
         # Настройка интерфейса
         self.setup_ui()
+        
+        # Показываем окно после создания интерфейса
+        self.app.deiconify()
+        
+        # Принудительно обновляем окно для отображения интерфейса
+        self.app.update()
+        self.app.update_idletasks()
         
         # Загрузка начальных данных
         if self.load_on_startup:
             self.load_json_on_startup()
         
-        # Загрузка последних файлов реестра и АДПИ
-        self.load_last_files()
+        # Запускаем загрузку файлов с задержкой после отображения окна
+        self.app.after(2000, self.load_last_files)
+        
+        # Настройка интерфейса
+        self.setup_ui()
+        
+        # Показываем окно после создания интерфейса
+        self.app.deiconify()
+        
+        # Принудительно обновляем окно для отображения интерфейса
+        self.app.update()
+        self.app.update_idletasks()
+        
+        # Загрузка начальных данных
+        if self.load_on_startup:
+            self.load_json_on_startup()
+        
+        # Запускаем загрузку файлов с задержкой после отображения окна
+        self.app.after(2000, self.load_last_files)
+    
+    
+    def run(self):
+        """Запуск приложения"""
+        # Запускаем основной цикл
+        self.app.mainloop()
+    
+    
+    def get_base_project_dir(self):
+        """Определение базового пути проекта (учитывает PyInstaller)"""
+        if getattr(sys, 'frozen', False):
+            # Если приложение упаковано в PyInstaller
+            base_dir = os.path.dirname(sys.executable)
+        else:
+            # Обычный режим - используем путь к gui.py
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Проверяем наличие папок registry/adpi в базовой директории
+        # Если нет, ищем в родительских директориях
+        current_dir = base_dir
+        for _ in range(3):
+            if os.path.exists(os.path.join(current_dir, "registry")) or os.path.exists(os.path.join(current_dir, "adpi")):
+                return current_dir
+            parent_dir = os.path.dirname(current_dir)
+            if parent_dir == current_dir:  # Достигли корня
+                break
+            current_dir = parent_dir
+        
+        # Если не нашли, возвращаем базовую директорию
+        return base_dir
     
     def find_registry_directory(self, start_dir):
         """Поиск папки registry относительно текущего файла"""
@@ -258,6 +344,35 @@ class JSONFamilyCreatorGUI(BaseGUI):
         else:
             messagebox.showwarning("Внимание", "Нет сохраненных файлов АДПИ")
     
+    def copy_file_to_project_folder(self, source_path, target_dir, target_filename=None):
+        """Копирование файла в папку проекта с заменой"""
+        try:
+            if not os.path.exists(source_path):
+                return False, "Файл-источник не найден"
+            
+            # Создаем целевую директорию если нужно
+            os.makedirs(target_dir, exist_ok=True)
+            
+            # Определяем имя файла
+            if target_filename is None:
+                target_filename = os.path.basename(source_path)
+            
+            target_path = os.path.join(target_dir, target_filename)
+            
+            # Удаляем старый файл если существует
+            if os.path.exists(target_path):
+                try:
+                    os.remove(target_path)
+                except Exception as e:
+                    return False, f"Не удалось удалить старый файл: {str(e)}"
+            
+            # Копируем файл
+            shutil.copy2(source_path, target_path)
+            
+            return True, target_path
+        except Exception as e:
+            return False, f"Ошибка копирования: {str(e)}"
+    
     def load_register_file(self, file_path=None, auto_load=False):
         """Загрузка реестра многодетных из xls/xlsx файла"""
         if not file_path and not auto_load:
@@ -272,9 +387,19 @@ class JSONFamilyCreatorGUI(BaseGUI):
             return
         
         try:
+            # Сбрасываем флаг показа диалога при новой загрузке
+            self.families_input_shown = False
+            
             self.last_register_directory = os.path.dirname(file_path)
             self.json_creator.last_register_directory = self.last_register_directory
             self.json_creator.save_config()
+            
+            # Копируем файл в папку registry проекта
+            success, result = self.copy_file_to_project_folder(file_path, self.registry_dir)
+            if not success:
+                print(f"Предупреждение: не удалось скопировать файл в папку проекта: {result}")
+            else:
+                print(f"✅ Файл реестра скопирован в: {result}")
             
             self.register_data = load_register_file(file_path)
             
@@ -288,6 +413,13 @@ class JSONFamilyCreatorGUI(BaseGUI):
             self.update_register_info()
             if not auto_load:
                 messagebox.showinfo("Успех", f"Загружено {len(self.register_data)} семей из реестра")
+            
+            # Устанавливаем флаг загрузки реестра
+            self.register_loaded = True
+            # Проверяем, можно ли показать диалог ввода семей (только при ручной загрузке)
+            if not auto_load:
+                self.check_and_show_families_input_dialog()
+            
         except Exception as e:
             error_details = traceback.format_exc()
             print(f"Ошибка загрузки реестра: {error_details}")
@@ -356,9 +488,36 @@ class JSONFamilyCreatorGUI(BaseGUI):
             return
         
         try:
+            # Сбрасываем флаг показа диалога при новой загрузке
+            self.families_input_shown = False
+            
+            # Настройка интерфейса
+            self.setup_ui()
+            
+            # Показываем окно после создания интерфейса
+            self.app.deiconify()
+            
+            # Принудительно обновляем окно для отображения интерфейса
+            self.app.update()
+            self.app.update_idletasks()
+            
+            # Загрузка начальных данных
+            if self.load_on_startup:
+                self.load_json_on_startup()
+            
+            # Запускаем загрузку файлов с задержкой после отображения окна
+            self.app.after(2000, self.load_last_files)
+            
             self.last_adpi_directory = os.path.dirname(file_path)
             self.json_creator.last_adpi_directory = self.last_adpi_directory
             self.json_creator.save_config()
+            
+            # Копируем файл в папку adpi проекта
+            success, result = self.copy_file_to_project_folder(file_path, self.adpi_dir)
+            if not success:
+                print(f"Предупреждение: не удалось скопировать файл в папку проекта: {result}")
+            else:
+                print(f"✅ Файл АДПИ скопирован в: {result}")
             
             loaded_adpi_data = load_adpi_file(file_path)
             if loaded_adpi_data is not None:
@@ -380,6 +539,12 @@ class JSONFamilyCreatorGUI(BaseGUI):
             self.update_adpi_info()
             if not auto_load:
                 messagebox.showinfo("Успех", f"Загружено {len(self.adpi_data)} записей из файла АДПИ")
+            
+            # Устанавливаем флаг загрузки АДПИ
+            self.adpi_loaded = True
+            # Проверяем, можно ли показать диалог ввода семей
+            self.check_and_show_families_input_dialog()
+            
         except Exception as e:
             error_details = traceback.format_exc()
             print(f"Ошибка загрузки файла АДПИ: {error_details}")
@@ -455,20 +620,21 @@ class JSONFamilyCreatorGUI(BaseGUI):
         self.clear_form()
         
         # Заполняем мать
-        if filled_data['mother_fio']:
+        if filled_data.get('mother_fio'):
             self.mother_fio.insert(0, filled_data['mother_fio'])
-        if filled_data['mother_birth']:
+        if filled_data.get('mother_birth'):
             self.mother_birth.insert(0, filled_data['mother_birth'])
         
         # Заполняем отца
-        if filled_data['father_fio']:
+        if filled_data.get('father_fio'):
             self.father_fio.insert(0, filled_data['father_fio'])
-        if filled_data['father_birth']:
+        if filled_data.get('father_birth'):
             self.father_birth.insert(0, filled_data['father_birth'])
         
         # Заполняем детей
         self.clear_all_children()
-        for i, child in enumerate(filled_data['children']):
+        children = filled_data.get('children', [])
+        for i, child in enumerate(children):
             if i >= 20:  # Ограничение на количество детей
                 break
             self.add_child_entry()
@@ -478,21 +644,29 @@ class JSONFamilyCreatorGUI(BaseGUI):
                 self.children_entries[i]['birth'].insert(0, child['birth'])
         
         # Заполняем телефон
-        if filled_data['phone_number']:
+        if filled_data.get('phone_number'):
             self.phone_entry.insert(0, filled_data['phone_number'])
             self.log_message(f"📱 Телефон семьи: {filled_data['phone_number']}")
         
         # Заполняем адрес
-        if filled_data['address']:
+        if filled_data.get('address'):
             self.address.insert(0, filled_data['address'])
         
-        # Устанавливаем пособие по многодетности по умолчанию 1900
-        self.large_family_benefit_var.set("1900")
-        self.large_family_benefit_entry.delete(0, 'end')
-        self.large_family_benefit_entry.insert(0, "1900")
+        # Заполняем пособие по многодетности, если оно есть
+        if filled_data.get('large_family_benefit'):
+            benefit_value = str(filled_data['large_family_benefit'])
+            self.large_family_benefit_var.set(benefit_value)
+            self.large_family_benefit_entry.delete(0, 'end')
+            self.large_family_benefit_entry.insert(0, benefit_value)
+        else:
+            # Устанавливаем пособие по многодетности по умолчанию 1900
+            self.large_family_benefit_var.set("1900")
+            self.large_family_benefit_entry.delete(0, 'end')
+            self.large_family_benefit_entry.insert(0, "1900")
         
-        # Автоматически заполняем АДПИ
-        self.fill_adpi_from_loaded_data()
+        # Автоматически заполняем АДПИ, если файл загружен
+        if self.adpi_data:
+            self.fill_adpi_from_loaded_data()
     
     def fill_adpi_from_loaded_data(self):
         """Заполнение данных АДПИ из загруженного файла по ФИО"""
@@ -1200,6 +1374,14 @@ class JSONFamilyCreatorGUI(BaseGUI):
         ctk.CTkButton(row5_frame, text="🚀 Старт базы данных",
                     command=self.start_database_system, width=200,
                     fg_color="purple", hover_color="#6a0dad").pack(side="left", padx=5)
+        ctk.CTkButton(row5_frame, text="🔍 Проверить семьи в БД",
+                    command=self.check_families_in_database, width=200,
+                    fg_color="blue", hover_color="darkblue").pack(side="left", padx=5)
+        
+        row6_frame = ctk.CTkFrame(buttons_frame, fg_color="transparent")
+        row6_frame.pack(fill="x", pady=5)
+        ctk.CTkButton(row6_frame, text="📝 Ввести семьи для проверки",
+                    command=self.show_families_input_dialog, width=200).pack(side="left", padx=5)
         
         # Фрейм для предпросмотра JSON (уменьшенный)
         preview_frame = ctk.CTkFrame(content_frame)
@@ -1249,7 +1431,7 @@ class JSONFamilyCreatorGUI(BaseGUI):
                         else:
                             messagebox.showerror("Ошибка", f"Файл database_client.bat не найден в {script_dir}")
                     else:
-                        messagebox.showwarning("Предупреждение", 
+                        messagebox.showwarning("Предупреждение",
                                             f"Операционная система {current_os} не поддерживается")
                 except Exception as e:
                     messagebox.showerror("Ошибка", f"Не удалось запустить базу данных: {str(e)}")
@@ -1277,12 +1459,615 @@ class JSONFamilyCreatorGUI(BaseGUI):
             self.log_message("🚀 Запускаю массовый обработчик...")
             run_mass_processor()
             
-            messagebox.showinfo("Успех", 
+            messagebox.showinfo("Успех",
                             "✅ База данных запущена\n"
                             "📦 Массовый обработчик запущен\n"
                             "Теперь вы можете работать с базой данных.")
         except Exception as e:
             messagebox.showerror("Ошибка", f"Не удалось запустить систему: {str(e)}")
+    
+    def check_families_in_database(self):
+        """Проверка семей в базе данных"""
+        try:
+            # Проверяем, есть ли семьи в списке
+            if not self.families:
+                messagebox.showwarning("Предупреждение", "Список семей пуст. Сначала добавьте семьи в список.")
+                return
+            
+            # Создаем диалог для подтверждения
+            response = messagebox.askyesno(
+                "Проверка семей в БД",
+                f"Будет проверено {len(self.families)} семей в базе данных.\n\n"
+                "Процесс:\n"
+                "1. Для каждой семьи будет выполнен поиск по ФИО в базе данных\n"
+                "2. Вам будет показан результат поиска для подтверждения\n"
+                "3. Найденные семьи будут помечены как InBase: true\n"
+                "4. Не найденные семьи будут удалены из списка\n\n"
+                "Продолжить?"
+            )
+            
+            if not response:
+                return
+            
+            # Запускаем проверку в отдельном потоке, чтобы не блокировать GUI
+            thread = threading.Thread(target=self._process_families_check, daemon=True)
+            thread.start()
+            
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Не удалось запустить проверку: {str(e)}")
+    
+    def _process_families_check(self):
+        """Обработка проверки семей в БД (выполняется в отдельном потоке)"""
+        try:
+            # Запускаем базу данных (если не запущена)
+            if not self._check_database_running():
+                self._start_database_for_check()
+            
+            # Проверяем каждую семью
+            families_to_keep = []
+            checked_count = 0
+            
+            for i, family in enumerate(self.families):
+                try:
+                    # Получаем ФИО для поиска (мать или отец)
+                    search_fio = family.get('mother_fio', '') or family.get('father_fio', '')
+                    if not search_fio:
+                        self.log_message(f"⚠️ Семья {i+1}: нет ФИО для поиска, пропускаем")
+                        # Помечаем как не проверенную
+                        family['inBase'] = None
+                        families_to_keep.append(family)
+                        continue
+                    
+                    # Проверяем семью в БД
+                    in_base = self._check_family_in_database(search_fio)
+                    
+                    if in_base is True:
+                        family['inBase'] = True
+                        families_to_keep.append(family)
+                        self.log_message(f"✅ Семья {i+1}: {search_fio} - найдена в БД")
+                    elif in_base is False:
+                        family['inBase'] = False
+                        self.log_message(f"❌ Семья {i+1}: {search_fio} - не найдена в БД (будет удалена)")
+                        # Не добавляем в families_to_keep - удаляем из списка
+                    else:
+                        # None - требуется ручное подтверждение, оставляем в списке
+                        family['inBase'] = None
+                        families_to_keep.append(family)
+                        self.log_message(f"🛠️ Семья {i+1}: {search_fio} - требуется ручное подтверждение")
+                    
+                    checked_count += 1
+                    
+                except Exception as e:
+                    self.log_message(f"⚠️ Ошибка при проверке семьи {i+1}: {str(e)}")
+                    # В случае ошибки оставляем семью в списке
+                    family['inBase'] = None
+                    families_to_keep.append(family)
+                    continue
+            
+            # Обновляем список семей
+            old_count = len(self.families)
+            self.families[:] = families_to_keep
+            self.json_creator.families[:] = families_to_keep
+            self.json_creator.autosave_families()
+            
+            # Обновляем UI
+            self.app.after(0, self.update_families_info)
+            
+            # Показываем результат
+            removed_count = old_count - len(families_to_keep)
+            self.app.after(0, lambda: messagebox.showinfo(
+                "Проверка завершена",
+                f"Проверено семей: {checked_count}\n"
+                f"Найдено в БД: {sum(1 for f in families_to_keep if f.get('inBase') is True)}\n"
+                f"Требуют ручного подтверждения: {sum(1 for f in families_to_keep if f.get('inBase') is None)}\n"
+                f"Удалено: {removed_count}\n\n"
+                "Найденные семьи отмечены как inBase: true"
+            ))
+                
+        except Exception as e:
+            self.log_message(f"❌ Ошибка при проверке семей: {str(e)}")
+            self.app.after(0, lambda: messagebox.showerror("Ошибка", f"Ошибка при проверке: {str(e)}"))
+    
+    def _create_temp_families_config(self):
+        """Создание временного конфига с семьями для проверки"""
+        try:
+            temp_data = []
+            for family in self.families:
+                # Берем только необходимые поля для проверки
+                temp_family = {
+                    'mother_fio': family.get('mother_fio', ''),
+                    'father_fio': family.get('father_fio', ''),
+                    'inBase': False  # По умолчанию не найдено
+                }
+                temp_data.append(temp_family)
+            return temp_data
+        except Exception as e:
+            self.log_message(f"❌ Ошибка создания временного конфига: {str(e)}")
+            return None
+    
+    def _check_database_running(self):
+        """Проверка, запущена ли база данных"""
+        try:
+            from selenium import webdriver
+            from selenium.webdriver.common.by import By
+            from selenium.webdriver.support.ui import WebDriverWait
+            from selenium.webdriver.support import expected_conditions as EC
+            import time
+            
+            # Пробуем быстро подключиться к странице поиска
+            driver = webdriver.Chrome()
+            try:
+                driver.get("http://localhost:8080/aspnetkp/Common/FindInfo.aspx")
+                time.sleep(1)
+                # Проверяем, загрузилась ли страница
+                try:
+                    WebDriverWait(driver, 3).until(
+                        EC.presence_of_element_located((By.NAME, "tbUserName"))
+                    )
+                    return True
+                except:
+                    return False
+            finally:
+                try:
+                    driver.quit()
+                except:
+                    pass
+        except Exception as e:
+            self.log_message(f"⚠️ Ошибка проверки базы данных: {str(e)}")
+            return False
+    
+    def _start_database_for_check(self):
+        """Запуск базы данных для проверки"""
+        try:
+            current_os = platform.system()
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            
+            if current_os == "Linux" or current_os == "RedOS":
+                db_script = os.path.join(script_dir, "database_client.sh")
+                if os.path.exists(db_script):
+                    os.chmod(db_script, 0o755)
+                    subprocess.Popen(["bash", db_script])
+                else:
+                    raise FileNotFoundError(f"Файл database_client.sh не найден в {script_dir}")
+            elif current_os == "Windows":
+                db_script = os.path.join(script_dir, "database_client.bat")
+                if os.path.exists(db_script):
+                    subprocess.Popen([db_script], shell=True)
+                else:
+                    raise FileNotFoundError(f"Файл database_client.bat не найден в {script_dir}")
+            else:
+                raise Exception(f"Операционная система {current_os} не поддерживается")
+            
+            self.log_message("⏳ Ожидание запуска базы данных (10 секунд)...")
+            # Ждем запуска базы данных
+            import time
+            time.sleep(10)
+            
+            # Проверяем, запустилась ли база данных
+            if not self._check_database_running():
+                raise Exception("База данных не запустилась после ожидания")
+            
+            self.log_message("✅ База данных запущена и готова к работе")
+            
+        except Exception as e:
+            self.log_message(f"❌ Ошибка запуска базы данных: {str(e)}")
+            raise
+    
+    def _check_family_in_database(self, search_fio):
+        """Проверка наличия семьи в базе данных с улучшенной логикой поиска"""
+        try:
+            from selenium import webdriver
+            from selenium.webdriver.common.by import By
+            from selenium.webdriver.support.ui import WebDriverWait
+            from selenium.webdriver.support import expected_conditions as EC
+            from selenium.webdriver.common.keys import Keys
+            import time
+            
+            # Настройка драйвера
+            driver = webdriver.Chrome()
+            driver.maximize_window()
+            
+            try:
+                # Открываем страницу поиска
+                driver.get("http://localhost:8080/aspnetkp/Common/FindInfo.aspx")
+                time.sleep(1)
+                
+                # Авторизация
+                username_field = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.NAME, "tbUserName"))
+                )
+                username_field.clear()
+                username_field.send_keys("СРЦ_Вол")
+                
+                password_field = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.NAME, "tbPassword"))
+                )
+                password_field.clear()
+                password_field.send_keys("СРЦ_Вол1", Keys.ENTER)
+                time.sleep(1)
+                
+                # Поиск по ФИО (аналогично mass_processor)
+                max_attempts = 3
+                for attempt in range(max_attempts):
+                    try:
+                        # Ждем, что поле поиска будет доступно и пустое
+                        search_field = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.NAME, "ctl00$cph$ctrlFastFind$tbFind"))
+                        )
+                        
+                        # Очищаем поле и вводим новое значение
+                        search_field.clear()
+                        time.sleep(0.2)
+                        search_field.send_keys(search_fio)
+                        search_field.send_keys(Keys.ENTER)
+                        
+                        # Ждем появления результатов поиска
+                        WebDriverWait(driver, 10).until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, "#ctl00_cph_dTabsContainer"))
+                        )
+                        time.sleep(1)
+                        break
+                    except Exception as e:
+                        if attempt < max_attempts - 1:
+                            self.log_message(f"⚠️ Попытка {attempt + 1} поиска не удалась: {e}")
+                            time.sleep(0.5)
+                            continue
+                        else:
+                            raise
+                
+                # Анализ результатов поиска
+                # Ждем полной загрузки страницы результатов
+                WebDriverWait(driver, 10).until(
+                    lambda driver: driver.execute_script("return document.readyState") == "complete"
+                )
+                
+                # Ищем карточки
+                try:
+                    cards = WebDriverWait(driver, 5).until(
+                        EC.presence_of_all_elements_located((By.CSS_SELECTOR, "#ctl00_cph_dTabsContainer .pers"))
+                    )
+                    
+                    if cards and len(cards) > 0:
+                        self.log_message(f"✅ Найдено карточек: {len(cards)}")
+                        # Анализируем карточки для более точной проверки
+                        for i, card in enumerate(cards):
+                            try:
+                                # Получаем ФИО из карточки
+                                fio_element = card.find_element(By.CSS_SELECTOR, ".fio")
+                                card_fio = fio_element.text if fio_element else ""
+                                
+                                # Получаем адрес для проверки района
+                                address = ""
+                                try:
+                                    details_table = card.find_element(By.CSS_SELECTOR, "table.tbl-details")
+                                    rows = details_table.find_elements(By.TAG_NAME, "tr")
+                                    for row in rows:
+                                        cells = row.find_elements(By.TAG_NAME, "td")
+                                        if len(cells) >= 2 and "Проживает:" in cells[0].text:
+                                            address = cells[1].text
+                                            break
+                                except:
+                                    address = card.text
+                                
+                                # Проверяем, подходит ли карточка (приоритет Вышневолоцкий район/городской округ)
+                                address_lower = address.lower()
+                                if ("вышневолоцкий" in address_lower or
+                                    "вышний волочек" in address_lower or
+                                    "вышнего волочка" in address_lower):
+                                    self.log_message(f"✅ Найдена подходящая карточка: {card_fio} - {address[:50]}")
+                                    return True
+                                
+                            except Exception as e:
+                                continue
+                        
+                        # Если нашли карточки, но ни одна не подошла по району, все равно считаем что семья есть
+                        # (пользователь решит при ручном выборе)
+                        self.log_message(f"⚠️ Найдено {len(cards)} карточек, но ни одна не в приоритетных районах")
+                        return True
+                    else:
+                        # Проверяем сообщение "Информация отсутствует"
+                        try:
+                            no_info = driver.find_element(By.XPATH, "//*[contains(text(), 'Информация отсутствует')]")
+                            self.log_message("❌ Информация отсутствует")
+                            return False
+                        except:
+                            # Если нет ни карточек, ни сообщения, считаем что не найдено
+                            self.log_message("❌ Карточки не найдены")
+                            return False
+                            
+                except Exception as e:
+                    self.log_message(f"⚠️ Ошибка поиска карточек: {e}")
+                    return False
+                    
+            finally:
+                # Закрываем драйвер
+                try:
+                    driver.quit()
+                except:
+                    pass
+                    
+        except Exception as e:
+            self.log_message(f"❌ Ошибка проверки семьи {search_fio} в БД: {str(e)}")
+            # В случае ошибки возвращаем False (семья не найдена)
+            return False
+    
+    def _manual_check_family(self, search_fio):
+        """Ручная проверка семьи (диалог с пользователем)"""
+        try:
+            result = messagebox.askyesno(
+                "Проверка семьи в БД",
+                f"Не удалось автоматически проверить семью:\n"
+                f"ФИО: {search_fio}\n\n"
+                f"Найдена ли эта семья в базе данных?\n\n"
+                f"Нажмите 'Да' если семья найдена, 'Нет' если не найдена."
+            )
+            return result
+        except:
+            return False
+    
+    def show_families_input_dialog(self):
+        """Диалог для ввода списка семей (ФИО)"""
+        try:
+            dialog = ctk.CTkToplevel(self.app)
+            dialog.title("Ввод списка семей")
+            dialog.geometry("600x500")
+            dialog.resizable(False, False)
+            dialog.transient(self.app)
+            dialog.grab_set()
+            
+            # Заголовок
+            ctk.CTkLabel(dialog, text="Введите ФИО семей для проверки:",
+                        font=ctk.CTkFont(size=14, weight="bold")).pack(pady=10)
+            
+            # Фрейм для списка полей ввода
+            scroll_frame = ctk.CTkScrollableFrame(dialog, height=300)
+            scroll_frame.pack(fill="both", expand=True, padx=20, pady=10)
+            
+            family_entries = []
+            
+            def add_family_entry(fio_text=""):
+                """Добавление поля для ввода ФИО семьи"""
+                entry_frame = ctk.CTkFrame(scroll_frame)
+                entry_frame.pack(fill="x", pady=5)
+                
+                label = ctk.CTkLabel(entry_frame, text=f"Семья {len(family_entries) + 1}:", width=80)
+                label.pack(side="left", padx=5)
+                
+                entry = ctk.CTkEntry(entry_frame, placeholder_text="ФИО матери или отца")
+                entry.pack(side="left", fill="x", expand=True, padx=5)
+                entry.insert(0, fio_text)
+                
+                # Кнопка удаления
+                delete_btn = ctk.CTkButton(entry_frame, text="🗑️", width=30,
+                                          command=lambda: delete_entry(entry_frame, entry))
+                delete_btn.pack(side="right", padx=5)
+                
+                family_entries.append({'frame': entry_frame, 'entry': entry, 'label': label})
+            
+            def delete_entry(frame, entry):
+                """Удаление поля ввода"""
+                for i, item in enumerate(family_entries):
+                    if item['frame'] == frame:
+                        family_entries.pop(i)
+                        frame.destroy()
+                        # Обновляем номера
+                        for idx, item in enumerate(family_entries):
+                            item['label'].configure(text=f"Семья {idx + 1}:")
+                        break
+            
+            # Кнопки управления
+            buttons_frame = ctk.CTkFrame(dialog)
+            buttons_frame.pack(fill="x", padx=20, pady=10)
+            
+            ctk.CTkButton(buttons_frame, text="➕ Добавить",
+                         command=lambda: add_family_entry(), width=100).pack(side="left", padx=5)
+            
+            ctk.CTkButton(buttons_frame, text="✅ Подтвердить",
+                         command=lambda: confirm_input(), width=100, fg_color="green").pack(side="right", padx=5)
+            
+            ctk.CTkButton(buttons_frame, text="❌ Отмена",
+                         command=dialog.destroy, width=100, fg_color="gray").pack(side="right", padx=5)
+            
+            def confirm_input():
+                """Подтверждение ввода"""
+                families_fio = []
+                for item in family_entries:
+                    fio = item['entry'].get().strip()
+                    if fio:
+                        families_fio.append(fio)
+                
+                if not families_fio:
+                    messagebox.showwarning("Предупреждение", "Введите хотя бы одну семью")
+                    return
+                
+                dialog.destroy()
+                
+                # Запускаем процесс проверки
+                self._start_families_check_process(families_fio)
+            
+            # Добавляем первое поле
+            add_family_entry()
+            
+            # Фокус на первом поле
+            if family_entries:
+                family_entries[0]['entry'].focus_set()
+            
+            dialog.wait_window()
+            
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Ошибка создания диалога: {str(e)}")
+    
+    def _start_families_check_process(self, families_fio):
+        """Запуск процесса проверки семей по списку ФИО"""
+        try:
+            # Создаем временный конфиг
+            temp_config = []
+            for fio in families_fio:
+                temp_config.append({
+                    'mother_fio': fio,
+                    'father_fio': '',
+                    'inBase': False
+                })
+            
+            # Сохраняем временный конфиг
+            config_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
+            os.makedirs(config_dir, exist_ok=True)
+            temp_config_path = os.path.join(config_dir, "temp_families_check.json")
+            
+            with open(temp_config_path, 'w', encoding='utf-8') as f:
+                json.dump(temp_config, f, ensure_ascii=False, indent=2)
+            
+            self.log_message(f"✅ Временный конфиг создан: {temp_config_path}")
+            
+            # Запускаем базу данных если нужно
+            if not self._check_database_running():
+                self._start_database_for_check()
+            
+            # Проверяем каждую семью
+            families_to_add = []
+            
+            for i, family_data in enumerate(temp_config):
+                try:
+                    search_fio = family_data['mother_fio']
+                    self.log_message(f"🔍 Проверка семьи {i+1}: {search_fio}")
+                    
+                    # Проверяем в БД
+                    in_base = self._check_family_in_database(search_fio)
+                    
+                    if in_base:
+                        family_data['inBase'] = True
+                        families_to_add.append(family_data)
+                        self.log_message(f"✅ Семья найдена в БД: {search_fio}")
+                    else:
+                        family_data['inBase'] = False
+                        self.log_message(f"❌ Семья не найдена в БД: {search_fio}")
+                    
+                except Exception as e:
+                    self.log_message(f"⚠️ Ошибка при проверке семьи {i+1}: {str(e)}")
+                    continue
+            
+            # Показываем результат
+            found_count = len(families_to_add)
+            not_found_count = len(families_fio) - found_count
+            
+            result_msg = f"Проверка завершена:\n"
+            result_msg += f"Найдено в БД: {found_count}\n"
+            result_msg += f"Не найдено: {not_found_count}\n\n"
+            
+            if found_count > 0:
+                result_msg += "Найденные семьи будут добавлены в список.\n"
+                result_msg += "Для них будет выполнено автоопределение из реестра."
+            
+            response = messagebox.askyesno("Результаты проверки", result_msg + "\nПродолжить?")
+            
+            if response and found_count > 0:
+                # Добавляем найденные семьи в основной список
+                for family_data in families_to_add:
+                    # Создаем полную запись семьи
+                    full_family = {
+                        'mother_fio': family_data['mother_fio'],
+                        'father_fio': family_data.get('father_fio', ''),
+                        'inBase': True
+                    }
+                    self.families.append(full_family)
+                
+                self.json_creator.families[:] = self.families
+                self.json_creator.autosave_families()
+                self.update_families_info()
+                
+                # Выполняем автоопределение для каждой найденной семьи
+                self._auto_detect_families_from_register(families_to_add)
+            
+        except Exception as e:
+            self.log_message(f"❌ Ошибка при проверке семей: {str(e)}")
+            messagebox.showerror("Ошибка", f"Ошибка при проверке: {str(e)}")
+    
+    def _auto_detect_families_from_register(self, families_data):
+        """Автоопределение данных семей из реестра"""
+        try:
+            if not self.register_data:
+                self.app.after(0, lambda: messagebox.showwarning("Предупреждение", "Реестр не загружен. Загрузите реестр для автоопределения."))
+                return
+            
+            self.log_message("🔄 Начинаем автоопределение данных из реестра...")
+            
+            detected_count = 0
+            for i, family_data in enumerate(families_data):
+                try:
+                    search_fio = family_data['mother_fio']
+                    self.log_message(f"🔍 Автоопределение для семьи {i+1}: {search_fio}")
+                    
+                    # Используем существующий метод процессора
+                    result, message = self.processor.auto_detect_family_from_register(search_fio)
+                    
+                    if result:
+                        # Обновляем данные семьи на основе результата из реестра
+                        # Находим соответствующую семью в основном списке
+                        for j, family in enumerate(self.families):
+                            if family.get('mother_fio') == search_fio:
+                                # Обновляем поля семьи данными из реестра
+                                self._update_family_with_register_data(self.families[j], result)
+                                detected_count += 1
+                                self.log_message(f"✅ Семья {search_fio} автоопределена из реестра")
+                                break
+                    else:
+                        self.log_message(f"⚠️ Семья {search_fio} не найдена в реестре: {message}")
+                        
+                except Exception as e:
+                    self.log_message(f"⚠️ Ошибка автоопределения для семьи {i+1}: {str(e)}")
+                    continue
+            
+            # Сохраняем изменения
+            self.json_creator.autosave_families()
+            self.app.after(0, self.update_families_info)
+            
+            self.app.after(0, lambda: messagebox.showinfo(
+                "Автоопределение завершено",
+                f"Автоопределено семей: {detected_count}\n"
+                f"Не найдено в реестре: {len(families_data) - detected_count}"
+            ))
+            
+        except Exception as e:
+            self.log_message(f"❌ Ошибка автоопределения: {str(e)}")
+            self.app.after(0, lambda: messagebox.showerror("Ошибка", f"Ошибка автоопределения: {str(e)}"))
+    
+    def _update_family_with_register_data(self, family, register_data):
+        """Обновление данных семьи на основе данных из реестра"""
+        try:
+            # Обновляем мать
+            if register_data.get('mother_fio'):
+                family['mother_fio'] = register_data['mother_fio']
+            if register_data.get('mother_birth'):
+                family['mother_birth'] = register_data['mother_birth']
+            if register_data.get('mother_work'):
+                family['mother_work'] = register_data['mother_work']
+            
+            # Обновляем отца
+            if register_data.get('father_fio'):
+                family['father_fio'] = register_data['father_fio']
+            if register_data.get('father_birth'):
+                family['father_birth'] = register_data['father_birth']
+            if register_data.get('father_work'):
+                family['father_work'] = register_data['father_work']
+            
+            # Обновляем детей
+            if register_data.get('children'):
+                family['children'] = register_data['children']
+            
+            # Обновляем телефон
+            if register_data.get('phone_number'):
+                family['phone_number'] = register_data['phone_number']
+            
+            # Обновляем адрес
+            if register_data.get('address'):
+                family['address'] = register_data['address']
+            
+            # Обновляем пособие по многодетности
+            if register_data.get('large_family_benefit'):
+                family['large_family_benefit'] = register_data['large_family_benefit']
+            
+        except Exception as e:
+            self.log_message(f"⚠️ Ошибка обновления семьи: {str(e)}")
     
     def load_json_on_startup(self):
         """Загрузка JSON файла при запуске программы"""
@@ -1343,6 +2128,10 @@ class JSONFamilyCreatorGUI(BaseGUI):
     
     def load_last_files(self):
         """Загрузка последних файлов реестра и АДПИ при запуске"""
+        # Проверяем, не загружены ли уже файлы при старте (защита от двойной загрузки)
+        if self.register_loaded_at_startup and self.adpi_loaded_at_startup:
+            return
+        
         # Проверяем наличие файлов в папке registry
         if os.path.exists(self.registry_dir):
             registry_files = [f for f in os.listdir(self.registry_dir) if f.lower().endswith(('.xls', '.xlsx', '.ods'))]
@@ -1379,31 +2168,43 @@ class JSONFamilyCreatorGUI(BaseGUI):
                     
                     if register_file:
                         self.load_register_file(register_file, auto_load=True)
+                        self.register_loaded_at_startup = True
                         # После загрузки файла реестра синхронизируем данные с процессором
                         self.processor.register_data = self.register_data
                     if adpi_file:
                         self.load_adpi_xlsx(adpi_file, auto_load=True)
+                        self.adpi_loaded_at_startup = True
                         # После загрузки файла АДПИ синхронизируем данные с процессором
                         self.processor.adpi_data = self.adpi_data
+                    
+                    # После загрузки обоих файлов проверяем, можно ли показать диалог
+                    self.app.after(1000, self.check_and_show_families_input_dialog)
         
-        # Ищем последний файл реестра
-        register_files = [f for f in os.listdir(self.register_dir) if f.lower().endswith(('.xls', '.xlsx'))]
-        if register_files:
-            # Берем последний измененный файл
-            register_files.sort(key=lambda x: os.path.getmtime(os.path.join(self.register_dir, x)), reverse=True)
-            last_register = os.path.join(self.register_dir, register_files[0])
-            self.load_register_file(last_register, auto_load=True)
-            # Синхронизируем данные с процессором
-            self.processor.register_data = self.register_data
+        # Загружаем последний файл реестра из папки registry, если еще не загрузили
+        if not self.register_loaded_at_startup and os.path.exists(self.registry_dir):
+            register_files = [f for f in os.listdir(self.registry_dir) if f.lower().endswith(('.xls', '.xlsx'))]
+            if register_files:
+                # Берем последний измененный файл
+                register_files.sort(key=lambda x: os.path.getmtime(os.path.join(self.registry_dir, x)), reverse=True)
+                last_register = os.path.join(self.registry_dir, register_files[0])
+                self.load_register_file(last_register, auto_load=True)
+                self.register_loaded_at_startup = True
+                # Синхронизируем данные с процессором
+                self.processor.register_data = self.register_data
         
-        # Ищем последний файл АДПИ
-        adpi_files = [f for f in os.listdir(self.adpi_dir) if f.lower().endswith(('.xls', '.xlsx', '.ods'))]
-        if adpi_files:
-            adpi_files.sort(key=lambda x: os.path.getmtime(os.path.join(self.adpi_dir, x)), reverse=True)
-            last_adpi = os.path.join(self.adpi_dir, adpi_files[0])
-            self.load_adpi_xlsx(last_adpi, auto_load=True)
-            # Синхронизируем данные с процессором
-            self.processor.adpi_data = self.adpi_data
+        # Загружаем последний файл АДПИ из папки adpi, если еще не загрузили
+        if not self.adpi_loaded_at_startup and os.path.exists(self.adpi_dir):
+            adpi_files = [f for f in os.listdir(self.adpi_dir) if f.lower().endswith(('.xls', '.xlsx', '.ods'))]
+            if adpi_files:
+                adpi_files.sort(key=lambda x: os.path.getmtime(os.path.join(self.adpi_dir, x)), reverse=True)
+                last_adpi = os.path.join(self.adpi_dir, adpi_files[0])
+                self.load_adpi_xlsx(last_adpi, auto_load=True)
+                self.adpi_loaded_at_startup = True
+                # Синхронизируем данные с процессором
+                self.processor.adpi_data = self.adpi_data
+        
+        # После загрузки последних файлов проверяем, можно ли показать диалог
+        self.app.after(1000, self.check_and_show_families_input_dialog)
     
     def preview_current_family(self):
         """Предпросмотр текущей семьи в формате JSON"""

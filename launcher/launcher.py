@@ -15,10 +15,6 @@ from .statistics_manager import StatisticsManager
 from .github_manager import GitHubManager
 from .component_launcher import ComponentLauncher
 
-# Импортируем функцию экспорта матерей
-from utils.mothers_exporter import select_and_export_mothers
-
-
 class FamilySystemLauncher:
     def __init__(self):
         # Initialize paths - portable mode uses application directory
@@ -203,16 +199,6 @@ class FamilySystemLauncher:
         # In portable mode, check components immediately
         self.check_installation_status()
         self.gui.run()
-
-    def export_mothers_to_txt(self):
-        """Экспорт ФИО матерей в текстовый файл"""
-        try:
-            # Вызываем функцию экспорта матерей
-            select_and_export_mothers()
-        except Exception as e:
-            from tkinter import messagebox
-            messagebox.showerror("Ошибка", f"Ошибка при экспорте матерей в текстовый файл:\n{str(e)}")
-            print(f"❌ Ошибка экспорта матерей в текстовый файл: {e}")
 
 if __name__ == "__main__":
     launcher = FamilySystemLauncher()

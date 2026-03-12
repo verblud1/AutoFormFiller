@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autoformfiller"
+version = "1.0.0"
+description = "Система автоматического заполнения форм для семейных данных"
+readme = "README.md"
+authors = [{name = "verblud1", email = "not_now@not_now"}]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+requires-python = ">=3.7"
+dependencies = [
+    "customtkinter>=5.0.0",
+    "selenium>=4.15.0",
+    "pandas>=1.5.0",
+    "openpyxl>=3.0.0",
+    "python-dateutil>=2.8.0",
+    "webdriver-manager>=4.0.0",
+    "numpy>=1.21.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "black>=21.0",
+    "flake8>=3.8",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/autoformfiller"
+Repository = "https://github.com/yourusername/autoformfiller"
+
+[project.scripts]
+autoformfiller = "main:main"
