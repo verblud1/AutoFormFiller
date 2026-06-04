@@ -896,7 +896,14 @@ class AutoFormFillerMass:
             browser = self._detect_browser()
             if not browser:
                 self.log("❌ Не найден Chrome, Yandex или Chromium")
-                messagebox.showerror("Ошибка", "Не найден браузер Chrome, Yandex или Chromium")
+                messagebox.showerror("Ошибка", "Не найден браузер Chrome, Yandex или Chromium\n\nУстановите Google Chrome и перезапустите программу.")
+                return False
+            
+            # Проверяем, что браузер существует
+            browser_path = browser.get('path', '')
+            if browser_path and not os.path.exists(browser_path):
+                self.log(f"❌ Браузер не найден по пути: {browser_path}")
+                messagebox.showerror("Ошибка", f"Браузер не найден по пути:\n{browser_path}\n\nУстановите Google Chrome и перезапустите программу.")
                 return False
                 
             try:
@@ -931,6 +938,7 @@ class AutoFormFillerMass:
                 
             except Exception as e:
                 self.log(f"❌ Не удалось запустить драйвер: {e}")
+                messagebox.showerror("Ошибка", f"Не удалось запустить браузер:\n{e}\n\nУбедитесь, что Google Chrome установлен.")
                 return False
                 
         except Exception as e:
@@ -944,9 +952,11 @@ class AutoFormFillerMass:
         if system == "windows":
             try:
                 import winreg
+                # Проверяем наличие Chrome и Yandex
+                # Yandex использует тот же движок, что и Chrome, поэтому используем GOOGLE
                 browsers = [
                     (r'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe', 'Chrome', ChromeType.GOOGLE),
-                    (r'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\browser.exe', 'Yandex', ChromeType.YANDEX),
+                    (r'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\browser.exe', 'Yandex', ChromeType.GOOGLE),
                 ]
                 
                 for path, name, btype in browsers:
@@ -954,14 +964,23 @@ class AutoFormFillerMass:
                         with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path) as key:
                             browser_path = winreg.QueryValue(key, None)
                             if os.path.exists(browser_path):
-                                self.log(f"✅ Найден браузер: {name}")
-                                return {'name': name, 'type': btype}
+                                self.log(f"✅ Найден браузер: {name} по пути: {browser_path}")
+                                return {'name': name, 'type': btype, 'path': browser_path}
                     except Exception:
                         continue
                         
             except ImportError:
                 self.log("⚠️ Модуль winreg недоступен, пробуем стандартный Chrome")
-                return {'name': 'Chrome', 'type': ChromeType.GOOGLE}
+                
+            # Проверяем также через более надежный способ - по умолчанию Google Chrome
+            default_chrome_paths = [
+                r'C:\Program Files\Google\Chrome\Application\chrome.exe',
+                r'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
+            ]
+            for chrome_path in default_chrome_paths:
+                if os.path.exists(chrome_path):
+                    self.log(f"✅ Найден Google Chrome по умолчанию: {chrome_path}")
+                    return {'name': 'Chrome', 'type': ChromeType.GOOGLE, 'path': chrome_path}
                 
         elif system in ["linux", "redos"]:
             for path in ['/usr/bin/chromium-browser', '/usr/bin/chromium', '/usr/bin/google-chrome']:

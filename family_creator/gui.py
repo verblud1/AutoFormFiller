@@ -112,23 +112,6 @@ class JSONFamilyCreatorGUI(BaseGUI):
         
         # Запускаем загрузку файлов с задержкой после отображения окна
         self.app.after(2000, self.load_last_files)
-        
-        # Настройка интерфейса
-        self.setup_ui()
-        
-        # Показываем окно после создания интерфейса
-        self.app.deiconify()
-        
-        # Принудительно обновляем окно для отображения интерфейса
-        self.app.update()
-        self.app.update_idletasks()
-        
-        # Загрузка начальных данных
-        if self.load_on_startup:
-            self.load_json_on_startup()
-        
-        # Запускаем загрузку файлов с задержкой после отображения окна
-        self.app.after(2000, self.load_last_files)
     
     
     def run(self):
@@ -1804,6 +1787,17 @@ class JSONFamilyCreatorGUI(BaseGUI):
             return result
         except:
             return False
+    
+    def check_and_show_families_input_dialog(self):
+        """Проверка условий и показ диалога ввода семей"""
+        # Защита от повторного показа диалога
+        if self.families_input_shown:
+            return
+        
+        # Показываем диалог только если есть хотя бы один из файлов (реестр или АДПИ)
+        if self.register_data or self.adpi_data:
+            self.families_input_shown = True
+            self.show_families_input_dialog()
     
     def show_families_input_dialog(self):
         """Диалог для ввода списка семей (ФИО)"""

@@ -2,105 +2,46 @@
 # -*- coding: utf-8 -*-
 """
 Statistics Manager for Family System Launcher
-Handles processing statistics and tracking
+Обёртка над унифицированным модулем utils/statistics.py
 """
 
-import json
-import os
-from datetime import datetime, timedelta
+from utils.statistics import StatisticsManager as BaseStatisticsManager
 
-class StatisticsManager:
-    def __init__(self, config_dir):
-        self.config_dir = config_dir
-        self.stats_file = os.path.join(self.config_dir, "processing_statistics.json")
-        self.stats = self.load_statistics()
-        
-        # Initialize counters
-        self.success_count = 0
-        self.daily_stat = 0
-        self.weekly_stat = 0
 
+class StatisticsManager(BaseStatisticsManager):
+    """Менеджер статистики для лаунчера (наследует базовую функциональность).
+
+    Наследует все методы из utils/statistics.py и добавляет
+    специфичный для лаунчера вывод сообщений.
+    """
+
+    def update(self, success_count: int) -> bool:
+        """Обновление статистики с выводом сообщения.
+
+        Args:
+            success_count: Количество успешно обработанных семей.
+
+        Returns:
+            True если обновление успешно, иначе False.
+        """
+        result = super().update(success_count)
+        if result:
+            print(f"📊 Статистика обновлена: +{success_count} семей")
+        return result
+
+    # Сохраняем обратную совместимость со старыми именами методов
     def load_statistics(self):
-        """Load processing statistics"""
-        try:
-            if os.path.exists(self.stats_file):
-                with open(self.stats_file, 'r', encoding='utf-8') as f:
-                    stats = json.load(f)
-                    
-                    # Check structure of file
-                    if not isinstance(stats, dict):
-                        stats = {}
-                    
-                    # Check for required fields
-                    if 'daily' not in stats:
-                        stats['daily'] = {}
-                    if 'weekly' not in stats:
-                        stats['weekly'] = {}
-                    
-                    return stats
-            return {'daily': {}, 'weekly': {}}
-        except Exception as e:
-            print(f"⚠️ Ошибка загрузки статистики: {e}")
-            return {'daily': {}, 'weekly': {}}
+        """Загрузка статистики (алиас для load())."""
+        return self.load()
 
     def save_statistics(self):
-        """Save processing statistics"""
-        try:
-            with open(self.stats_file, 'w', encoding='utf-8') as f:
-                json.dump(self.stats, f, ensure_ascii=False, indent=2)
-            return True
-        except Exception as e:
-            print(f"⚠️ Ошибка сохранения статистики: {e}")
-            return False
+        """Сохранение статистики (алиас для save())."""
+        return self.save()
 
     def update_statistics(self, success_count):
-        """Update processing statistics"""
-        try:
-            today = datetime.now().strftime("%Y-%m-%d")
-            
-            # Update daily statistics
-            if today in self.stats['daily']:
-                self.stats['daily'][today] += success_count
-            else:
-                self.stats['daily'][today] = success_count
-            
-            # Update weekly statistics
-            # Get week number
-            week_num = datetime.now().strftime("%Y-W%W")
-            if week_num in self.stats['weekly']:
-                self.stats['weekly'][week_num] += success_count
-            else:
-                self.stats['weekly'][week_num] = success_count
-            
-            # Save statistics
-            self.save_statistics()
-            
-            print(f"📊 Статистика обновлена: +{success_count} семей")
-            return True
-        except Exception as e:
-            print(f"⚠️ Ошибка обновления статистики: {e}")
-            return False
+        """Обновление статистики (алиас для update())."""
+        return self.update(success_count)
 
     def get_statistics_for_period(self):
-        """Get statistics for day and week"""
-        try:
-            today = datetime.now().strftime("%Y-%m-%d")
-            today_stat = self.stats['daily'].get(today, 0)
-            
-            # Get current week statistics (Monday-Friday)
-            week_stat = 0
-            current_date = datetime.now()
-            
-            # Find Monday of current week
-            start_of_week = current_date - timedelta(days=current_date.weekday())
-            
-            # For each day of the week from Monday to Friday (0-4)
-            for i in range(5):
-                day_date = start_of_week + timedelta(days=i)
-                day_str = day_date.strftime("%Y-%m-%d")
-                week_stat += self.stats['daily'].get(day_str, 0)
-            
-            return today_stat, week_stat
-        except Exception as e:
-            print(f"⚠️ Ошибка получения статистики: {e}")
-            return 0, 0
+        """Получение статистики за период (алиас для get_for_period())."""
+        return self.get_for_period()

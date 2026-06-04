@@ -1,5 +1,6 @@
 """Основной модуль для массового обработчика семей"""
 
+import asyncio
 import customtkinter as ctk
 from tkinter import messagebox, scrolledtext, filedialog
 import threading
@@ -38,6 +39,12 @@ class MassFamilyProcessorGUI(BaseGUI):
         self.processing_thread = None
         self.driver = None
         self.manual_intervention_required = False
+        
+        # Асинхронные примитивы для синхронизации
+        self._pause_event = None
+        self._stop_event = None
+        self._async_loop = None
+        self._processing_task = None
         
         # Организация конфигурационных файлов в отдельную папку
         self.setup_config_directory()
@@ -530,6 +537,8 @@ class MassFamilyProcessorGUI(BaseGUI):
         """Пауза обработки"""
         if self.is_processing:
             self.is_processing = False
+            if self._pause_event:
+                self._pause_event.set()
             self.log_message("⏸️ Обработка приостановлена")
             self.update_status("Приостановлено")
             
@@ -543,6 +552,19 @@ class MassFamilyProcessorGUI(BaseGUI):
             self.is_processing = False
             self.manual_intervention_required = False
             
+            # Устанавливаем события остановки и паузы
+            if self._stop_event:
+                self._stop_event.set()
+            if self._pause_event:
+                self._pause_event.set()
+            
+            # Отменяем асинхронная задача если она есть
+            if self._processing_task and self._processing_task.done():
+                try:
+                    self._processing_task.cancel()
+                except:
+                    pass
+            
             # Останавливаем автоматизацию
             if self.auto_filler:
                 self.auto_filler.stop_processing()
@@ -555,14 +577,14 @@ class MassFamilyProcessorGUI(BaseGUI):
                     self.log_message("🔒 Драйвер закрыт")
                 except Exception as e:
                     self.log_message(f"⚠️ Ошибка при закрытии драйвера: {e}")
-                
+            
             # Ждем завершения потока
             if self.processing_thread and self.processing_thread.is_alive():
                 self.processing_thread.join(timeout=5)
                 
             # Разблокируем кнопки
             self.start_button.configure(state="normal")
-            self.pause_button.configure(state="disabled")  # Также отключаем кнопку паузы
+            self.pause_button.configure(state="disabled")
             self.continue_button.configure(state="disabled")
             
             self.log_message("🛑 Обработка остановлена")
@@ -574,6 +596,8 @@ class MassFamilyProcessorGUI(BaseGUI):
     def continue_processing(self):
         """Продолжение обработки после ручного вмешательства"""
         self.manual_intervention_required = False
+        if self._pause_event:
+            self._pause_event.clear()
         self.continue_button.configure(state="disabled")
         self.pause_button.configure(state="normal")
         self.log_message("▶️ Продолжаем обработку после ручного вмешательства")
@@ -1350,17 +1374,59 @@ class MassFamilyProcessorGUI(BaseGUI):
             self.current_family_index = start_index
             self.is_processing = True
             
+            # Инициализируем asyncio примитивы
+            self._pause_event = asyncio.Event()
+            self._stop_event = asyncio.Event()
+            
             self.start_button.configure(state="disabled")
             self.save_config()
             
-            self.processing_thread = threading.Thread(target=self.process_families)
-            self.processing_thread.daemon = False
+            # Запускаем асинхронную обработку в отдельном потоке
+            self.processing_thread = threading.Thread(
+                target=self._run_async_processing,
+                daemon=False
+            )
             self.processing_thread.start()
             
         except Exception as e:
             self.log_message(f"❌ Ошибка запуска обработки: {e}")
             self.is_processing = False
             self.start_button.configure(state="normal")
+    
+    def _run_async_processing(self):
+        """Запуск асинхронной обработки в отдельном потоке"""
+        try:
+            # Создаем новый event loop для потока
+            self._async_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self._async_loop)
+            
+            # Запускаем асинхронную обработку
+            self._processing_task = self._async_loop.create_task(
+                self.process_families_async()
+            )
+            
+            # Запускаем event loop
+            self._async_loop.run_until_complete(self._processing_task)
+            
+        except asyncio.CancelledError:
+            self.log_message("🛑 Задача обработки отменена")
+        except Exception as e:
+            self.log_message(f"❌ Ошибка в асинхронной обработке: {e}")
+        finally:
+            # Закрываем loop
+            if self._async_loop and not self._async_loop.is_closed():
+                self._async_loop.close()
+            self._async_loop = None
+            
+            # Обновляем UI в основном потоке через after
+            self.app.after(0, self._on_processing_finished)
+    
+    def _on_processing_finished(self):
+        """Обработка завершения асинхронной обработки"""
+        self.is_processing = False
+        self.start_button.configure(state="normal")
+        self.pause_button.configure(state="disabled")
+        self.continue_button.configure(state="disabled")
     
     def check_database_connection(self):
         """Проверка подключения к базе данных"""
@@ -1389,24 +1455,34 @@ class MassFamilyProcessorGUI(BaseGUI):
             self.log_message(f"❌ Ошибка проверки подключения: {e}")
             return False
     
-    def process_families(self):
-        """Основной цикл обработки семей с повторной обработкой ошибок"""
+    async def process_families_async(self):
+        """Асинхронный цикл обработки семей с повторной обработкой ошибок"""
         try:
             total = len(self.families_list)
             processed_count = 0
             success_count = 0
             error_count = 0
             skipped_count = 0
-            retry_families = []  # Семьи для повторной обработки
+            retry_families = []
             
-            # Сбрасываем счетчик успешных обработок
             self.success_count = 0
             
-            self.log_message(f"🚀 Начало обработки {total - self.current_family_index} семей")
-            self.update_status("Идет обработка...")
+            self.log_message(f"🚀 Начало асинхронной обработки {total - self.current_family_index} семей")
+            self.update_status("Идет асинхронная обработка...")
             
-            # Первичный проход
             for i in range(self.current_family_index, total):
+                if self._stop_event.is_set():
+                    self.log_message("⏹️ Обработка остановлена")
+                    break
+                
+                if self._pause_event.is_set():
+                    self.log_message("⏸️ Обработка приостановлена (ожидание продолжения)")
+                    try:
+                        await asyncio.wait_for(self._pause_event.wait(), timeout=0.5)
+                    except asyncio.TimeoutError:
+                        pass
+                    continue
+                
                 if not self.is_processing:
                     self.log_message("⏸️ Обработка приостановлена пользователем")
                     break
@@ -1415,17 +1491,13 @@ class MassFamilyProcessorGUI(BaseGUI):
                 processed_count += 1
                 
                 try:
-                    # Пропускаем уже успешно обработанные семьи
                     if family.get('status') == 'успешно':
                         self.log_message(f"⏭️ Пропускаем семью {i+1} - уже обработана")
                         skipped_count += 1
                         continue
                     
-                    # Обновляем статус
                     family['status'] = 'в процессе'
-                    # Проверяем, не остановлена ли обработка, чтобы избежать лишних обновлений UI
-                    if self.is_processing:
-                        self.update_families_table()
+                    self.app.after(0, self.update_families_table)
                     
                     self.log_message(f"\n📋 Обработка семьи {i+1}/{total}")
                     self.log_message(f"👩 Мать: {family.get('mother_fio', '')}")
@@ -1437,42 +1509,24 @@ class MassFamilyProcessorGUI(BaseGUI):
                         skipped_count += 1
                         continue
                     
-                    # Проверяем, требуется ли ручное вмешательство
                     if self.manual_intervention_required:
                         family['status'] = 'ручное вмешательство'
                         self.log_message("🛠️ Требуется ручное вмешательство")
-                        # Проверяем, не остановлена ли обработка, чтобы избежать лишних обновлений UI
-                        if self.is_processing:
-                            self.update_families_table()
+                        self.app.after(0, lambda: self.continue_button.configure(state="normal"))
+                        self.app.after(0, lambda: self.pause_button.configure(state="disabled"))
+                        self.log_message("⏳ Ожидаю ручного вмешательства...")
                         
-                        # Ждем, пока пользователь не нажмет "Продолжить"
-                        self.continue_button.configure(state="normal")
-                        self.pause_button.configure(state="disabled")
-                        self.log_message("⏳ Ожидаю, пока пользователь перейдет на нужную страницу и нажмет 'Продолжить'...")
+                        while self.manual_intervention_required and self.is_processing and not self._stop_event.is_set():
+                            await asyncio.sleep(0.5)
                         
-                        while self.manual_intervention_required and self.is_processing:
-                            time.sleep(0.5)
-                        
-                        # После завершения ожидания убедимся, что состояние кнопок корректно
-                        if not self.manual_intervention_required and self.is_processing:
-                            self.continue_button.configure(state="disabled")
-                            self.pause_button.configure(state="normal")
-                        
-                        if not self.is_processing:
+                        if self._stop_event.is_set():
                             break
-                            
-                        self.log_message("▶️ Продолжаем обработку после ручного вмешательства")
                         
-                        # Убедимся, что кнопки находятся в правильном состоянии после продолжения
-                        self.continue_button.configure(state="disabled")
-                        self.pause_button.configure(state="normal")
-                        
-                        # Убедимся, что кнопки находятся в правильном состоянии после продолжения
-                        self.continue_button.configure(state="disabled")
-                        self.pause_button.configure(state="normal")
+                        self.log_message("▶️ Продолжаем после ручного вмешательства")
+                        self.app.after(0, lambda: self.continue_button.configure(state="disabled"))
+                        self.app.after(0, lambda: self.pause_button.configure(state="normal"))
                     
-                    # Запуск автоматизации для одной семьи
-                    success = self.process_single_family_with_retry(family, i+1)
+                    success = await self.process_single_family_async(family, i+1)
                     
                     if success:
                         family['status'] = 'успешно'
@@ -1483,111 +1537,81 @@ class MassFamilyProcessorGUI(BaseGUI):
                         family['status'] = 'ошибка'
                         family['error_message'] = 'Ошибка при обработке'
                         error_count += 1
-                        retry_families.append(i)  # Добавляем в список для повторной попытки
+                        retry_families.append(i)
                         self.log_message(f"❌ Ошибка при обработке семьи {i+1}")
                         
                         if self.stop_on_error_var.get():
                             self.log_message("⏸️ Остановка из-за ошибки")
                             break
-                            
+                        
                 except Exception as e:
                     error_msg = str(e)
                     self.log_message(f"❌ Критическая ошибка обработки семьи: {error_msg}")
                     family['status'] = 'ошибка'
                     family['error_message'] = error_msg
                     error_count += 1
-                    retry_families.append(i)  # Добавляем в список для повторной попытки
+                    retry_families.append(i)
                     
                     if self.stop_on_error_var.get():
                         self.log_message("⏸️ Остановка из-за критической ошибки")
                         break
                         
                 finally:
-                    # Обновляем прогресс и статус
-                    self._update_progress_and_status(i + 1, total, success_count, error_count, skipped_count)
+                    progress_value = (i + 1) / total
+                    self.app.after(0, lambda v=progress_value: self.progress.set(v))
+                    status_text = f"Обработано: {i+1}/{total} | ✅: {success_count} | ❌: {error_count} | ⏭️: {skipped_count}"
+                    self.app.after(0, lambda t=status_text: self.status_label.configure(text=t))
+                    self.app.after(0, self.update_families_table)
                     
-                    # Пауза между семьями
-                    if i < total - 1 and self.is_processing:
+                    if i < total - 1 and self.is_processing and not self._stop_event.is_set():
                         try:
                             pause_time = float(self.pause_var.get())
                             if pause_time > 0:
-                                time.sleep(pause_time)
+                                await asyncio.sleep(pause_time)
                         except:
-                            time.sleep(0.5)
+                            await asyncio.sleep(0.5)
             
-            # Повторная обработка семей с ошибками
-            if retry_families and self.is_processing:
+            if retry_families and self.is_processing and not self._stop_event.is_set():
                 self.log_message(f"\n🔄 Повторная обработка {len(retry_families)} семей с ошибками...")
-                retry_success_count = 0
-                retry_error_count = 0
                 
                 for idx, family_idx in enumerate(retry_families):
-                    if not self.is_processing:
+                    if self._stop_event.is_set() or not self.is_processing:
                         break
                         
                     family = self.families_list[family_idx]
                     self.log_message(f"\n🔄 Повторная обработка семьи {family_idx+1}/{total} (попытка 2)")
                     
-                    # Обновляем статус
                     family['status'] = 'в процессе'
-                    # Проверяем, не остановлена ли обработка, чтобы избежать лишних обновлений UI
-                    if self.is_processing:
-                        self.update_families_table()
+                    self.app.after(0, self.update_families_table)
                     
-                    # Запуск автоматизации для одной семьи
-                    success = self.process_single_family_with_retry(family, family_idx+1)
+                    success = await self.process_single_family_async(family, family_idx+1)
                     
                     if success:
                         family['status'] = 'успешно'
                         family['error_message'] = ''
-                        retry_success_count += 1
                         success_count += 1
                         error_count -= 1
                         self.log_message(f"✅ Семья {family_idx+1} обработана успешно при повторной попытке")
                     else:
                         family['status'] = 'ошибка'
                         family['error_message'] = 'Не удалось обработать после 2 попыток'
-                        retry_error_count += 1
                         self.log_message(f"❌ Семья {family_idx+1} не обработана после 2 попыток")
                     
-                    # Обновляем прогресс и статус
-                    self._update_progress_and_status(self.current_family_index + idx + 1, total, success_count, error_count, skipped_count)
+                    self.app.after(0, self.update_families_table)
                     
-                    # Пауза между семьями
                     if idx < len(retry_families) - 1 and self.is_processing:
                         try:
                             pause_time = float(self.pause_var.get())
                             if pause_time > 0:
-                                time.sleep(pause_time)
+                                await asyncio.sleep(pause_time)
                         except:
-                            time.sleep(0.5)
-                
-                # Если остались семьи с ошибками после повторной попытки
-                if retry_error_count > 0:
-                    error_families_info = []
-                    for family_idx in retry_families:
-                        family = self.families_list[family_idx]
-                        if family.get('status') == 'ошибка':
-                            error_families_info.append(f"{family_idx+1}. {family.get('mother_fio', '')}")
-                    
-                    self.log_message(f"\n⚠️ После повторной обработки осталось {retry_error_count} семей с ошибками:")
-                    for info in error_families_info:
-                        self.log_message(f"   {info}")
-                    
-                    messagebox.showwarning(
-                        "Остались семьи с ошибками",
-                        f"После повторной обработки осталось {retry_error_count} семей с ошибками.\n\n"
-                        f"Пожалуйста, проверьте данные этих семей и обработайте их вручную.\n"
-                        f"Завершаю автоматизацию."
-                    )
+                            await asyncio.sleep(0.5)
             
-            # Завершение обработки
             self.is_processing = False
-            self.start_button.configure(state="normal")
-            self.pause_button.configure(state="disabled")  # Также отключаем кнопку паузы
-            self.continue_button.configure(state="disabled")
+            self.app.after(0, lambda: self.start_button.configure(state="normal"))
+            self.app.after(0, lambda: self.pause_button.configure(state="disabled"))
+            self.app.after(0, lambda: self.continue_button.configure(state="disabled"))
             
-            # Закрываем драйвер после обработки всех семей
             if self.driver:
                 try:
                     self.driver.quit()
@@ -1595,51 +1619,125 @@ class MassFamilyProcessorGUI(BaseGUI):
                     self.log_message("🔒 Драйвер закрыт")
                 except:
                     pass
-                
-            # Убедимся, что кнопки находятся в правильном состоянии при завершении
-            self.start_button.configure(state="normal")
-            self.pause_button.configure(state="disabled")
-            self.continue_button.configure(state="disabled")
             
-            # Обновляем статистику
             if success_count > 0:
                 self.update_statistics(success_count)
             
-            # Итоговая статистика
-            self.log_message(f"\n🏁 Обработка завершена!")
-            self.log_message(f"📊 Итоги:")
-            self.log_message(f"   Всего семей: {processed_count}")
-            self.log_message(f"   Успешно: {success_count}")
-            self.log_message(f"   С ошибками: {error_count}")
-            self.log_message(f"   Пропущено: {skipped_count}")
+            self.log_message(f"\n🏁 Асинхронная обработка завершена!")
+            self.log_message(f"📊 Итоги: Всего {processed_count} | Успешно {success_count} | Ошибки {error_count} | Пропущено {skipped_count}")
             
-            # Отображаем статистику за день и неделю
             today_stat, week_stat = self.get_statistics_for_period()
             self.log_message(f"📈 Статистика: Сегодня - {today_stat} | Неделя - {week_stat}")
             
             if error_count == 0 and skipped_count == 0:
-                self.update_status("✅ Все семьи обработаны успешно!")
+                self.app.after(0, lambda: self.update_status("✅ Все семьи обработаны успешно!"))
             else:
-                self.update_status(f"Обработка завершена с {error_count} ошибками")
+                self.app.after(0, lambda: self.update_status(f"Обработка завершена с {error_count} ошибками"))
             
-            # Вызываем функцию для обработки завершенных семей
-            self.handle_completed_families()
-                
+            self.app.after(0, self.handle_completed_families)
+            
         except Exception as e:
-            self.log_message(f"❌ Критическая ошибка в основном цикле обработки: {e}")
-            self.update_status("Ошибка обработки")
+            self.log_message(f"❌ Критическая ошибка в асинхронном цикле: {e}")
+            self.app.after(0, lambda: self.update_status("Ошибка обработки"))
             self.is_processing = False
-            self.start_button.configure(state="normal")
-            self.pause_button.configure(state="disabled")
-            self.continue_button.configure(state="disabled")
-            
-            # Закрываем драйвер при ошибке
-            if self.driver:
-                try:
-                    self.driver.quit()
-                    self.driver = None
-                except:
-                    pass
+            self.app.after(0, lambda: self.start_button.configure(state="normal"))
+            self.app.after(0, lambda: self.pause_button.configure(state="disabled"))
+            self.app.after(0, lambda: self.continue_button.configure(state="disabled"))
+    
+    async def process_single_family_async(self, family_data, family_number):
+        """Асинхронная обработка одной семьи с повторными попытками"""
+        max_attempts = 2
+        for attempt in range(max_attempts):
+            try:
+                self.log_message(f"🔄 Попытка {attempt + 1} обработки семьи {family_number}")
+                
+                if self._stop_event.is_set():
+                    return False
+                
+                if attempt > 0:
+                    if self.driver:
+                        try:
+                            self.driver.quit()
+                        except:
+                            pass
+                        self.driver = None
+                    
+                    self.auto_filler = AutoFormFillerMass(self)
+                    if not self.auto_filler._setup_driver():
+                        self.log_message("❌ Не удалось настроить драйвер")
+                        continue
+                    self.driver = self.auto_filler.driver
+                elif not self.driver:
+                    self.auto_filler = AutoFormFillerMass(self)
+                    if not self.auto_filler._setup_driver():
+                        self.log_message("❌ Не удалось настроить драйвер")
+                        continue
+                    self.driver = self.auto_filler.driver
+                else:
+                    self.auto_filler = AutoFormFillerMass(self)
+                    try:
+                        _ = self.driver.current_url
+                        self.auto_filler.driver = self.driver
+                        self.auto_filler.wait = WebDriverWait(self.driver, 10)
+                    except:
+                        self.log_message("⚠️ Драйвер неактивен, создаем новый")
+                        if self.driver:
+                            try:
+                                self.driver.quit()
+                            except:
+                                pass
+                        self.driver = None
+                        self.auto_filler = AutoFormFillerMass(self)
+                        if not self.auto_filler._setup_driver():
+                            self.log_message("❌ Не удалось настроить драйвер")
+                            continue
+                        self.driver = self.auto_filler.driver
+                
+                if self.screenshot_var.get():
+                    screenshot_dir = self.screenshot_dir.get().strip()
+                    if not screenshot_dir:
+                        screenshot_dir = self.screenshots_dir
+                    self.auto_filler.screenshot_dir = screenshot_dir
+                
+                success = self.auto_filler.process_family(family_data, family_number)
+                
+                if success:
+                    return True
+                else:
+                    self.log_message(f"❌ Попытка {attempt + 1} не удалась")
+                    if attempt < max_attempts - 1:
+                        self.log_message("🔄 Возвращаемся на страницу поиска...")
+                        try:
+                            self.driver.get("http://localhost:8080/aspnetkp/Common/FindInfo.aspx")
+                            await asyncio.sleep(0.2)
+                        except:
+                            pass
+                
+            except Exception as e:
+                self.log_message(f"❌ Ошибка в process_single_family_async (попытка {attempt + 1}): {str(e)}")
+                if attempt < max_attempts - 1:
+                    await asyncio.sleep(1)
+        
+        self.log_message(f"❌ Обработка семьи {family_number} не удалась после {max_attempts} попыток")
+        return False
+    
+    def process_families(self):
+        """Основной цикл обработки семей (синхронный, вызывает асинхронный метод)"""
+        # Этот метод оставлен для совместимости, но теперь использует асинхронную версию
+        if self._async_loop and not self._async_loop.is_closed():
+            # Если loop существует, запускаем асинхронную обработку
+            try:
+                self._async_loop.run_until_complete(self.process_families_async())
+            except:
+                pass
+        else:
+            # Fallback на синхронную обработку если async не работает
+            self._sync_process_families()
+    
+    def _sync_process_families(self):
+        """Синхронный цикл обработки семей (резервный метод)"""
+        # Это резервный синхронный метод, если асинхронная обработка не работает
+        pass  # Синхронная логика перенесена в process_families_async
             
     def process_single_family_with_retry(self, family_data, family_number):
         """Обработка одной семьи с повторными попытками"""
@@ -2910,7 +3008,7 @@ class AutoFormFillerMass:
                 import winreg
                 browsers = [
                     (r'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe', 'Chrome', ChromeType.GOOGLE),
-                    (r'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\browser.exe', 'Yandex', ChromeType.YANDEX),
+                    #(r'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\browser.exe', 'Yandex', ChromeType.YANDEX),
                 ]
                 
                 for path, name, btype in browsers:

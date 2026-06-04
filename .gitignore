@@ -104,7 +104,7 @@ tmp/
 .tmp/
 old/
 ненужное/
-files for fill queue/completed/
+files for fill queue/
 
 # Базы данных
 *.db
